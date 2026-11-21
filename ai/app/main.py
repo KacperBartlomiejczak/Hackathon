@@ -16,6 +16,8 @@ import yaml
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi import Path as PathParam
 
+from app import pipeline
+from app.llm import LLMError, OllamaClient
 from app.models import (
     AnalyzeResult,
     EvalResult,
@@ -54,9 +56,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.error("postgres pool init failed: %s", exc)
     else:
         logger.warning("DATABASE_URL not set")
+    app.state.llm = None
+    try:
+        app.state.llm = OllamaClient()
+    except LLMError as exc:
+        logger.error("llm client init failed: %s", exc)
     try:
         yield
     finally:
+        if app.state.llm is not None:
+            await app.state.llm.aclose()
         await app.state.http.aclose()
         if app.state.pool is not None:
             await app.state.pool.close()
@@ -107,10 +116,16 @@ async def health(response: Response) -> HealthStatus:
     )
 
 
-@app.post("/analyze/{document_id}", response_model=AnalyzeResult, status_code=501)
+@app.post("/analyze/{document_id}", response_model=AnalyzeResult)
 async def analyze(document_id: Annotated[int, PathParam(ge=1)]) -> AnalyzeResult:
-    logger.info("analyze document_id=%s result=not_implemented", document_id)
-    raise HTTPException(status_code=501, detail="not implemented")
+    if app.state.pool is None or app.state.llm is None:
+        raise HTTPException(status_code=503, detail="database or llm not configured")
+    try:
+        return await pipeline.analyze_document(app.state.pool, app.state.llm, app.state.config, document_id)
+    except pipeline.DocumentNotFound:
+        raise HTTPException(status_code=404, detail="document not found") from None
+    except pipeline.AnalysisFailed as exc:
+        raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
 
 
 @app.post("/reanalyze", response_model=ReanalyzeResult, status_code=501)
