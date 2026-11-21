@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import type { Config } from "./config.js";
 import { createDb } from "./db/client.js";
 import { buildLoggerOptions } from "./logger.js";
+import { documentsRoutes } from "./routes/documents.js";
 import { exportRoutes } from "./routes/export.js";
 import { findingsRoutes } from "./routes/findings.js";
 import { internalRoutes } from "./routes/internal.js";
@@ -70,6 +71,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
 
   await app.register(cors, {
     origin: config.WEB_ORIGIN,
+    methods: ["GET", "HEAD", "POST", "PATCH", "PUT", "OPTIONS"],
     // Lets the browser read the export file name and the truncation flag (web/src/lib/api.ts).
     exposedHeaders: ["Content-Disposition", "X-Export-Truncated"],
   });
@@ -78,6 +80,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   app.get("/health", { config: { rateLimit: false } }, async () => ({ status: "ok" }));
   const io = createSocketServer(app, config);
   await app.register(findingsRoutes, { db, storage, io });
+  await app.register(documentsRoutes, { db, storage });
   await app.register(exportRoutes, { db });
   await app.register(statsRoutes, { db });
   await app.register(internalRoutes, { io, internalToken: config.INTERNAL_TOKEN });

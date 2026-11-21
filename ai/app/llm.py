@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import time
 from typing import TypeVar
 
@@ -23,6 +24,13 @@ KEEP_ALIVE = "30m"  # keep the model resident between documents; a cold load alo
 WARMUP_TIMEOUT_S = 300.0
 
 T = TypeVar("T", bound=BaseModel)
+
+_DOC_TAG = re.compile(r"</?\s*document\s*>", re.IGNORECASE)
+
+
+def neutralize_delimiters(text: str) -> str:
+    """Page text must not be able to close/open our <document> wrapper (prompt-injection break-out)."""
+    return _DOC_TAG.sub(lambda m: m.group().replace("<", "‹").replace(">", "›"), text)
 
 
 class LLMError(RuntimeError):
@@ -88,7 +96,7 @@ class OllamaClient:
             "options": {"temperature": 0},
             "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": f"<document>\n{document}\n</document>"},
+                {"role": "user", "content": f"<document>\n{neutralize_delimiters(document)}\n</document>"},
             ],
         }
         started = time.monotonic()

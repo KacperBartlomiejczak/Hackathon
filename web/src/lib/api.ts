@@ -26,7 +26,7 @@ export type Endpoint = "findings" | "trend" | "summary" | "status" | "eval" | "s
 
 const ALL_ENDPOINTS: readonly Endpoint[] = ["findings", "trend", "summary", "status", "eval", "settings", "sources", "export"];
 // Endpoints that the api does not serve yet; remove a name from VITE_MOCKED_ENDPOINTS once it ships.
-const DEFAULT_MOCKED: readonly Endpoint[] = ["export"];
+const DEFAULT_MOCKED: readonly Endpoint[] = [];
 
 function resolveMocked(): ReadonlySet<Endpoint> {
   const all: string | undefined = import.meta.env.VITE_USE_MOCKS;

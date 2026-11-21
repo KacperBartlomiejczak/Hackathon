@@ -110,3 +110,21 @@
 - Found on the way: a Windows clone made before `.gitattributes` (PR #40) keeps CRLF in `infra/seaweedfs/init-bucket.sh` after `git merge origin/main`, because merge does not rewrite unchanged files. `s3-init` exits 2 and api never starts. Fresh clones are fine (blob is LF). One-time fix: `sed -i 's/\r$//' infra/seaweedfs/init-bucket.sh`.
 - #42 (api part, answer only): `documents.url_hash` = `sha256(url)` without normalisation, `UNIQUE`, and the collector upserts on it, so the URL is a stable key across re-seeds and `documents.id` is not. Suggested for ai-data: `gold.csv` keyed by `url`, `eval.py` joins on `url_hash`. No schema change needed.
 - Human correction: Claude ran `gh pr checkout 40` to read PR #40, which detached HEAD. HEAD was pointed back to `team/api` and, after the human's OK, the working tree was restored with `git restore --source=HEAD --staged --worktree -- :/`. PRs are now read via `git fetch origin pull/N/head`.
+
+## Issues #55 (M1 periodic update) and #54 (M1/M2/M3 aggregator)
+- Asked Claude to: check which open issues concern api and fix them. Claude found #55 and #54 (both `team:api`, shared with other teams), wrote a plan per CLAUDE.md, and the human accepted it ("Akceptuję plan, działaj"). The human confirmed the DB trigger and computing `isActive` against `ok` runs, and asked to keep `004_seen_tracking.sql` next to `003_trgm.sql` so docker runs it on its own.
+- Skill used: `data-contract` (followed by hand). The migration stays in `infra/db/`, not `infra/db/migrations/` as the skill says, because `docker-entrypoint-initdb.d` does not read subfolders.
+- #55: `infra/db/004_seen_tracking.sql` adds `documents.first_seen_at` / `last_seen_at`, filled by trigger `documents_track_seen`. The collector already upserts on `url_hash` and overwrites `fetched_at` on every re-crawl, so `collector/` needs no change. api computes `isActive` and returns it in `/findings`, `/findings/:id` and `/documents*`. The M1 export gets two columns: „Ostatnio widziana” and „Aktywna” (`tak`/`nie`).
+  - Change found while coding (same rule, same files): the collector marks a run `ok` right after queueing its items, before they are fetched. So `isActive` ignores runs that finished less than 1 h ago; without that, every ad of a source would look inactive for a few minutes after each crawl.
+- #54: `api/src/routes/documents.ts` = the named result aggregator. `GET /documents` (same filters as `/findings`, one object per document) and `GET /documents/:id` (with `reasons`). Each object has `document`, `modules {"1","2","3"}` and `overall` (maxScore, riskLevel, flaggedModules, findingsCount, lastFindingAt). The aggregation is the pure function `aggregateModules`.
+- Bug caught in verification: `/documents/3`, whose source had never been crawled, returned `isActive: false`. In a single-table select drizzle renders columns without the table name, so the subquery compared `crawl_runs.source_id` with itself. Fixed by writing the table names out in `api/src/db/seen.ts`, plus a regression test on the generated SQL.
+- Verified:
+  - typecheck, lint, `grep console.` empty, `npm test` 22/22 (new: 4 for `aggregateModules`, 1 for the SQL, 2 for the export).
+  - Scratch `pgvector/pgvector:0.8.7-pg16` with `infra/db` mounted as initdb: 001-004 ran on their own. Trigger checked:
+    - insert: first = last = fetched;
+    - re-crawl upsert: first unchanged, last moves forward;
+    - older retry: last does not move back;
+    - direct write to `first_seen_at`: ignored.
+  - Re-running 004 is a no-op. On a 001-003 database that already has rows, 004 backfills both columns from `fetched_at`.
+  - api run locally against that database. curl results for `/documents`, `?module=2`, `/documents/:id` (with and without findings), 404/400, `/findings`, `/findings/1` and the M1 CSV/JSON exports all match the contract. `isActive`: seen again → true, missed by a later `ok` run → false, source never crawled → true. Container removed afterwards.
+- Not done (other teams' parts of these issues): web view of `/documents` (#5), aggregator description in `docs/` and on the slide (#6). Detecting a content change under the same URL needs a content hash in the collector (lead).

@@ -10,6 +10,7 @@ writes to module_settings) to show the score crossing 0.8. Exit code 1 when any 
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -20,8 +21,11 @@ TIMEOUT_S = 300
 
 
 def post(base: str, body: dict[str, Any]) -> dict[str, Any]:
+    headers = {"content-type": "application/json"}
+    if os.getenv("INTERNAL_TOKEN"):
+        headers["X-Internal-Token"] = os.environ["INTERNAL_TOKEN"]
     req = urllib.request.Request(
-        f"{base}/analyze-text", data=json.dumps(body).encode(), headers={"content-type": "application/json"}
+        f"{base}/analyze-text", data=json.dumps(body).encode(), headers=headers
     )
     with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:  # noqa: S310 (local demo URL)
         return json.load(resp)

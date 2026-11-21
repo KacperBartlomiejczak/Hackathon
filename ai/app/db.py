@@ -50,6 +50,18 @@ async def fetch_document(pool: asyncpg.Pool, document_id: int) -> dict[str, Any]
     return dict(row) if row is not None else None
 
 
+async def list_document_ids(pool: asyncpg.Pool, ids: list[int] | None = None) -> list[int]:
+    """Ids to reanalyze: the existing ones among `ids`, or every `processed` document when `ids` is None."""
+    try:
+        if ids is None:
+            rows = await pool.fetch("SELECT id FROM documents WHERE status = 'processed' ORDER BY id")
+        else:
+            rows = await pool.fetch("SELECT id FROM documents WHERE id = ANY($1::bigint[]) ORDER BY id", ids)
+    except (OSError, asyncpg.PostgresError) as exc:
+        raise DatabaseError(f"list_document_ids failed: {exc}") from exc
+    return [int(r["id"]) for r in rows]
+
+
 # --- analysis pipeline persistence -------------------------------------------------------------
 
 _DOC_UPDATE = """

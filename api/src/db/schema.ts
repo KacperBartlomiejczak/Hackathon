@@ -1,4 +1,4 @@
-// Mirrors infra/db/001_init.sql + 003_trgm.sql (DDL source of truth). Used for queries only.
+// Mirrors infra/db/001_init.sql + 003_trgm.sql + 004_seen_tracking.sql (DDL source of truth). Used for queries only.
 // Columns are declared in camelCase; drizzle({ casing: "snake_case" }) maps them to DB names.
 import { sql } from "drizzle-orm";
 import {
@@ -101,6 +101,9 @@ export const documents = pgTable(
     duplicateOf: bigint({ mode: "number" }).references((): AnyPgColumn => documents.id),
     embedding: vector({ dimensions: 1024 }),
     status: text().notNull().default("fetched"),
+    // infra/db/004_seen_tracking.sql — maintained by the documents_track_seen trigger.
+    firstSeenAt: timestamp(tz).notNull().defaultNow(),
+    lastSeenAt: timestamp(tz).notNull().defaultNow(),
   },
   (t) => [
     check(
