@@ -93,3 +93,6 @@
 
 ## 2026-11-22 — M1 and M3 gold to 40
 - At the human's request the agent added one synthetic document per module in `ai/eval/synthetic_m1_m3.jsonl` (M1 positive: third party promoting Trading 212 with a referral code; M3 negative: educational text without a recommendation). Labels agent-proposed, to be reviewed. gold.csv: 40/40/40. Collector must load this file too (listed in `gold_urls_to_load.csv`).
+
+## 2026-11-22 — label review
+- The human reviewed and approved all agent-proposed labels (16 demo fixtures, tms.pl, 17 M2, 2 M1/M3); notes in `label_sheet.csv` now say "zatwierdzona przez czlowieka 22.11". gold.csv unchanged (120 rows, 40 per module).
