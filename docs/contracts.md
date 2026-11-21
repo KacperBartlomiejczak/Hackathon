@@ -135,7 +135,7 @@ CREATE TABLE module_settings (
 ## API (api/, port 3000)
 | Metoda | Ścieżka | Opis |
 |---|---|---|
-| GET | `/findings?module=&risk=&status=&source=&from=&to=&q=&page=` | lista z filtrami |
+| GET | `/findings?module=&risk=&status=&source=&from=&to=&q=&page=&pageSize=` | lista z filtrami i paginacją |
 | GET | `/findings/:id` | szczegóły + dokument + cytaty + link do screenshota |
 | PATCH | `/findings/:id/status` | `{status}` → zapis historii + emit `finding:updated` |
 | GET | `/stats/trend?module=&bucket=day` | liczba incydentów w czasie (wykres) |
@@ -147,6 +147,45 @@ CREATE TABLE module_settings (
 | POST | `/internal/alerts` | tylko z ai/ (nagłówek `X-Internal-Token`) |
 | POST | `/internal/crawl-status` | tylko z collectora (nagłówek `X-Internal-Token`) → emit `crawl:status` |
 | GET | `/sources` | lista źródeł + ostatni `crawl_run` każdego |
+
+`GET /findings` — parametry (wszystkie opcjonalne, błędna wartość → 400):
+`module` 1|2|3, `risk` low|medium|high, `status` new|in_review|confirmed|dismissed, `source` = `documents.source_kind` (web|facebook|instagram|tiktok|youtube|sample), `from`/`to` = data ISO, filtr po `findings.created_at`, `q` (1–200 znaków; `ILIKE` po tytule i `text_clean` dokumentu), `page` (domyślnie 1), `pageSize` (domyślnie 20, max 100). Sortowanie: `created_at` malejąco.
+
+`GET /findings` — odpowiedź (bez `reasons` i tekstu dokumentu):
+```json
+{
+  "items": [{
+    "id": 7, "module": 2, "score": 0.83, "riskLevel": "high", "label": "risk_info_insufficient",
+    "status": "new", "createdAt": "2026-11-21T18:02:11.000Z",
+    "document": { "id": 812, "url": "https://…", "title": "…", "sourceKind": "instagram" },
+    "firm": { "id": 4, "name": "…" },
+    "advertiser": null
+  }],
+  "page": 1, "pageSize": 20, "total": 134
+}
+```
+`firm` / `advertiser` = `{ id, name }` albo `null`.
+
+`GET /findings/:id` — odpowiedź (404 `{error:"not_found"}`, gdy brak; `id` niebędące liczbą → 400):
+```json
+{
+  "id": 7, "documentId": 812, "module": 2, "score": 0.83, "riskLevel": "high",
+  "label": "risk_info_insufficient",
+  "reasons": [{ "criterion": "risk_warning_present", "verdict": "fail", "quote": "…", "weight": 0.4 }],
+  "firmEntityId": 4, "advertiserEntityId": null, "model": "bielik-11b-q4", "promptVersion": "m2-v3",
+  "status": "new", "createdAt": "…",
+  "document": {
+    "id": 812, "url": "https://…", "sourceId": 3, "sourceKind": "instagram", "fetchedAt": "…",
+    "publishedAt": null, "authorHandle": "@…", "title": "…", "textClean": "pełna treść…", "status": "processed"
+  },
+  "firm": { "id": 4, "name": "…", "aliases": [], "type": "investment_firm", "isAuthorized": true,
+            "registerRef": null, "nip": null, "officialDomains": [], "socialHandles": [] },
+  "advertiser": null,
+  "screenshotUrl": "https://…presigned, ważny 15 min…",
+  "statusHistory": [{ "id": 1, "findingId": 7, "oldStatus": "new", "newStatus": "in_review", "changedBy": "…", "changedAt": "…" }]
+}
+```
+`screenshotUrl` = `null`, gdy dokument nie ma screenshotu albo podpisanie URL-a się nie powiodło. `statusHistory` rosnąco po `changedAt`. `firm`/`advertiser` = pełny rekord `entities` albo `null`.
 
 `POST /internal/crawl-status` — payload:
 ```json
