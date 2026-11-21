@@ -38,6 +38,26 @@ test('503 twice then 200 retries', async () => {
   s.close();
 });
 
+test('502 is final, no retry', async () => {
+  const s = await serve([502]);
+  assert.equal(await postAnalyze(1, s.url, 5), false);
+  assert.equal(s.hits(), 1);
+  s.close();
+});
+
+test('timeout is final, no retry', async () => {
+  let hits = 0;
+  const server = createServer(() => {
+    hits++; // never responds
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address() as AddressInfo;
+  assert.equal(await postAnalyze(1, `http://127.0.0.1:${port}`, 5, 100), false);
+  assert.equal(hits, 1);
+  server.closeAllConnections();
+  server.close();
+});
+
 test('closed port returns false without throwing', async () => {
   const s = await serve([200]);
   const url = s.url;

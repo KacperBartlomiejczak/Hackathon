@@ -26,3 +26,7 @@
 - Skille: brak nowych paczek. Nazwa modelu sprawdzona w rejestrze Ollamy (200).
 - Weryfikacja: `cp .env.example .env && docker compose --profile apps up` (bez `web`): wszystkie serwisy healthy, init-y exit 0, Bielik 6.7 GB + bge-m3 pobrane, `/health` ai i api 200. Człowiek zaakceptował plan i nadpisanie `.env`; agent sam cofnął błędny `sed` w compose.
 - Do zrobienia (poza zakresem): profil `apps` w compose (samo `up` nie startuje aplikacji), README/SECURITY.md (#8).
+## 2026-11-21 — fix po review PR #11: postAnalyze bez zdublowanych analiz
+- Zlecono: review PR-ów #11–#13 pod kątem podatności/wydajności (merge #13 i #11, #12 wstrzymany do #16), potem poprawka `postAnalyze`: timeout 60 s → 300 s, ponowienie tylko po błędzie połączenia i 503; timeout, 502 i inne kody kończą bez retry (inaczej LLM liczył ten sam dokument 2–3 razy). Plan zaakceptowany przed zmianami.
+- Skille: brak nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 7 testów `node:test` (nowe: 502 bez retry, timeout bez retry).
