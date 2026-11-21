@@ -38,6 +38,15 @@ def test_quotes_drop_hallucination() -> None:
     assert validate_reasons([good, bad], TEXT) == [good]
 
 
+def test_quotes_glued_sentences_need_each_part_verbatim() -> None:
+    text = "Dziś: kupuj XAU/USD przy 2650. Abonament 199 zł miesięcznie. Moja rekomendacja: wejdź teraz."
+    glued = Reason(criterion="a", verdict="fail", weight=0.4,
+                   quote="kupuj XAU/USD przy 2650. Moja rekomendacja: wejdź teraz.")
+    fake = Reason(criterion="b", verdict="fail", weight=0.4,
+                  quote="kupuj XAU/USD przy 2650. Zysk 100% gwarantowany w tydzień.")
+    assert validate_reasons([glued, fake], text) == [glued]
+
+
 def test_routing() -> None:
     assert route_document(TEXT, "https://www.acme.pl/x", None, [FIRM], 1).modules == [2]
     assert route_document(TEXT, "https://blog.pl/x", None, [FIRM], 1).modules == [1]
@@ -185,7 +194,7 @@ async def test_m2_finding_with_valid_quote(patched: FakePool) -> None:
     res = await pipeline.analyze_document(patched, FakeLLM(_output("Gwarantowany zysk.")), CONFIG, 7)  # type: ignore[arg-type]
     assert res.status == "processed" and patched.status == "processed"
     (f,) = res.findings
-    assert f.module == 2 and f.prompt_version == "m2-v3+m2-rules-v1" and f.firm_entity_id == 4
+    assert f.module == 2 and f.prompt_version == "m2-v3+m2-rules-v2" and f.firm_entity_id == 4
     assert {r.criterion for r in f.reasons} == {"no_guaranteed_returns", "risk_warning_present"}
     assert f.score > 0.3
 
@@ -204,3 +213,10 @@ async def test_llm_failure_marks_failed(patched: FakePool) -> None:
     with pytest.raises(pipeline.AnalysisFailed):
         await pipeline.analyze_document(patched, FakeLLM(None), CONFIG, 7)  # type: ignore[arg-type]
     assert patched.status == "failed"
+
+
+def test_m2_rules_past_year_return_and_effortless() -> None:
+    text = ("Fundusz Plus zarobił dla klientów 35% w ostatnim roku. "
+            "Pomnażaj oszczędności bez wysiłku. Gwarantowany stabilny wzrost Twojego kapitału.")
+    assert m2.rules_score(text) == pytest.approx(0.9)
+    assert m2.rules_score("Inwestowanie wiąże się z ryzykiem utraty kapitału.") == 0.0
