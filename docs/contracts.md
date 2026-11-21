@@ -140,8 +140,33 @@ CREATE TABLE module_settings (
 | POST | `/sources/:id/run` | ręczne odpalenie crawla (do demo) |
 | GET | `/export?format=csv\|json&...filtry` | raport dla modułów 1/2/3 |
 | POST | `/internal/alerts` | tylko z ai/ (nagłówek `X-Internal-Token`) |
+| POST | `/internal/crawl-status` | tylko z collectora (nagłówek `X-Internal-Token`) → emit `crawl:status` |
+| GET | `/sources` | lista źródeł + ostatni `crawl_run` każdego |
 
-Zdarzenia Socket.io: `alert:new` (finding high), `finding:updated`, `crawl:status`.
+`POST /internal/crawl-status` — payload:
+```json
+{ "crawlRunId": 12, "sourceId": 3, "status": "running", "itemsFound": 0, "error": null }
+```
+`status`: `running|ok|partial|failed`; `error` opcjonalne.
+
+`GET /sources` — element listy:
+```json
+{
+  "id": 3, "kind": "web", "name": "…", "startUrl": "https://…", "moduleHint": null,
+  "enabled": true, "cron": "0 */6 * * *",
+  "lastRun": { "id": 12, "status": "ok", "startedAt": "…", "finishedAt": "…", "itemsFound": 14, "error": null }
+}
+```
+`lastRun` = `null`, gdy źródło nie było jeszcze crawlowane.
+
+Zdarzenia Socket.io: `alert:new` (finding high), `finding:updated`, `crawl:status` (payload jak w `/internal/crawl-status`).
+
+## Kolejka BullMQ (collector, Valkey)
+Kolejka `crawl-source`, payload joba (do potwierdzenia z Kacprem):
+```json
+{ "sourceId": 3, "trigger": "manual" }
+```
+`trigger`: `manual` (`POST /sources/:id/run`) lub `schedule` (harmonogram z `sources.cron`).
 
 ## AI (ai/, port 8000)
 | Metoda | Ścieżka | Opis |
