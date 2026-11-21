@@ -72,3 +72,6 @@
 
 ## 2026-11-21 — issue #56 (ai-data part)
 - Added `ai/app/preprocess/README.md`: tokenization (dedup word tokens, simhash 3-grams, bge-m3 subword tokenizer) and embeddings as a preprocessing step. Facts checked against clean.py, dedup.py, embeddings.py. Infra can link it from the architecture description.
+
+## 2026-11-22 — gold set tooling
+- Added `ai/eval/build_gold.py` (+ `ai/tests/test_build_gold.py`): maps labelled sheet rows (0/1, POMIN skipped) to `document_id` by URL using a `documents` export, writes `ai/eval/gold.csv`. Labels were set by the human (obvious cases pre-labelled by the agent at the human's request, then reviewed). Synthetic M2 fixtures are in `ai/eval/synthetic_m2.jsonl`.
