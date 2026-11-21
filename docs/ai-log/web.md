@@ -65,3 +65,8 @@
 - Changes: `RUN apk upgrade --no-cache libxml2` in the runtime stage of web/Dockerfile (2.13.9-r2 -> 2.13.9-r3, CVE-2026-86144); result in web/SECURITY.md. Trivy 0.76.2 on the final image: CRITICAL 0, HIGH 0. `/`, `/findings`, `/calibration` return 200.
 - Not done: #51 (remove facebook/instagram/tiktok from the source filter) waits for the lead's decision on social adapters.
 - Human to verify: docker compose ps shows web healthy, browser console clean.
+
+## Clean browser console: favicon and form field names
+- Asked Claude to: review the dashboard in the browser (mock mode) for console errors and Issues, then fix them. No new skill.
+- Changes: `web/public/favicon.svg` + `<link rel="icon">` (removes the favicon.ico 404); `name` attribute on all filter inputs/selects, `ModuleSelect` and `StatusSelect` (removes the "form field has neither id nor name" Issue).
+- Human checked: console on the findings list in Chrome with DevTools. Still to check by hand: Trendy, Kalibracja, Źródła, finding details, loading/empty states, projector view.
