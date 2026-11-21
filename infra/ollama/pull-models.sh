@@ -22,6 +22,7 @@ pull_model() {
     return 0
   fi
   echo "Pulling Ollama model '${model}'..."
+  # Ollama may report failures as {"error": ...} with HTTP 200, so check the body and final status.
   tmp_log="$(mktemp)"
   trap 'rm -f "${tmp_log}"' EXIT INT TERM
   if ! curl -sfN -X POST "${OLLAMA_URL}/api/pull" \

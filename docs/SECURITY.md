@@ -4,11 +4,11 @@ Ostatnia aktualizacja: 2026-11-21
 
 ## 1. Architektura bezpieczeństwa stosu
 
-- **Izolacja kontenerów w sieci Docker:** wszystkie usługi (`postgres`, `valkey`, `seaweedfs`, `ollama`, `collector`, `api`, `ai`, `web`) działają w dedykowanej sieci bridge Docker Compose; na zewnątrz wystawione są wyłącznie wymagane porty (`5173`, `3000`, `8000`, `5432`, `6379`, `8333`, `11434`), a komunikacja wewnętrzna (`api`, `ai`, `collector`) odbywa się po nazwach usług w sieci wewnętrznej. Kontenery aplikacyjne `api` (`USER node`), `collector` (`USER pwuser`) oraz `ai` (`USER app`) działają jako użytkownicy bez uprawnień roota.
+- **Izolacja kontenerów w sieci Docker:** wszystkie usługi (`postgres`, `valkey`, `seaweedfs`, `ollama`, `collector`, `api`, `ai`, `web`) działają w dedykowanej sieci bridge Docker Compose; komunikacja wewnętrzna (`api`, `ai`, `collector`) odbywa się po nazwach usług w sieci wewnętrznej. Kontenery aplikacyjne `api` (`USER node`), `collector` (`USER pwuser`) oraz `ai` (`USER app`) działają jako użytkownicy bez uprawnień roota.
 - **Brak twardo zakodowanych sekretów w repozytorium:** zmienne wrażliwe trafiają do kontenerów wyłącznie przez `env_file: [.env]`, plik `.env` jest wykluczony w `.gitignore`, a `.githooks/pre-commit` blokuje przypadkowe zacommitowanie sekretów. W `.env.example` umieszczono wyłącznie lokalne wartości dev/demo do czystego startu — przed produkcją należy je zastąpić wygenerowanymi sekretami.
 - **Walidacja konfiguracji Zod przy starcie:** `api/src/config.ts` (oraz `collector/src/config.ts`) waliduje wszystkie zmienne środowiskowe schematem `zod` zanim aplikacja przyjmie ruch (m.in. `INTERNAL_TOKEN` min. 16 znaków, poprawność URL dla `DATABASE_URL`, `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `WEB_ORIGIN`, niepuste `S3_ACCESS_KEY` i `S3_SECRET_KEY`).
 - **Uwierzytelnianie ruchu wewnętrznego i CORS:** endpointy `POST /internal/alerts` i `POST /internal/crawl-status` w `api/` wymagają nagłówka `X-Internal-Token` porównywanego przez `timingSafeEqual` na skrótach SHA-256; logger `pino` maskuje (`redact`) nagłówki i pola wrażliwe. CORS w `api/` i Socket.io ograniczony jest do `WEB_ORIGIN`.
-- **Lokalne przetwarzanie LLM (on-premise):** cała inferencja LLM (`SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M`) i embeddingi (`bge-m3`) działają lokalnie w kontenerze `ollama` — żadne treści dokumentów ani zapytania nie są wysyłane do zewnętrznych API. W promptach (`ai/prompts/m2-risk-info/system.md`) treść stron jest izolowana w znacznikach `<document>...</document>` jako nieufne dane (ochrona przed prompt injection).
+- **Lokalne przetwarzanie LLM (on-premise):** cała inferencja LLM (`SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M`) i embeddingi (`bge-m3`) działają lokalnie w kontenerze `ollama` — żadne treści dokumentów ani zapytania nie są wysyłane do zewnętrznych API. W promptach (`ai/prompts/*/system.md`) treść stron jest izolowana w znacznikach `<document>...</document>` jako nieufne dane (ochrona przed prompt injection).
 - **Przypięte wersje i czyste licencje:** obrazy Dockera mają przypięte dokładne tagi (zero `latest`), `ai/pyproject.toml` stosuje `exclude-newer`, a komponenty dobrano pod kątem przekazania praw UKNF (Valkey BSD-3-Clause, SeaweedFS Apache-2.0, `asyncpg` Apache-2.0 zamiast `psycopg` LGPL-3.0).
 
 ## 2. Audyt paczek aplikacji (`npm` / `pip-audit` / `osv-scanner`)
@@ -17,8 +17,8 @@ Ostatnia aktualizacja: 2026-11-21
 |---|---|---|---|
 | `ai/` | `uvx pip-audit==2.10.1` na `uv.lock` (`ai/SECURITY.md`) + OSV (55 paczek wg Issue #44) | **0 znanych podatności** (`No known vulnerabilities found`) | `exclude-newer = "2026-11-07T00:00:00Z"` |
 | `web/` | `npm audit --audit-level=high` oraz `npm audit` (`web/SECURITY.md`) | **0 podatności** (`found 0 vulnerabilities`) | brak sekretów w kodzie i `web/Dockerfile` |
-| `api/` | `npm audit` odnotowany w `docs/ai-log/api.md` i Issue #44 | **0 podatności** | do dodania plik `api/SECURITY.md` od właściciela |
-| `collector/` | `npm audit` odnotowany w Issue #44 i `docs/ai-log/lead-collector.md` | **0 podatności** | do dodania plik `collector/SECURITY.md` od właściciela |
+| `api/` | `npm audit --audit-level=high` (`api/SECURITY.md`, 129 prod + 122 dev) | **0 podatności** (`found 0 vulnerabilities`) | dodatkowo `npm audit --omit=dev` = 0 |
+| `collector/` | `npm audit --audit-level=high` (Issue #44, `docs/ai-log/lead-collector.md`) | **0 podatności** | do dodania plik `collector/SECURITY.md` od właściciela |
 
 ### Komendy do powtórzenia audytu paczek
 
@@ -60,3 +60,8 @@ docker scout quickview --platform linux/amd64 <obraz:tag>
 # Alternatywnie w CI / na maszynie z Trivy:
 trivy image --severity HIGH,CRITICAL <obraz:tag>
 ```
+
+## 4. Znane ograniczenia (środowisko demo)
+
+- `postgres`, `valkey`, `seaweedfs` i `ollama` są wystawione na porty hosta dla wygody demo i debugowania. Na produkcji należy wystawiać wyłącznie `web` i `api`.
+- `seaweedfs` działa w trybie demo `-s3` bez pliku `-s3.config` (bez wymuszania podpisów S3 na porcie `8333`) — w produkcji należy włączyć konfigurację kluczy S3.
