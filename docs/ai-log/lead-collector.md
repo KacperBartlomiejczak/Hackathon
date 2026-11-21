@@ -38,3 +38,48 @@
 - Zlecono: wybrać jeden issue → plan → weryfikacja niezacommitowanej poprawki #19 (plus #16/#17) i przekazanie jej osobie #6 jako patch, bo team/lead-collector nie commituje plików infra. Plan zaakceptowany przed zmianami.
 - Skille: brak nowych paczek. Manifest `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` w registry.ollama.ai: 200, nazwa bez namespace: 404.
 - Weryfikacja: `docker compose run --rm --no-deps ollama-init` ze zmyślonym modelem → exit 1, z prawdziwym → exit 0. Patch (4 pliki) sprawdzony `git apply --check -R`. Komentarze w #19, #16, #17.
+## 2026-11-21 — kroki 16–17: fixtures z firmami z rejestru + CLI crawl
+- Zlecono: `fixtures/sample/demo.jsonl` (11 syntetycznych rekordów, tytuły `[SYNTETYCZNE]`: 4× M1, 3× M2, 2× M3, 2 negatywy) z firmami z `entities.csv` (XTB, DM BOŚ, mBank, Noble), `src/cli.ts` + `npm run crawl -- --source <id>`. Plan zaakceptowany przed zmianami; `--limit` pominięty (zmiana payloadu `crawl-source` = kontrakt z api).
+- Skille: `scraper-adapter`; zero nowych paczek. 2 subagenty (Sonnet) równolegle: dry-run `route_document` na fixture'ach, test na żywo w compose.
+- Weryfikacja: `tsc`, `eslint`, 9 testów; routing 11/11 zgodny z oczekiwanym modułem (po zmianie „Gwarantujemy” → „Gwarantowany” reguły M2 łapią też Noble). Na żywo: CLI kolejkuje job, 16 dokumentów `processed`, 2 findingi M2 (high). M1/M3 = 0, bo w `ai/app/modules` jest tylko M2 (ai-core).
+- Blokery u innych: `ai/app/embeddings.py` czyta `OLLAMA_BASE_URL` zamiast `OLLAMA_URL` → każdy `/analyze` = 502 (ai-data); Bielik > 60 s na CPU powoduje timeout LLM.
+
+## 2026-11-21 — issues #30, #29, #25 (strona web): code-split, prawdziwy `/export`, escaping CSV (wyjątek od własności za zgodą leada)
+- Zlecono: plan #30 (subagenty Sonnet do analizy web i specyfikacji `/export` z `origin/team/api`), potem implementacja. `React.lazy` dla stron (recharts tylko w chunku Trends), `export` usunięty z `DEFAULT_MOCKED`, komunikat o `X-Export-Truncated`, typ `ExportJson`, prefiks `'` w `csvField` dla `= + - @ TAB CR`.
+- Zero nowych paczek. Weryfikacja: `npm run build` (tsc + vite) bez warningu o chunkach >500 kB, `npm audit` = 0. Web nie ma lintu ani testów. Nie zrobione: Dockerfile → nginx (wymaga zmiany healthchecka w compose, który należy do infra). Mock CSV przestawiony na separator `;` (jak api). Suspense w `Layout`, żeby nawigacja nie znikała.
+
+## 2026-11-21 — issue #8 (czysty start) + #15/#16/#17/#19/#37
+Zlecono: plan i wdrożenie poprawek infra (wyjątek od własności za zgodą leada). Subagenci (sonnet) prześledzili statycznie `docker compose up --build` i zweryfikowali README/SECURITY.md.
+Zrobione: usunięty profil `apps`, depends_on (ai→ollama-init/s3-init, collector→api/ai), `.env.example` z wartościami dev + `S3_PUBLIC_ENDPOINT` + `WEB_ORIGIN`, `.gitattributes` LF, poprawny tag Bielika, README, docs/SECURITY.md. Sprawdzone: `docker compose config`, `docker manifest inspect` wszystkich obrazów, manifest Bielika w rejestrze Ollamy (200), build api z HEAD. Pełnego `up` nie uruchamiano.
+
+## 2026-11-21 — issue #43 (analiza w collectorze: współbieżność, timeout, re-crawl)
+Zlecono: plan zaakceptowany przed zmianami. Znalezione przy okazji: `void postAnalyze` w `onItem` nie ogranicza równoległości (N dokumentów = N naraz do jednego Bielika), a upsert resetował `status` na `fetched` przy każdym re-crawlu.
+Zrobione: semafor `ANALYZE_CONCURRENCY` (domyślnie 1) w `ai/client.ts`, timeout z `AI_ANALYZE_TIMEOUT_MS` (300 s, poprawiony komentarz), upsert nie rusza `status`, `/analyze` tylko dla `fetched`. Test: 3 analizy naraz → max 1 aktywna.
+Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline'u na bazie (re-crawl) i budżet timeoutu — czeka na decyzję ai-core w #41. Kolejka w pamięci: restart collectora gubi oczekujące analizy (dokumenty zostają `fetched`).
+## 2026-11-21 — krok 19: rotacja User-Agentów i walidacja proxy
+- Zlecono: lista 23 realnych UA (Chrome/Edge/Firefox/Safari/Opera, Windows/macOS/Linux/Android/iOS) w `src/userAgents.ts`, losowy UA per item zamiast round-robin z 3; walidacja `PROXY_LIST` (każdy wpis to URL http/https/socks5, pusty = bez proxy). Jitter 1–3 s i limit 2/host już były w adapterze web. Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 12 testów `node:test` (nowe: ≥ 20 unikalnych UA, losowanie z listy); `PROXY_LIST=foo` → błąd zod przy starcie. Proxy nie testowane na żywo (brak proxy).
+## 2026-11-21 — krok 20: discovery linków w adapterze web + 3 blogi live
+- Zlecono: `src/adapters/discovery.ts` (`extractLinks`: linki z tego samego hosta, bez plików, duplikatów i `www.`, filtr słów kluczowych po URL-u i tekście odnośnika bez polskich znaków, max 20), `web.discover` = start_url + linki z głębokości 1 (zwykły `fetch`, timeout 15 s; błąd = tylko start_url), w `sources.yaml` 3 blogi (jakoszczedzacpieniadze.pl, marciniwuc.com, subiektywnieofinansach.pl). Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 14 testów (nowe: filtr hosta, deduplikacja, zły `%`-escape, limit); discovery na żywo: 3 / 7 / 20 linków. Pełny crawl z Playwrightem w compose nie był powtarzany (ścieżka `fetch` bez zmian).
+## 2026-11-21 — krok 22: adapter YouTube (publiczny RSS kanału)
+- Zlecono: `src/adapters/youtube.ts`: `channel_id` z URL-a `/channel/UC…` albo ze strony `@handle` (cookie zgody `SOCS`), RSS `feeds/videos.xml` → 1 dokument na film (tytuł, kanał, data, opis; HTML z escapowaniem, bez screenshotu). Kanały wybrał agent i sprawdził je na żywo: Strefa Inwestorów, Inwestomat (finfluencerzy), XTB Polska (oficjalny). Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek (fetch + regex, bez parsera XML, bez klucza API).
+- Weryfikacja: `tsc`, `eslint`, 17 testów (nowe: parser RSS z encjami i złym videoId, escaping HTML, channelId bez sieci); discover na żywo: 3 × 15 filmów z opisami. Bez pełnego crawla w compose.
+## 2026-11-21 — krok 25: harmonogram z `sources.cron`
+- Zlecono: `src/scheduler.ts` (`syncSchedulers`: dla każdego włączonego źródła z cronem BullMQ `upsertJobScheduler('source-<id>', { pattern, tz: 'Europe/Warsaw' })` z payloadem `{ sourceId, trigger: 'schedule' }`; zły cron = log error tylko dla tego źródła; nieaktualne `source-*` usuwane), wywołanie przy starcie w `index.ts`, `syncSources` zwraca też `cron`, blogi i YouTube co 6 h w `sources.yaml`. Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 18 testów (nowy: dodanie, pominięcie wyłączonego i bez crona, zły cron, usunięcie nieaktualnego); na żywo w Valkey na osobnej kolejce testowej: harmonogram zapisany z tz, zły cron odrzucony przez BullMQ, nieaktualny usunięty, zaplanowany job ma `trigger: 'schedule'`; kolejka testowa skasowana.
+## 2026-11-21 — test kroków 19–25 w compose + ponowna analiza `failed`
+- Zlecono: test całości w compose, potem jedna linijka w `pipeline.ts`: `/analyze` także dla dokumentów `failed` (przy re-crawlu), żeby dokumenty z wcześniejszych błędów 502 dostały szansę na analizę. Akceptacja człowieka przed zmianą.
+- Skille: brak nowych paczek.
+- Weryfikacja na żywo: 8 źródeł, 6 harmonogramów, 7 crawl_runs `ok`, 96 dokumentów (16 sample, 36 web, 45 YouTube), pierwsze findingi M1/M2/M3. Zgłoszone do ai-core: `M1Output` odrzuca odpowiedź Bieliko (walidacja Pydantic), ~90 s na dokument na CPU. Po zmianie: `tsc`, `eslint`, 18 testów.
+## 2026-11-21 — issue #43: budżet czasu `/analyze`
+- Zlecono: przegląd issues dla lead-collector i plan; po akceptacji: domyślny `AI_ANALYZE_TIMEOUT_MS` 300 s → 600 s (M1+M2+M3 sekwencyjnie, LLM do 120 s na zimno), dedupe dokumentu w locie w `ai/client.ts` (overlapping re-crawl nie odpala drugiego `/analyze`), błąd analizy dopisywany do `crawl_runs.error` w `pipeline.ts`.
+- Skille: brak nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 8 testów klienta (nowy: ten sam dokument w locie = 1 wywołanie). Nie sprawdzone: pełny `docker compose up --build` (demo-check pkt 1–2).
+## 2026-11-21 — healthcheck `web` (z #49, #43)
+- Zlecono: naprawa healthchecka `web` w `docker-compose.yml` (używał `node`, którego nie ma w `nginx:alpine`) → `wget` na `127.0.0.1:5173` (nginx słucha tylko IPv4). Plik infra, zmiana jednej linijki za zgodą człowieka; do powiadomienia osoby #6.
+- Weryfikacja: `docker compose up -d --no-deps web` → `healthy` po 25 s (wcześniej `unhealthy`). Nie sprawdzone: czysty start od zera (`down -v` + `up --build`).

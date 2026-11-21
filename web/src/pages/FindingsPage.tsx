@@ -6,7 +6,7 @@ import { FiltersBar, type FilterKey } from "@/components/FiltersBar";
 import { FindingsTable } from "@/components/FindingsTable";
 import { Pagination } from "@/components/Pagination";
 import { DemoBadge } from "@/components/DemoBadge";
-import { exportFindings, fetchFindings } from "@/lib/api";
+import { exportFindings, fetchFindings, fetchSources } from "@/lib/api";
 import { downloadBlob } from "@/lib/download";
 import type { ExportFormat } from "@/lib/exportFormat";
 import type { FindingStatus, FindingsFilters, ModuleId, RiskLevel, SourceKind } from "@/types";
@@ -35,6 +35,10 @@ export default function FindingsPage() {
     queryKey: ["findings", filters],
     queryFn: () => fetchFindings(filters),
   });
+
+  // Source filter lists only kinds that have a configured source; on error it falls back to all kinds.
+  const sources = useQuery({ queryKey: ["sources"], queryFn: fetchSources, staleTime: 60_000 });
+  const sourceKinds = sources.data ? [...new Set(sources.data.map((s) => s.kind))] : undefined;
 
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
@@ -77,6 +81,7 @@ export default function FindingsPage() {
 
       <FiltersBar
         values={values}
+        sourceKinds={sourceKinds}
         hasFilters={hasFilters}
         onChange={setFilter}
         onClear={() => setParams({}, { replace: true })}

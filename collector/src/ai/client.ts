@@ -2,17 +2,43 @@ import { config } from '../config.js';
 import { logger } from '../logger.js';
 
 const MAX_ATTEMPTS = 3;
-// ai worst case: LLM 2x60 s + embedding + S3; a shorter timeout makes us re-trigger a still-running analysis.
-const TIMEOUT_MS = 300_000;
+// A shorter timeout makes us give up on an analysis the ai still runs; tune via AI_ANALYZE_TIMEOUT_MS.
+const TIMEOUT_MS = config.AI_ANALYZE_TIMEOUT_MS;
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
+// In-process semaphore: crawl-item jobs fire analyses without awaiting them, so without it N documents = N parallel LLM runs.
+// shortcut: queue is lost on restart (documents stay `fetched`); move to a BullMQ queue if that matters.
+let running = 0;
+const inFlight = new Set<number>();
+const waiting: Array<() => void> = [];
+async function acquire(): Promise<void> {
+  if (running < config.ANALYZE_CONCURRENCY) {
+    running++;
+    return;
+  }
+  await new Promise<void>((resolve) => waiting.push(resolve)); // slot is handed over by release()
+}
+function release(): void {
+  const next = waiting.shift();
+  if (next) next();
+  else running--;
+}
+
 /** Triggers AI analysis of a document. Never throws; false = document stays `fetched`. */
-export async function postAnalyze(
-  documentId: number,
-  baseUrl: string = config.AI_URL,
-  backoffMs = 1000,
-  timeoutMs = TIMEOUT_MS,
-): Promise<boolean> {
+export async function postAnalyze(documentId: number, baseUrl: string = config.AI_URL, backoffMs = 1000, timeoutMs = TIMEOUT_MS): Promise<boolean> {
+  // Same document already queued/running (e.g. overlapping re-crawl): a second run would double the LLM work.
+  if (inFlight.has(documentId)) return true;
+  inFlight.add(documentId);
+  await acquire();
+  try {
+    return await analyze(documentId, baseUrl, backoffMs, timeoutMs);
+  } finally {
+    inFlight.delete(documentId);
+    release();
+  }
+}
+
+async function analyze(documentId: number, baseUrl: string, backoffMs: number, timeoutMs: number): Promise<boolean> {
   const started = Date.now();
   let status: number | undefined;
   let err: unknown;

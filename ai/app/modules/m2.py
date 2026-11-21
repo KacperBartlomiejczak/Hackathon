@@ -5,12 +5,15 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
+import yaml
 from pydantic import BaseModel, Field
 
 from app.llm import OllamaClient
 from app.models import Reason
+from app.modules.common import RULES_DIR, emb_score, llm_reasons
+from app.modules.common import llm_score as common_llm_score
 from app.prompts import load_prompt
 from app.scoring import combine
 
@@ -20,23 +23,19 @@ PROMPT_PATH = "m2-risk-info/system.md"
 MAX_DOC_CHARS = 8000  # head of the document only; quotes are validated against the full text
 LABEL = "risk_info_insufficient"
 
-CriterionId = Literal[
-    "risk_warning_present", "risk_prominence", "profit_risk_balance", "no_guaranteed_returns"
-]
 
-# Share of each criterion in the llm part of the score (sums to 1).
-CRITERION_WEIGHTS: dict[str, float] = {
-    "risk_warning_present": 0.35,
-    "risk_prominence": 0.20,
-    "profit_risk_balance": 0.25,
-    "no_guaranteed_returns": 0.20,
-}
+def _load() -> tuple[str, dict[str, float], list[tuple[str, float, re.Pattern[str]]]]:
+    data = yaml.safe_load((RULES_DIR / "m2.yaml").read_text(encoding="utf-8"))
+    weights = {c["id"]: float(c["weight"]) for c in data["criteria"]}
+    rules = [(r["id"], float(r["weight"]), re.compile(r["pattern"], re.IGNORECASE)) for r in data["rules"]]
+    if abs(sum(weights.values()) - 1.0) > 1e-6:
+        raise ValueError("rules/m2.yaml: criteria weights must sum to 1")
+    return data["version"], weights, rules
 
-_RULES = re.compile(
-    r"gwarantowan\w+|pewn\w+ (?:zysk|zarob)\w*|bez ryzyka|zero ryzyka|bezpieczn\w+ inwestycj\w+"
-    r"|zarabiaj\w*|\d+\s?% (?:miesięcznie|tygodniowo|rocznie)",
-    re.IGNORECASE,
-)
+
+# CRITERION_WEIGHTS: criterion id -> share of the llm score (sums to 1)
+RULES_VERSION, CRITERION_WEIGHTS, _RULE_PATTERNS = _load()
+CriterionId = Literal[tuple(CRITERION_WEIGHTS)]  # type: ignore[valid-type]  # enum in the LLM JSON schema
 
 
 class CriterionResult(BaseModel):
@@ -60,37 +59,29 @@ class M2Result:
 
 
 def rules_score(text: str) -> float:
-    """Cheap phrase heuristic 0..1 (distinct hits * 0.35)."""
-    hits = {m.group().lower() for m in _RULES.finditer(text)}
-    return min(1.0, 0.35 * len(hits))
+    """Phrase heuristic 0..1: sum of the weights of the matched rules (rules/m2.yaml)."""
+    return min(1.0, sum(w for _, w, rx in _RULE_PATTERNS if rx.search(text)))
 
 
 def llm_score(outputs: list[CriterionResult], valid: set[str]) -> float:
     """Weighted confidence of failed criteria whose quote survived validation."""
-    return sum(
-        CRITERION_WEIGHTS[o.criterion] * o.confidence
-        for o in outputs
-        if o.verdict == "fail" and o.criterion in valid
-    )
+    return common_llm_score(outputs, valid, CRITERION_WEIGHTS)
 
 
 async def run_m2(llm: OllamaClient, text: str) -> M2Result:
     prompt = load_prompt(PROMPT_PATH)
     out = await llm.generate(prompt.text, text[:MAX_DOC_CHARS], M2Output)
-    seen: set[str] = set()
-    reasons: list[Reason] = []
-    for c in out.criteria:
-        if c.criterion in seen or not c.quote.strip():
-            continue  # one verdict per criterion; no quote -> no reason
-        seen.add(c.criterion)
-        reasons.append(
-            Reason(criterion=c.criterion, verdict=c.verdict, quote=c.quote.strip(),
-                   weight=CRITERION_WEIGHTS[c.criterion])
-        )
+    reasons = llm_reasons(out.criteria, CRITERION_WEIGHTS)  # one per criterion; no quote -> no reason
     return M2Result(reasons=reasons, outputs=out.criteria, rules=rules_score(text),
-                    prompt_version=prompt.version, model=llm.model)
+                    prompt_version=f"{prompt.version}+{RULES_VERSION}", model=llm.model)
 
 
-def score_m2(result: M2Result, valid_reasons: list[Reason], weights: dict[str, float]) -> float:
+async def m2_emb(doc_vector: list[float] | None, config: dict[str, Any]) -> float | None:
+    """Similarity to the M2 anchors (misleading-ad phrases); None without a document vector."""
+    return None if doc_vector is None else await emb_score(doc_vector, 2, config)
+
+
+def score_m2(result: M2Result, valid_reasons: list[Reason], weights: dict[str, float],
+             emb: float | None = None) -> float:
     valid = {r.criterion for r in valid_reasons}
-    return combine(llm_score(result.outputs, valid), result.rules, None, weights)
+    return combine(llm_score(result.outputs, valid), result.rules, emb, weights)

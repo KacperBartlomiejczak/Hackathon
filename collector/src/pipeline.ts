@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { adapters } from './adapters/index.js';
 import type { CrawlContext } from './adapters/types.js';
 import { postAnalyze } from './ai/client.js';
@@ -11,15 +11,9 @@ import { logger } from './logger.js';
 import type { Handlers, Queues } from './queue/index.js';
 import { urlHash, type Storage } from './storage/s3.js';
 import type { CrawlItemJob, CrawlSourceJob } from './types/index.js';
+import { randomUserAgent } from './userAgents.js';
 
-// shortcut: 3 UAs only, step 19 brings a list of >= 20.
-const USER_AGENTS = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
-  'Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0',
-];
 const PROXIES = config.PROXY_LIST.split(',').map((p) => p.trim()).filter(Boolean);
-let uaIdx = 0;
 let proxyIdx = 0;
 
 type SourceRow = typeof sources.$inferSelect;
@@ -30,7 +24,7 @@ function makeContext(source: SourceRow, crawlRunId: number, storage: Storage): C
     crawlRunId,
     source: { name: source.name, startUrl: source.startUrl },
     storage,
-    nextUserAgent: () => USER_AGENTS[uaIdx++ % USER_AGENTS.length] as string,
+    nextUserAgent: randomUserAgent,
     nextProxy: () => (PROXIES.length ? PROXIES[proxyIdx++ % PROXIES.length] : undefined),
   };
 }
@@ -103,16 +97,28 @@ export function createPipeline(deps: { db: Db; storage: Storage; queues: Queues 
         title: doc.title,
         htmlKey: doc.htmlKey,
         screenshotKey: doc.screenshotKey,
-        status: 'fetched',
       };
+      // status is not in `values`: new rows get the column default `fetched`, a re-crawl keeps the analysed state.
       const [row] = await db
         .insert(documents)
         .values({ ...values, urlHash: urlHash(doc.url) })
         .onConflictDoUpdate({ target: documents.urlHash, set: values })
-        .returning({ id: documents.id });
+        .returning({ id: documents.id, status: documents.status });
       if (!row) throw new Error('documents upsert returned nothing');
-      logger.info({ documentId: row.id, url: doc.url, kind: doc.sourceKind }, 'document stored');
-      void postAnalyze(row.id); // fire-and-forget, never throws; ai down = document stays `fetched`
+      logger.info({ documentId: row.id, url: doc.url, kind: doc.sourceKind, status: row.status }, 'document stored');
+      // Unanalysed or previously failed only: a re-crawl must not rerun the LLM on processed docs. Fire-and-forget, never throws.
+      if (row.status === 'fetched' || row.status === 'failed') {
+        void postAnalyze(row.id).then(async (ok) => {
+          if (ok || !crawlRunId) return;
+          // Surface per-document failure in crawl_runs (the run itself is already closed as ok).
+          const msg = `analyze failed for document ${row.id}`;
+          await db
+            .update(crawlRuns)
+            .set({ error: sql`CASE WHEN ${crawlRuns.error} IS NULL THEN ${msg} ELSE ${crawlRuns.error} || '; ' || ${msg} END` })
+            .where(eq(crawlRuns.id, crawlRunId))
+            .catch((err: unknown) => logger.warn({ crawlRunId, err }, 'could not record analyze failure'));
+        });
+      }
     },
   };
 }

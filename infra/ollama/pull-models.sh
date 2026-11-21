@@ -3,7 +3,7 @@ set -eu
 
 OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
 OLLAMA_EMBED_MODEL="${OLLAMA_EMBED_MODEL:-bge-m3}"
-OLLAMA_LLM_MODEL="${OLLAMA_LLM_MODEL:-bielik-11b-v2.3-instruct:Q4_K_M}"
+OLLAMA_LLM_MODEL="${OLLAMA_LLM_MODEL:-SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M}"
 
 echo "Waiting for Ollama at ${OLLAMA_URL}..."
 i=0
@@ -22,9 +22,34 @@ pull_model() {
     return 0
   fi
   echo "Pulling Ollama model '${model}'..."
-  curl -sfN -X POST "${OLLAMA_URL}/api/pull" \
+  # Ollama may report failures as {"error": ...} with HTTP 200, so check the body and final status.
+  tmp_log="$(mktemp)"
+  trap 'rm -f "${tmp_log}"' EXIT INT TERM
+  if ! curl -sfN -X POST "${OLLAMA_URL}/api/pull" \
     -H "Content-Type: application/json" \
-    -d "{\"name\":\"${model}\"}" | tail -n 5
+    -d "{\"name\":\"${model}\"}" >"${tmp_log}"; then
+    cat "${tmp_log}" >&2 || true
+    rm -f "${tmp_log}"
+    trap - EXIT INT TERM
+    echo "Failed to pull model '${model}' (HTTP/network error)." >&2
+    return 1
+  fi
+  tail -n 5 "${tmp_log}"
+  if grep -Eq '"error"[[:space:]]*:' "${tmp_log}"; then
+    grep -E '"error"[[:space:]]*:' "${tmp_log}" >&2 || true
+    rm -f "${tmp_log}"
+    trap - EXIT INT TERM
+    echo "Ollama reported an error pulling '${model}'." >&2
+    return 1
+  fi
+  if ! grep -Eq '"status"[[:space:]]*:[[:space:]]*"success"' "${tmp_log}"; then
+    rm -f "${tmp_log}"
+    trap - EXIT INT TERM
+    echo "Ollama pull for '${model}' did not finish with status=success." >&2
+    return 1
+  fi
+  rm -f "${tmp_log}"
+  trap - EXIT INT TERM
   echo "Model '${model}' pulled."
 }
 

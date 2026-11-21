@@ -42,3 +42,121 @@
 - **Task:** `LOG_LEVEL=info` (shared with pino, lowercase) crashed `ai` at startup (`ValueError: Unknown level`). Added `_resolve_log_level()` in `main.py`: upper-cases, maps pino-only `trace` to DEBUG, unknown value falls back to INFO with a warning instead of crashing. Test: `tests/test_app.py::test_resolve_log_level`.
 - **Verified:** `LOG_LEVEL=info` and `LOG_LEVEL=verbose` import cleanly, ruff clean, 49 passed / 5 skipped. **Not verified:** container start in compose.
 - **Not ours (reported to owners):** #19 (infra) — `bielik-11b-v2.3-instruct:Q4_K_M` is absent in the registry; `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` exists (manifest 200, ~6.7 GB). #16 (infra) — compose volume `./infra/seed:/app/seed` shadows `ai/seed`.
+
+## 2026-11-21 — live test, M1/M3, alerts, demo set
+- **Task:** live check on Ollama (Bielik 11B Q4 + bge-m3), then M1 (`modules/m1.py`, prompt `m1-v1`), M3 (`modules/m3.py`, `rules/m3.yaml`, prompt `m3-v1`, hybrid rules + anchor similarity + LLM), `alerts.py` (`POST /internal/alerts`, `X-Internal-Token`, 1 retry, never fails the analysis), embedding anchors in the score, `analysis.py` shared by the pipeline and the new demo endpoint `POST /analyze-text` (saves nothing). Demo: `ai/demo/scenarios.{json,md}`, `ai/scripts/{live_check,demo_check}.py`. Skill: `risk-classifier`.
+- **Measured:** M2 call 30–55 s warm, cold start > 60 s (first call timed out) → `llm.timeout_s` 60→120 (it was a constant, config value was ignored), `keep_alive` 30m, background warm-up at startup. Embedding 0.1–0.3 s warm. Bielik returned schema-valid JSON in every run; all non-empty quotes passed rapidfuzz (≥ 90). Empty quote + `fail` is dropped (no quote, no flag).
+- **Verified in Docker (own pgvector Postgres + SeaweedFS, host Ollama):** image builds (529 MB), `/health` ok, `seed_entities` 86 inserted then 86 updated on restart, alerts only for `high` (3 received by a mock api with the right token and contract payload), `module_settings` weights override config (doc c: 0.766 → 0.824 → alert), `/eval` returns metrics.
+- **Bug found by tests:** M3 rule `Twoim portfelem` did not match (`twoj\w+`); fixed to `tw\w+`.
+- **Human to verify:** M1/M3 prompts and criteria, M3 phrase list, anchor phrases, `embedding.floor/ceil` (0.45/0.75, set from 3 samples), M1 keeps one finding per document (strongest candidate).
+- **Not verified / open:** real precision/recall (`ai/eval/gold.csv` is header only, ai-data); `docker compose up` of the whole stack (compose `.env` has empty `POSTGRES_PASSWORD`, `./infra/seed:/app/seed` mount still crashes `ai` with `ModuleNotFoundError: seed.seed_entities`, #16); default `OLLAMA_LLM_MODEL` tag (#19); `OLLAMA_BASE_URL` aliased in `app/__init__.py` as a workaround until ai-data switches `embeddings.py` to `OLLAMA_URL`; M2 has no embedding anchors, so `w_emb` is dropped for M2; `/analyze-text` is not in `contracts.md`.
+
+## 2026-11-21 — review of AI issues (#36, #19, #16)
+- **Task:** go through open issues touching `ai`, fix what is in ai-core scope, close only what is fixed on `main`.
+- **Result:** merged `origin/main` into `team/ai-core` (clean; ruff clean, 68 passed / 5 skipped), pushed. PR #38 is mergeable. #36: workaround (`OLLAMA_URL` → `OLLAMA_BASE_URL` alias in `ai/app/__init__.py`) is in PR #38, proper fix is in ai-data PR #34. #19 and #16 are infra files (`.env.example`, `pull-models.sh`, `docker-compose.yml`), patch from the lead is not in any PR yet. Not closed: nothing of this is on `main` yet.
+- **Human to verify:** after merging #34/#38 and the infra PR, `docker compose up --build` then `POST /analyze/1` → 200.
+
+## 2026-11-21 — local live test of /analyze (no Docker for ai, infra/ untouched)
+- **Task:** run `ai` with uvicorn against a throwaway pgvector Postgres + SeaweedFS (docker run, ports 5432/8333), host Ollama, mock api on :3000; seed the 4 `ai/demo/scenarios.json` texts as documents 1–4; `POST /analyze/{1..4}`.
+- **Result:** all 200 in 40–63 s each (Bielik 11B Q4 warm). Doc 1 legit XTB → M2 low 0.00; doc 2 scam → M1 high 0.848 (alert sent); doc 3 borderline → M1 medium 0.766 (no alert; calibrated weights push it to high); doc 4 shadow advisory → M3 high 0.914 (alert sent). Alerts reached the mock api with the right token. Env had only `OLLAMA_URL` (alias worked, no localhost fallback).
+- **Found:** each document gets one finding (router picks one module), not M1+M2+M3 at once. After ai-data PR #34 the test `test_ollama_base_url_alias` failed (it asserted `emb.OLLAMA_BASE_URL`); made it accept both names, so #38 needs no rebase. Merge #38 + #34 is textually clean, 69 passed on the merged tree.
+- **Not verified:** local `.env` (read was denied by permissions, values passed explicitly); the model name `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` is not pulled on this machine, used `hf.co/SpeakLeash/Bielik-11B-v2.3-Instruct-GGUF:Q4_K_M` (same size as `bielik:latest`).
+
+## 2026-11-21 — PR #38 review fixes (lead's comments)
+- **Task:** apply the lead's review of PR #38 after ai-data PR #34 landed on `main`.
+- **Result:** removed the `OLLAMA_BASE_URL` alias in `ai/app/__init__.py` and its test (`embeddings.py` reads `OLLAMA_URL` now); dropped `_VERDICT_MAP` in `ai/app/modules/m1.py`, matcher verdicts `fail`/`unclear` pass through unchanged. Merged `origin/main` first; ruff clean, 68 passed / 5 skipped.
+- **Not done (out of scope):** `/analyze-text` has no auth and `docker-compose.yml` publishes `8000:8000` (infra file) — left for the lead/infra owner.
+- **Human to verify:** a M1 finding shows `fail` (not `unclear`) in the UI/export.
+
+## 2026-11-21 — issue #41: modules run concurrently, per-document time budget
+- **Task:** `run_modules` (`ai/app/analysis.py`) starts the routed modules as concurrent tasks instead of a sequential loop, with `analysis.budget_s` (`config.yaml`, 240 s, below the collector's 300 s) as wall-clock budget. A module that fails (`LLMError`) or misses the budget is logged (`partial=true`) and left out — no invented score; the finished modules still produce findings. All modules failed / over budget → the first error is raised, the document ends `failed`. Signature unchanged, so `pipeline.py` and `/analyze-text` needed no edits. 5 new tests in `tests/test_modules.py` (concurrency, one failed, all failed, partial budget, empty budget). Skill: `risk-classifier`.
+- **Measured (Bielik 11B Q4 + bge-m3, local Ollama, doc routed to M1+M3, warm):** total 82 s; M3 alone ~40 s, M1 82 s (queued behind M3). That is the same as sequential: Ollama runs one request at a time with the default `OLLAMA_NUM_PARALLEL=1`, so concurrency alone gives no speed-up. **Needs infra:** `OLLAMA_NUM_PARALLEL=2` on the `ollama` service in `docker-compose.yml` (costs extra RAM/VRAM for the second KV cache) — not tested here.
+- **What this does fix:** worst case is now bounded (240 s + retries cannot push `/analyze` past the collector timeout), and one failing module no longer discards the other modules' findings. Router sends most documents to a single module, so the typical document was never affected.
+- **Not done:** plan B (LLM only for candidates with a high rules/embedding score) — changes scoring and the gold-set results, left for a separate step; async 202 variant of `/analyze` (needs api/collector/contract changes).
+- **Human to verify:** that a document with one module missing (`partial=true` in logs) is acceptable as `processed` — there is no per-document marker in the DB for it.
+
+## 2026-11-21 — X-Internal-Token guard for ai endpoints (opt-in)
+- **Task:** `ai` had no auth on any endpoint (`/analyze-text` included; the contract says "no token"). Added `ai/app/auth.py` (`require_internal_token`, `hmac.compare_digest`) on `/analyze/{id}`, `/analyze-text`, `/reanalyze`, `/eval`; `/health` stays open for the compose healthcheck. 8 new tests in `tests/test_app.py` (401 missing/wrong token, pass with valid token, fail-closed 503 when `INTERNAL_TOKEN` is empty, `/health` open, off by default). `scripts/demo_check.py` sends the header when `INTERNAL_TOKEN` is set.
+- **Why opt-in (`AI_REQUIRE_TOKEN=true`, default off):** the collector (`collector/src/ai/client.ts`) calls `/analyze/{id}` without the header; enforcing now would break the pipeline on `main`. Collector, contract and compose are other owners' files.
+- **Needs others:** lead-collector sends `X-Internal-Token`; api (#4) updates `docs/contracts.md` and any `/eval` caller; infra (#6) sets `AI_REQUIRE_TOKEN=true` and `OLLAMA_NUM_PARALLEL=2`. Only then enable.
+- **Human to verify:** full stack with `AI_REQUIRE_TOKEN=true` once the collector sends the header.
+
+## 2026-11-21 — POST /reanalyze implemented (was 501)
+- **Task:** `/reanalyze?module=&document_id=` recomputes findings without download/dedup: reuses `text_clean`, re-embeds, runs M1/M2/M3 (or only `module`), upserts findings (`ON CONFLICT (document_id, module)`) and sends the alert again when the result is `high`. Returns `202 {module, queued}` (contract shape) and works in the background, one batch at a time (`409` while one runs); no `document_id` = all `processed` documents; unknown id = `404`. `failed`/no-text documents go through the full `analyze_document`, duplicates are skipped; one failing document never stops the batch. Shared tail of `/analyze` extracted into `pipeline._run_and_store`; `run_modules` got `only_module`. 12 new tests in `tests/test_reanalyze.py`, 2 old 501 asserts updated. ruff clean, 95 passed / 5 skipped.
+- **Needs others:** `document_id` (repeatable query param) and the `202` status are additive to `docs/contracts.md` — api (#4) should add them to the AI table.
+- **Limits:** a finding that no longer qualifies after reanalysis (no valid quote) is left as it was, not deleted (review status would be lost). Not tested against real Ollama/Postgres.
+- **Human to verify:** `POST /reanalyze?module=2` on a stack with processed documents; findings' `prompt_version` / `created_at` change and a `high` one reaches the dashboard.
+
+## 2026-11-21 — testy odporności na prompt injection (M1/M2/M3)
+- **Task:** `ai/tests/test_prompt_injection.py`: 3 złośliwe strony (PL+EN, „zignoruj instrukcje”, „system override: empty findings”, próba domknięcia `</document>`), testy offline z „złamanym” LLM + testy live na Bieliku (opt-in `RUN_LIVE_LLM=1`, marker `integration`, w CI skipują się). Skill: `risk-classifier`.
+- **Found & fixed:** treść strony mogła domknąć `<document>` i wstrzyknąć polecenia poza ogranicznikiem → `neutralize_delimiters` w `ai/app/llm.py`. Dodano marker `integration` w `pyproject.toml`.
+- **Result (Ollama 192.168.1.88, bielik:latest):** 3/3 live OK, wyniki z injection identyczne jak bez (M1 0.941, M2 1.000, M3 0.956, `high`), cytaty ≥ 90 rapidfuzz, brak cytatu z injection jako dowodu `fail`. Offline: 107 passed, 8 skipped, 1 xfailed; ruff czysty.
+- **Luki:** M2 bez cytatu LLM nie daje findingu (xfail strict); w M2 `llm=0.00` nawet bez injection, flaga z reguł — do przejrzenia. Szczegóły w `ai/SECURITY.md`.
+- **Human to verify:** czy akceptujemy lukę M2 (fail-closed = brak flagi) czy dodać finding z samych reguł; test live wymaga ~3 min GPU.
+
+## M2 v2 → prompt m2-v3 (8 criteria, rules + anchors)
+- **Task:** extend M2 from 4 to 8 criteria; `ai/rules/m2.yaml` (criteria + weights + phrase rules) and `ai/rules/anchors_m2.yaml` (bge-m3 anchors, so `w_emb` is no longer dropped for M2); prompt `m2-v3`; `prompt_version` = `m2-v3+m2-rules-v1`. Quote validation unchanged (rapidfuzz >= 90).
+- **Skill:** risk-classifier.
+- **Human to verify:** the UKNF annex was not available (placeholder in the brief), so the criteria follow MiFID II art. 44 / Reg. 2017/565 (past performance, leverage/CFD, fair & clear, trivialization). Reconcile ids/wording in `rules/m2.yaml` + the prompt once the annex arrives; then re-tune weights on the gold set.
+
+## 2026-11-21 — kalibracja wag i progów (BLOKADA: brak gold setu)
+- **Task:** baseline → analiza FP/FN → strojenie wag/progów (`ai/config.yaml`, `module_settings`) → ewaluacja po zmianach → zestawienie przed/po.
+- **Stan zastany:** `ai/eval/gold.csv` ma tylko nagłówek (`document_id,module,label`) na `main`, `team/ai-data` i `team/ai-core`. `GET /eval?module=1..3&threshold=0.6` działa, ale zwraca `total=0` (tp/fp/fn/tn = 0). W bazie: 16 `documents`, 0 `findings`; `module_settings` = domyślne (próg 0.6, wagi llm 0.6 / rules 0.25 / emb 0.15).
+- **Decyzja:** nie wymyślamy etykiet ani metryk — wagi i progi bez gold setu byłyby zgadywaniem, a liczby na slajdzie nie do obrony. `config.yaml` i `module_settings` bez zmian.
+- **Baseline (obecne ustawienia):** M1/M2/M3 — brak danych (gold set pusty).
+- **Do zrobienia po dostarczeniu gold setu (ai-data):** (1) wypełnić `ai/eval/gold.csv` dla dokumentów istniejących w bazie; (2) `POST /reanalyze` dla M1–M3, żeby powstały `findings`; (3) `GET /eval` na progach 0.3–0.9 (krok 0.05) → baseline; (4) FP/FN → wagi w `config.yaml` + `UPDATE module_settings`; (5) ponowny `/eval` i tabela „przed vs po” tutaj. Cel: recall ≥ 0.9 dla `risk=high`, precision ≥ 0.8.
+- **Human to verify:** czy ai-data faktycznie wypchnął `gold.csv` (może leży lokalnie, niezcommitowany); gold set musi odnosić się do `document_id` z bazy.
+
+## 2026-11-21 — dokumentacja końcowa i smoke test (ai-core)
+- **Zlecono:** pełny `pip-audit` → `ai/SECURITY.md`; dokładne tagi i licencje modeli oraz bibliotek → `ai/DEPENDENCIES.md`; treść slajdu „Jak działa AI”; smoke test stosu compose.
+- **Skille:** `dependency-guard` (audyt, licencje), `sca-audit` (pip-audit). Licencje modeli sprawdzone `ollama show --license` + karty HF (Bielik v2.3/v3.0 = Apache-2.0, gemma4 = Apache-2.0, bge-m3 = MIT); manifest Ollamy dla Bielika nie ma warstwy licencji, więc źródłem są karty HF.
+- **Wynik audytu:** 47 pakietów runtime (50 z dev), 0 znanych podatności. `tld` (tranzytywny) ma trójlicencję MPL/GPL/LGPL — używamy jako MPL-1.1.
+- **Smoke test (lokalny compose, działał od ~40 min):** wszystkie serwisy `healthy` poza `web` (nie nasz zakres); `ai:/health` → `ollama ok, postgres ok`; `/eval` odpowiada (puste, bo gold set pusty); `uv run pytest` 111 passed / 8 skipped / 1 xfailed; `ruff` czysty. W bazie 6 dokumentów `processed`, 9 `failed`: Ollama w Dockerze na Macu działa na CPU, Bielik 11B przekracza budżet 240 s / timeouty (`ai.analysis ... over budget`). To ograniczenie sprzętu, nie kodu — na demo Ollama z GPU (lub natywna Ollama na hoście, `OLLAMA_URL=http://host.docker.internal:11434`). **0 findings w bazie** — przed demo trzeba puścić `POST /reanalyze` na maszynie z GPU.
+- **`.env.example`:** brakuje tylko opcjonalnych `AI_REQUIRE_TOKEN` (domyślnie wyłączone) i `AI_CONFIG` (domyślna ścieżka `config.yaml`) — plik należy do `team/infra`, nie zmieniam. Reszta zmiennych używanych przez `ai/` (`DATABASE_URL`, `OLLAMA_*`, `S3_*`, `API_URL`, `INTERNAL_TOKEN`, `LOG_LEVEL`) jest.
+- **Do weryfikacji przez człowieka:** czy włączamy `AI_REQUIRE_TOKEN=1` na demo (collector musi wtedy wysyłać `X-Internal-Token`); czy przełączamy domyślny model na Bielik v3.0 (nieprzetestowany na gold secie).
+
+### Slajd: „Jak działa AI”
+**Trzy moduły, jeden pipeline** — dokument z collectora → czyszczenie (trafilatura) → deduplikacja (hash + simhash) → embedding **bge-m3** → routing → moduły → zapis `findings` → alert Socket.io dla wysokiego ryzyka.
+
+| Moduł | Pytanie | Sygnał |
+|---|---|---|
+| **M1 Finfluencerzy** | Czy ktoś spoza firmy reklamuje jej produkt? | wzmianka o podmiocie z rejestru + domena/handle ≠ `official_domains` |
+| **M2 Informacja o ryzyku** | Czy materiał firmy spełnia 8 wymogów informacji o ryzyku? | checklista spełniony/niespełniony + cytat, proporcja „zysk vs ryzyko” |
+| **M3 Shadow advisory** | Czy podmiot spoza rejestru KNF doradza lub zarządza portfelem? | słownik fraz + podobieństwo do fraz wzorcowych + ocena LLM |
+
+**Hybrydowy scoring:** `score = 0,6·LLM + 0,25·reguły + 0,15·embeddingi`
+- **LLM:** Bielik 11B (Ollama, on-premise, `temperature 0`, odpowiedź wymuszona schematem JSON).
+- **Reguły:** słowniki i wzorce w YAML, zawsze z cytatem.
+- **Embeddingi bge-m3:** cosine do fraz wzorcowych (anchors), skala 0,45 → 0 … 0,75 → 1.
+- **Walidacja cytatów (rapidfuzz):** cytat musi występować w tekście (`partial_ratio ≥ 90`), inaczej odpada. Bez cytatu nie ma flagi — zero halucynowanych dowodów.
+- **Progi i wagi** zmieniane na żywo w panelu kalibracji; `/eval` zwraca precision/recall/FP/FN.
+
+**Współbieżność:** moduły dla dokumentu działają równolegle (`asyncio`), wspólny budżet 240 s; moduł, który zawiedzie lub przekroczy budżet, jest pomijany i logowany — nigdy nie wstawiamy zmyślonego wyniku. `/reanalyze` przelicza partię w tle po zmianie progów.
+
+**Zabezpieczenia:** treść strony to dane, nie instrukcje (`<document>` + neutralizacja domknięcia znacznika, testy prompt injection PL/EN); token `X-Internal-Token` na endpointach wewnętrznych; `asyncpg` zamiast LGPL `psycopg`; wersje przypięte, `pip-audit`: 0 podatności; tylko modele open source (Apache-2.0 / MIT), nic nie wychodzi poza infrastrukturę.
+
+## 2026-11-21 ~20:30 — przegląd PR-ów i issues powiązanych z AI
+- **Zlecono:** przeanalizować wszystkie PR-y i issues, wskazać te z AI, naprawić i zamknąć, co się da.
+- **Wynik:** jedyny otwarty PR to #59 (docs, czysty, czeka na merge leada). Issues #42 (pusty gold set), #53 (brak załącznika UKNF) i #56 mają komentarze ze stanem. Nie da się ich zamknąć bez człowieka: etykiety i załącznik trzeba dostarczyć ręcznie.
+- **Dodano:** `ai/scripts/score_fixtures.py`, pomoc przy etykietowaniu gold setu. Wysyła fixtures do `/analyze-text` i zapisuje CSV ze score M1/M2/M3 oraz pustą kolumną `label`. Etykiet nie zgaduje.
+- **Do weryfikacji przez człowieka:** skrypt sprawdzony tylko na atrapie serwera, bo Ollamy nie ma na tym komputerze. Trzeba uruchomić go na maszynie z Ollamą: `python ai/scripts/score_fixtures.py --out scores.csv`.
+
+## 2026-11-21 ~21:30 — #62: pierwszy test na żywym Bieliku + poprawka reguł M3
+- **Zlecono:** uruchomić `score_fixtures`, `demo_check` i `live_check` na maszynie z Ollamą (#62), potem poprawić reguły M3.
+- **Wynik:** serwis lokalnie przez `uv`, bez Postgresa. 14/14 fixtures OK, demo 5/5 OK, JSON z M2 poprawny. RTX 3060 12 GB: ~5 s na dokument dla M1/M3, ~10 s dla M2. Wyniki są w komentarzu do #62.
+- **Poprawka:** `ai/rules/m3.yaml` → `m3-rules-v2`: rzeczownik „zarządzanie portfelem”, „rekomendacje inwestycyjne”, „napisz do nas na priv”. Dodano test regresji. `@family_office_alfa`: rules 0.00 → 0.85, score 0.284 → 0.496. Dalej poniżej progu 0.6 przez LLM 0.33. Pozostałe score bez zmian.
+- **Do weryfikacji przez człowieka:** czy niski llm M3 dla tego tekstu poprawić promptem, czy zostawić jako przypadek graniczny do gold setu.
+
+## 2026-11-21 ~22:00 — #62 cd.: prompt M3 v2, reguły M2 v2, cytaty sklejone przez LLM
+- **Zlecono:** naprawić anomalie z #62 według uznania ai-core.
+- **Diagnoza (surowe odpowiedzi Bielika):**
+  - family_office: kryterium 1 w prompcie M3 wymagało konkretnego instrumentu, więc oferta „dobierzemy akcje do profilu” dostawała `pass`;
+  - sygnaly-vip: Bielik skleja dwa niesąsiadujące zdania w jeden cytat i walidacja go odrzucała. Instrukcja w prompcie tego nie zmieniła, więc ją cofnięto;
+  - Noble: reguły M2 nie łapały „35% w ostatnim roku” i „bez wysiłku”.
+- **Zmiany:**
+  - `m3-v2`: kryterium 1 obejmuje ofertę spersonalizowanych rekomendacji;
+  - `m2-rules-v2`;
+  - `quotes.py`: cytat z kilku zdań jest przyjmowany tylko wtedy, gdy każde zdanie występuje dosłownie (rapidfuzz ≥ 90);
+  - testy regresji dla wszystkich trzech zmian.
+- **Wynik:** family_office 0.496 → 0.724, Noble 0.498 → 0.635, zloty-portfel 0.619 → 0.862 (high), sygnaly-vip 0.617 bez zmian, XTB-ok 0.052, demo 5/5, pytest 114 passed.
+- **Świadomie bez zmian:** M1 0.55–0.59 tuż pod progiem (przypadki graniczne do suwaka); `kasa_z_marta` (fikcyjny broker, brak w `entities.csv`; zakres ai-data/lead).

@@ -1,15 +1,17 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ExportFormat } from "@/lib/exportFormat";
-import { MODULE_LABEL, RISK_LABEL, STATUS_LABEL } from "@/lib/utils";
+import { MODULE_LABEL, RISK_LABEL, STATUS_LABEL, sourceLabel } from "@/lib/utils";
 import type { FindingStatus, ModuleId, RiskLevel, SourceKind } from "@/types";
 
-const SOURCES: SourceKind[] = ["web", "facebook", "instagram", "tiktok", "youtube", "sample"];
+const ALL_SOURCES: SourceKind[] = ["web", "facebook", "instagram", "tiktok", "youtube", "sample"];
 const fieldClass = "rounded-md border border-line bg-card px-2 py-1.5 text-sm";
 
 export type FilterKey = "q" | "module" | "risk" | "status" | "source" | "from" | "to";
 
 interface FiltersBarProps {
   values: Record<FilterKey, string>;
+  /** Kinds with a configured source (GET /sources); undefined = not known yet, show all. */
+  sourceKinds?: SourceKind[];
   hasFilters: boolean;
   onChange: (key: FilterKey, value: string) => void;
   onClear: () => void;
@@ -51,14 +53,30 @@ function SelectField({ label, value, options, onChange }: SelectFieldProps) {
   );
 }
 
-export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, exportDisabled, exportError, exportTruncated, onExport }: FiltersBarProps) {
+export function FiltersBar({ values, sourceKinds, hasFilters, onChange, onClear, exporting, exportDisabled, exportError, exportTruncated, onExport }: FiltersBarProps) {
+  const [search, setSearch] = useState(values.q);
+  // Only offer kinds that have a collector source (Issue #51); keep the selected one so a shared URL still shows it.
+  const sourceOptions = ALL_SOURCES.filter((s) => !sourceKinds || sourceKinds.includes(s) || s === values.source);
+
+  // Follow external changes (e.g. "Wyczyść filtry"), but never while the user is typing.
+  useEffect(() => {
+    setSearch(values.q);
+  }, [values.q]);
+
+  // Debounce: one request after a pause instead of one per keystroke (api rate limit).
+  useEffect(() => {
+    if (search === values.q) return;
+    const id = setTimeout(() => onChange("q", search), 300);
+    return () => clearTimeout(id);
+  }, [search, values.q, onChange]);
+
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-card p-3">
       <Field label="Szukaj">
         <input
           type="search"
-          value={values.q}
-          onChange={(e) => onChange("q", e.target.value)}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Treść, firma, URL…"
           className={`${fieldClass} w-52`}
         />
@@ -85,7 +103,7 @@ export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, e
         label="Źródło"
         value={values.source}
         onChange={(v) => onChange("source", v)}
-        options={SOURCES.map((s) => ({ value: s, label: s }))}
+        options={sourceOptions.map((s) => ({ value: s, label: sourceLabel(s) }))}
       />
       <Field label="Od">
         <input type="date" value={values.from} onChange={(e) => onChange("from", e.target.value)} className={fieldClass} />
