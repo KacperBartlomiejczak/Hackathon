@@ -76,7 +76,9 @@ def test_unconfigured_and_stubs() -> None:
 
 
 def test_ollama_base_url_alias(monkeypatch: pytest.MonkeyPatch) -> None:
-    """embeddings.py reads OLLAMA_BASE_URL; the service is configured with OLLAMA_URL only."""
+    """The service is configured with OLLAMA_URL only; embeddings must end up at that URL.
+
+    embeddings.py exposed OLLAMA_BASE_URL until ai-data PR #34, OLLAMA_URL after it; accept both."""
     import importlib
 
     import app
@@ -86,4 +88,5 @@ def test_ollama_base_url_alias(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OLLAMA_URL", "http://ollama:11434")
     importlib.reload(app)
     importlib.reload(emb)
-    assert emb.OLLAMA_BASE_URL == "http://ollama:11434"
+    effective = getattr(emb, "OLLAMA_URL", None) or getattr(emb, "OLLAMA_BASE_URL", None)
+    assert effective == "http://ollama:11434"
