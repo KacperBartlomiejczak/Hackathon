@@ -64,14 +64,15 @@
 
 ### Potential issues (to triage)
 1. **RESOLVED (human chose `;`):** Polish Excel and the `,` separator. With Polish regional settings Excel uses `;` as the list separator, so a double-clicked `findings.csv` may put everything in column A (the BOM fixes the characters, not the separator). Options: `;` as the separator (common in PL reports), or a `delimiter=comma|semicolon` param. `sep=,` in the first line breaks BOM detection in Excel, so it is not a fix. Check on a PL Windows machine before deciding.
-2. **Formula prefix shows a literal `'` in Excel.** When a CSV is opened, Excel does not hide the apostrophe, so handles look like `'@lukasz_inwestuje`. Accepted trade-off (security > cosmetics); possible later fix: prefix only when the cell also contains `(`/`!`, or strip `@` from handles.
-3. **Verdict mismatch ai-data ↔ ai-core.** `ai/app/preprocess/entity_match.py` writes `verdict: "detected"|"unverified"`, but `Verdict` in `ai/app/models.py` is `pass|fail|unclear`. Export treats every verdict ≠ `pass` as a hit, so it works, but `FindingCreate` validation may reject those reasons. Owners: ai-core + ai-data.
-4. **`q` filter without an index.** `ILIKE '%…%'` on `documents.text_clean` is a sequential scan, which gets slower with many documents (affects `/findings` and `/export`). Possible fix: `pg_trgm` + GIN index in `infra/db/` (only if it is slow on real data).
-5. **Export is built in memory.** 10 000 rows ≈ 4 MB in RAM and one response; for bigger exports switch to a DB cursor + stream. Also consider a lower per-route rate limit for `/export` in step 24 (hardening); the global limit is now 300/min.
-6. **Web types.** `web/src/types` does not have the `/export` JSON shape yet (owner: #5).
+2. (#25) **Formula prefix shows a literal `'` in Excel.** When a CSV is opened, Excel does not hide the apostrophe, so handles look like `'@lukasz_inwestuje`. Accepted trade-off (security > cosmetics); possible later fix: prefix only when the cell also contains `(`/`!`, or strip `@` from handles.
+3. (#26) **Verdict mismatch ai-data ↔ ai-core.** `ai/app/preprocess/entity_match.py` writes `verdict: "detected"|"unverified"`, but `Verdict` in `ai/app/models.py` is `pass|fail|unclear`. Export treats every verdict ≠ `pass` as a hit, so it works, but `FindingCreate` validation may reject those reasons. Owners: ai-core + ai-data.
+4. (#27) **`q` filter without an index.** `ILIKE '%…%'` on `documents.text_clean` is a sequential scan, which gets slower with many documents (affects `/findings` and `/export`). Possible fix: `pg_trgm` + GIN index in `infra/db/` (only if it is slow on real data).
+5. (#28) **Export is built in memory.** 10 000 rows ≈ 4 MB in RAM and one response; for bigger exports switch to a DB cursor + stream. Also consider a lower per-route rate limit for `/export` in step 24 (hardening); the global limit is now 300/min.
+6. (#29) **Web types.** `web/src/types` does not have the `/export` JSON shape yet (owner: #5).
 
 ## Step 22 follow-up: CSV for Polish Excel
 - Asked Claude to: switch the CSV delimiter to `;` (human decision after Claude flagged issue 1 above). Claude also switched `score` in CSV to a decimal comma (`0,83`), because Polish Excel reads `0.83` as text when the delimiter is `;`; JSON keeps raw numbers.
 - Skill used: `data-contract` checklist by hand (docs only: CSV format paragraph in `docs/contracts.md`).
 - Verified: typecheck, lint, build, `grep console.` empty; the 64-check `app.inject` suite re-run on a fresh scratch DB (parser switched to `;`, new checks for quoting `;` and the decimal comma), DB dropped afterwards.
 - Still to check by a human: double-click `findings.csv` in Excel with Polish regional settings (columns split, Polish characters, score as a number).
+- Issues 2-6 from the list above created on GitHub as KacperBartlomiejczak/Hackathon#25-#29 (human approved).
