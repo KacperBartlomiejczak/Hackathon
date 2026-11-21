@@ -26,8 +26,8 @@ export type SourceEntry = z.infer<typeof sourcesFileSchema>['sources'][number];
 export async function syncSources(
   db: Db,
   entries: SourceEntry[],
-): Promise<{ id: number; enabled: boolean }[]> {
-  const out: { id: number; enabled: boolean }[] = [];
+): Promise<{ id: number; enabled: boolean; cron: string | null }[]> {
+  const out: { id: number; enabled: boolean; cron: string | null }[] = [];
   for (const e of entries) {
     const values = {
       kind: e.kind,
@@ -50,7 +50,7 @@ export async function syncSources(
       if (!row) throw new Error(`sources insert returned nothing for ${e.kind}/${e.name}`);
       id = row.id;
     }
-    out.push({ id, enabled: e.enabled });
+    out.push({ id, enabled: e.enabled, cron: e.cron });
   }
   logger.info({ synced: out.length }, 'sources synced');
   return out;

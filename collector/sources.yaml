@@ -17,35 +17,35 @@ sources:
     start_url: https://jakoszczedzacpieniadze.pl
     module_hint: null
     enabled: true
-    cron: null
+    cron: '0 */6 * * *'
   - kind: web
     name: Marcin Iwuć (blog)
     start_url: https://marciniwuc.com
     module_hint: null
     enabled: true
-    cron: null
+    cron: '0 */6 * * *'
   - kind: web
     name: Subiektywnie o finansach (blog)
     start_url: https://subiektywnieofinansach.pl
     module_hint: null
     enabled: true
-    cron: null
+    cron: '0 */6 * * *'
   # YouTube (step 22): public channel RSS, last 15 videos (title + description).
   - kind: youtube
     name: Strefa Inwestorów (YouTube)
     start_url: https://www.youtube.com/channel/UC4Qc_TYL6BsqiqXXorBFoaA
     module_hint: null
     enabled: true
-    cron: null
+    cron: '0 */6 * * *'
   - kind: youtube
     name: Inwestomat (YouTube)
     start_url: https://www.youtube.com/channel/UCbTCMPrEGARddFKS5P9onoA
     module_hint: null
     enabled: true
-    cron: null
+    cron: '0 */6 * * *'
   - kind: youtube
     name: XTB Polska (YouTube)
     start_url: https://www.youtube.com/channel/UCILwajCs145hxNvB4nckALg
     module_hint: null
     enabled: true
-    cron: null
+    cron: '0 */6 * * *'
