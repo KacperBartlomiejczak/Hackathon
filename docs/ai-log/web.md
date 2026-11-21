@@ -39,3 +39,8 @@
 - Asked Claude to: switch export from the mock to `GET /export` (landed on main in #39) and add the JSON response type.
 - Changes: `DEFAULT_MOCKED` is empty (mocks only with `VITE_USE_MOCKS=true`); `ExportJson` type in `types/index.ts`; the api already exposes `Content-Disposition` and `X-Export-Truncated` through CORS.
 - Human to verify: with the full stack up, download CSV and JSON with a module filter and without, open the CSV in Excel, check the truncation notice. Here only checked against a local stub (query string, truncation notice).
+
+## Calibration save fix (found while testing the full stack)
+- Asked Claude to: test every dashboard flow against the running stack and fix what breaks.
+- Changes: "Zapisz próg" sent only `{ threshold }`, but `PUT /settings/modules/:n` is a full replace and returns 400 without `weights`; the save now sends the weights from the fetched settings. Found with a real api, mocks hid it.
+- Human to verify: save a threshold per module and confirm `GET /settings/modules/:n` returns it; hard-reload the page first, index.html has no cache headers and a stale bundle still sends the old body.

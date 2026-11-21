@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db/client.js";
 import { documents, entities, findings, findingStatusHistory } from "../db/schema.js";
+import { documentIsActive } from "../db/seen.js";
 import type { Io } from "../realtime/socket.js";
 import type { Storage } from "../storage/s3.js";
 import {
@@ -118,6 +119,9 @@ export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storag
           docUrl: documents.url,
           docTitle: documents.title,
           docSourceKind: documents.sourceKind,
+          docFirstSeenAt: documents.firstSeenAt,
+          docLastSeenAt: documents.lastSeenAt,
+          docIsActive: documentIsActive,
           firmId: firmEntity.id,
           firmName: firmEntity.name,
           advertiserId: advertiserEntity.id,
@@ -153,7 +157,15 @@ export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storag
         label: r.label,
         status: r.status,
         createdAt: r.createdAt,
-        document: { id: r.docId, url: r.docUrl, title: r.docTitle, sourceKind: r.docSourceKind },
+        document: {
+          id: r.docId,
+          url: r.docUrl,
+          title: r.docTitle,
+          sourceKind: r.docSourceKind,
+          firstSeenAt: r.docFirstSeenAt,
+          lastSeenAt: r.docLastSeenAt,
+          isActive: r.docIsActive,
+        },
         firm: toRef(r.firmId, r.firmName),
         advertiser: toRef(r.advertiserId, r.advertiserName),
       })),
@@ -175,6 +187,9 @@ export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storag
           sourceId: documents.sourceId,
           sourceKind: documents.sourceKind,
           fetchedAt: documents.fetchedAt,
+          firstSeenAt: documents.firstSeenAt,
+          lastSeenAt: documents.lastSeenAt,
+          isActive: documentIsActive,
           publishedAt: documents.publishedAt,
           authorHandle: documents.authorHandle,
           title: documents.title,

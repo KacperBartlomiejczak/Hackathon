@@ -2,6 +2,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db/client.js";
 import { documents, findings } from "../db/schema.js";
+import { documentIsActive } from "../db/seen.js";
 import {
   EXCERPT_LENGTH,
   EXPORT_MAX_ROWS,
@@ -30,6 +31,7 @@ const DELIMITER = ";";
  */
 export function csvCell(value: ExportValue | undefined, col: Partial<ExportColumn> = {}): string {
   if (value === null || value === undefined) return "";
+  if (typeof value === "boolean") return value ? "tak" : "nie";
   if (typeof value === "number") {
     return col.decimals !== undefined ? value.toFixed(col.decimals).replace(".", ",") : String(value);
   }
@@ -88,6 +90,8 @@ export const exportRoutes: FastifyPluginAsync<Deps> = async (app, { db }) => {
           docTitle: documents.title,
           docSourceKind: documents.sourceKind,
           authorHandle: documents.authorHandle,
+          lastSeenAt: documents.lastSeenAt,
+          isActive: documentIsActive,
           excerpt: sql<string | null>`left(${documents.textClean}, ${EXCERPT_LENGTH})`,
           excerptCut: sql<boolean>`coalesce(char_length(${documents.textClean}) > ${EXCERPT_LENGTH}, false)`,
           firmName: firmEntity.name,
@@ -123,6 +127,8 @@ export const exportRoutes: FastifyPluginAsync<Deps> = async (app, { db }) => {
           url: r.docUrl,
           sourceKind: r.docSourceKind,
           createdAt: r.createdAt.toISOString(),
+          lastSeenAt: r.lastSeenAt.toISOString(),
+          active: r.isActive,
           score: r.score,
           riskLevel: r.riskLevel,
           status: r.status,
