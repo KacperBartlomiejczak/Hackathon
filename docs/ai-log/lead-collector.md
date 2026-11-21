@@ -38,3 +38,8 @@
 - Zlecono: wybrać jeden issue → plan → weryfikacja niezacommitowanej poprawki #19 (plus #16/#17) i przekazanie jej osobie #6 jako patch, bo team/lead-collector nie commituje plików infra. Plan zaakceptowany przed zmianami.
 - Skille: brak nowych paczek. Manifest `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` w registry.ollama.ai: 200, nazwa bez namespace: 404.
 - Weryfikacja: `docker compose run --rm --no-deps ollama-init` ze zmyślonym modelem → exit 1, z prawdziwym → exit 0. Patch (4 pliki) sprawdzony `git apply --check -R`. Komentarze w #19, #16, #17.
+## 2026-11-21 — kroki 16–17: fixtures z firmami z rejestru + CLI crawl
+- Zlecono: `fixtures/sample/demo.jsonl` (11 syntetycznych rekordów, tytuły `[SYNTETYCZNE]`: 4× M1, 3× M2, 2× M3, 2 negatywy) z firmami z `entities.csv` (XTB, DM BOŚ, mBank, Noble), `src/cli.ts` + `npm run crawl -- --source <id>`. Plan zaakceptowany przed zmianami; `--limit` pominięty (zmiana payloadu `crawl-source` = kontrakt z api).
+- Skille: `scraper-adapter`; zero nowych paczek. 2 subagenty (Sonnet) równolegle: dry-run `route_document` na fixture'ach, test na żywo w compose.
+- Weryfikacja: `tsc`, `eslint`, 9 testów; routing 11/11 zgodny z oczekiwanym modułem (po zmianie „Gwarantujemy” → „Gwarantowany” reguły M2 łapią też Noble). Na żywo: CLI kolejkuje job, 16 dokumentów `processed`, 2 findingi M2 (high). M1/M3 = 0, bo w `ai/app/modules` jest tylko M2 (ai-core).
+- Blokery u innych: `ai/app/embeddings.py` czyta `OLLAMA_BASE_URL` zamiast `OLLAMA_URL` → każdy `/analyze` = 502 (ai-data); Bielik > 60 s na CPU powoduje timeout LLM.
