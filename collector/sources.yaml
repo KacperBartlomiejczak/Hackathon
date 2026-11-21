@@ -11,3 +11,22 @@ sources:
     module_hint: null
     enabled: false
     cron: null
+  # Live blogs (step 20): start page + up to 20 same-host keyword links.
+  - kind: web
+    name: Jak oszczędzać pieniądze (blog)
+    start_url: https://jakoszczedzacpieniadze.pl
+    module_hint: null
+    enabled: true
+    cron: null
+  - kind: web
+    name: Marcin Iwuć (blog)
+    start_url: https://marciniwuc.com
+    module_hint: null
+    enabled: true
+    cron: null
+  - kind: web
+    name: Subiektywnie o finansach (blog)
+    start_url: https://subiektywnieofinansach.pl
+    module_hint: null
+    enabled: true
+    cron: null
