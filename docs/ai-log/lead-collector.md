@@ -21,3 +21,8 @@
 - Skille: brak nowych paczek.
 - Weryfikacja: `tsc`, `eslint`, 5 testów; compose na main + PR #12 (+ poprawki z issues #16/#17/#18 i `OLLAMA_BASE_URL` w .env): 2 wiersze w `sources`, 1 `crawl_run` ok (5 items), 5 dokumentów, `/analyze` 200 dla wszystkich. 0 findingów, bo fixtures mają fikcyjne firmy spoza rejestru (M1 candidates=0).
 - Do zrobienia: fixtures z firmami z rejestru (np. XTB) i ≥ 10 dokumentów (DoD 19:00); `POST /sources/:id/run` po stronie api.
+## 2026-11-21 — fix blokerów demo (lead override: infra + ai-core)
+- Zlecono: przegląd otwartych issues → plan → poprawki #16 (wolumen seed w `ai`), #17 (`.gitattributes`, LF dla .sh/.sql), #18 (`LOG_LEVEL.upper()`), #19 (`SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M`, `pull-models.sh` kończy się błędem przy `"error"`), #8 (dev wartości w `.env.example`: Postgres, `INTERNAL_TOKEN`, klucze S3). Plan zaakceptowany przed zmianami.
+- Skille: brak nowych paczek. Nazwa modelu sprawdzona w rejestrze Ollamy (200).
+- Weryfikacja: `cp .env.example .env && docker compose --profile apps up` (bez `web`): wszystkie serwisy healthy, init-y exit 0, Bielik 6.7 GB + bge-m3 pobrane, `/health` ai i api 200. Człowiek zaakceptował plan i nadpisanie `.env`; agent sam cofnął błędny `sed` w compose.
+- Do zrobienia (poza zakresem): profil `apps` w compose (samo `up` nie startuje aplikacji), README/SECURITY.md (#8).
