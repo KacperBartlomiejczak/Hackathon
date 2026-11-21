@@ -1,4 +1,6 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useAlerts } from "@/components/AlertsProvider";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -9,6 +11,13 @@ const links = [
 ];
 
 export default function Layout() {
+  const { newCount, resetCount, simulateAlert, mockMode } = useAlerts();
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (pathname.startsWith("/findings")) resetCount();
+  }, [pathname, newCount, resetCount]);
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
@@ -21,15 +30,27 @@ export default function Layout() {
                 to={link.to}
                 className={({ isActive }) =>
                   cn(
-                    "rounded-md px-3 py-1.5 text-sm font-medium",
+                    "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium",
                     isActive ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100",
                   )
                 }
               >
                 {link.label}
+                {link.to === "/findings" && newCount > 0 && (
+                  <span className="rounded-full bg-red-600 px-1.5 text-xs text-white">{newCount}</span>
+                )}
               </NavLink>
             ))}
           </nav>
+          {mockMode && (
+            <button
+              type="button"
+              onClick={simulateAlert}
+              className="ml-auto rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
+            >
+              Symuluj alert
+            </button>
+          )}
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-6 py-6">
