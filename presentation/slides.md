@@ -54,7 +54,7 @@ flowchart LR
 
 - **`collector` (Node 22 + Playwright + BullMQ):** harmonogram i kolejka `crawl-source` w Valkey, rotacja User-Agent i proxy, zapis surowego HTML i screenshota do SeaweedFS S3, wywołanie `POST /analyze/{document_id}`.
 - **`api` (Node 22 + Fastify + Drizzle + Socket.io):** REST API z filtrami i eksportem CSV/JSON, presigned URL-e do screenshotów, audyt zmian statusu (`finding_status_history`), alerty real-time `alert:new`.
-- **`ai` (Python 3.12 + FastAPI + Ollama):** czyszczenie HTML (`trafilatura`), deduplikacja (SHA-256 + simhash), embeddingi `bge-m3` (1024 wymiary), analiza M1/M2/M3 przez `Bielik-11B-v2.3-Instruct-GGUF:Q4_K_M`.
+- **`ai` (Python 3.12 + FastAPI + Ollama):** czyszczenie HTML (`trafilatura`), deduplikacja (SHA-256 + simhash), embeddingi `bge-m3` (1024 wymiary), analiza M1/M2/M3 przez `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M`.
 - **`web` (React + Vite + Recharts):** lista findingów, ekran szczegółów z cytatami i screenshotem, wykres trendów, toasty `alert:new`, panel kalibracji.
 
 ---

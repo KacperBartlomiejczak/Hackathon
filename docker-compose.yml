@@ -95,9 +95,7 @@ services:
     entrypoint: ["sh", "/pull-models.sh"]
     restart: "no"
 
-  # Application services: remove `profiles: ["apps"]` once collector/, api/, ai/, web/ are all merged to main.
   api:
-    profiles: ["apps"]
     build:
       context: ./api
     env_file:
@@ -122,15 +120,12 @@ services:
     restart: unless-stopped
 
   ai:
-    profiles: ["apps"]
     build:
       context: ./ai
     env_file:
       - .env
     ports:
       - "8000:8000"
-    volumes:
-      - ./infra/seed:/app/seed:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,7 +140,6 @@ services:
     restart: unless-stopped
 
   collector:
-    profiles: ["apps"]
     build:
       context: ./collector
     env_file:
@@ -161,10 +155,11 @@ services:
         condition: service_healthy
       s3-init:
         condition: service_completed_successfully
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   web:
-    profiles: ["apps"]
     build:
       context: ./web
       args:

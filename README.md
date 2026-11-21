@@ -36,35 +36,29 @@ flowchart LR
 - **GPU / CPU dla Ollama:**
   - Zalecane GPU NVIDIA >= 8 GB VRAM (uruchamiane opcjonalnym nadpisaniem `infra/docker-compose.gpu.yml`).
   - W trybie CPU inferencja LLM jest wolniejsza; reguły i dopasowanie embeddingów działają niezależnie.
-- **Dysk:** minimum 15 GB wolnego miejsca (model `hf.co/speakleash/Bielik-11B-v2.3-Instruct-GGUF:Q4_K_M`, `bge-m3`, obrazy Docker oraz przeglądarka Chromium dla Playwrighta).
+- **Dysk:** minimum 15 GB wolnego miejsca (model `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M`, `bge-m3`, obrazy Docker oraz przeglądarka Chromium dla Playwrighta).
 
 ## Quick Start
 
-1. Skopiuj szablon środowiska i uzupełnij wymagane sekrety (`POSTGRES_PASSWORD`, `DATABASE_URL`, `INTERNAL_TOKEN`):
+1. Skopiuj szablon środowiska (zawiera domyślne wartości dev do uruchomienia demo; w produkcji zmień hasła i tokeny):
 
 ```bash
 cp .env.example .env
 ```
 
-2. Uruchom infrastrukturę (`postgres`, `valkey`, `seaweedfs`, `s3-init`, `ollama`, `ollama-init`):
+2. Uruchom cały stos jedną komendą:
 
 ```bash
-docker compose up -d
-```
-
-3. Uruchom pełny stos z serwisami aplikacyjnymi (po zmergowaniu wszystkich katalogów serwisów; docelowo po zdjęciu `profiles: ["apps"]` wystarczy samo `docker compose up --build`):
-
-```bash
-docker compose --profile apps up --build -d
+docker compose up --build -d
 ```
 
    Wariant z GPU NVIDIA:
 
 ```bash
-docker compose -f docker-compose.yml -f infra/docker-compose.gpu.yml --profile apps up --build -d
+docker compose -f docker-compose.yml -f infra/docker-compose.gpu.yml up --build -d
 ```
 
-4. Sprawdź status kontenerów i endpointy kontrolne:
+3. Sprawdź status kontenerów i endpointy kontrolne:
 
 ```bash
 docker compose ps
@@ -87,4 +81,4 @@ curl -s http://localhost:3000/health
 
 ## Konfiguracja
 
-Wszystkie zmienne środowiskowe oraz ich opisy znajdują się w [.env.example](.env.example). Sekrety są przekazywane do kontenerów wyłącznie przez `env_file: [.env]` — pliku `.env` nie wolno commitować do repozytorium. Kontrakt schematu bazy danych i endpointów znajduje się w [docs/contracts.md](docs/contracts.md).
+Wszystkie zmienne środowiskowe oraz ich opisy znajdują się w [.env.example](.env.example). Sekrety są przekazywane do kontenerów wyłącznie przez `env_file: [.env]` — pliku `.env` nie wolno commitować do repozytorium. Kontrakt schematu bazy danych i endpointów znajduje się w [docs/contracts.md](docs/contracts.md), a raport bezpieczeństwa i audytu zależności w [docs/SECURITY.md](docs/SECURITY.md).

@@ -3,7 +3,7 @@ set -eu
 
 OLLAMA_URL="${OLLAMA_URL:-http://ollama:11434}"
 OLLAMA_EMBED_MODEL="${OLLAMA_EMBED_MODEL:-bge-m3}"
-OLLAMA_LLM_MODEL="${OLLAMA_LLM_MODEL:-hf.co/speakleash/Bielik-11B-v2.3-Instruct-GGUF:Q4_K_M}"
+OLLAMA_LLM_MODEL="${OLLAMA_LLM_MODEL:-SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M}"
 
 echo "Waiting for Ollama at ${OLLAMA_URL}..."
 i=0
