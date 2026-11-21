@@ -64,3 +64,8 @@
 ## 2026-11-21 — issue #26: M1 verdicts match `Verdict`
 - `entity_match.py` reasons now use `fail` (signal found: firm mentioned, promo anchor, publisher not official) and `unclear` (firm's official channels unknown) instead of `detected`/`unverified`, so `Reason` / `FindingCreate` (`Verdict = pass|fail|unclear`) accept them. No contract change.
 - Added `test_reasons_validate_against_contract_model` (validates every M1 reason with `app.models.Reason`). 33 tests pass, 5 integration skipped (no containers); ruff clean.
+
+## 2026-11-21 — UKNF attachments (topics 1-3, risk criteria)
+- Reviewed the 4 UKNF docx files. Attachments 1 and 2 (register definitions and 4 KNF register URLs) are already covered by `ai/seed/raw/knf_*.json` and `entities.csv`.
+- Added `ai/eval/rubric.md`: 18 risk-information rules (art. 44 of Reg. 2017/565) for M2 and the art. 76/2/3 advisory definition for M3, as labelling rules for `gold.csv`. Labels stay human-made.
+- Needs ai-core (outside this branch's scope): `ai/prompts/m2-risk-info/system.md` has 4 criteria vs. 18 in the UKNF resource; M3 prompt/rules should use the art. 76 definition. Suggested start: text-only rules 1, 2, 3, 6, 9, 10, 14, 15, 17, 18.
