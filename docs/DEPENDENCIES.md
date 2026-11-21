@@ -14,8 +14,8 @@ UKNF przejmuje prawa do kodu, więc cały stos używa wyłącznie licencji permi
 | `api`, `collector` (build) | `node:22.23.5-bookworm-slim` | MIT (Node.js) | Środowisko Node 22 (build i runtime `api`) |
 | `collector` (runtime) | `mcr.microsoft.com/playwright:v1.65.1-noble` | Apache-2.0 | Runtime z preinstalowanym Chromium dla Playwrighta |
 | `ai` | `python:3.12.12-slim-bookworm` + `ghcr.io/astral-sh/uv:0.9.15` | PSF / MIT+Apache-2.0 | Środowisko Python 3.12 i menedżer pakietów `uv` |
-| `web` (build) | `node:22.12-alpine` *(do podbicia wg Issue #44)* | MIT (Node.js) | Build aplikacji Vite/React |
-| `web` (runtime) | `nginx:1.27.5-alpine` *(do podbicia wg Issue #44)* | BSD-2-Clause | Serwowanie statycznego bundla SPA na porcie `5173` |
+| `web` (build) | `node:22.23.5-alpine` | MIT (Node.js) | Build aplikacji Vite/React |
+| `web` (runtime) | `nginx:1.30.7-alpine` + `apk upgrade libxml2` | BSD-2-Clause | Serwowanie statycznego bundla SPA na porcie `5173` |
 
 ## 2. Modele AI (Ollama — on-premise)
 

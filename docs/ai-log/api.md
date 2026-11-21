@@ -128,3 +128,16 @@
   - Re-running 004 is a no-op. On a 001-003 database that already has rows, 004 backfills both columns from `fetched_at`.
   - api run locally against that database. curl results for `/documents`, `?module=2`, `/documents/:id` (with and without findings), 404/400, `/findings`, `/findings/1` and the M1 CSV/JSON exports all match the contract. `isActive`: seen again → true, missed by a later `ok` run → false, source never crawled → true. Container removed afterwards.
 - Not done (other teams' parts of these issues): web view of `/documents` (#5), aggregator description in `docs/` and on the slide (#6). Detecting a content change under the same URL needs a content hash in the collector (lead).
+
+## 2026-11-21: web/Dockerfile libxml2 (Issue #44, web part)
+- Asked: check open web issues and fix them. Left for web: one HIGH CVE (`libxml2 2.13.9-r2`) in the `nginx:1.30.7-alpine` runtime image (#44); #51 (drop social sources from the filter) waits for the lead's decision.
+- Out of my scope (`web/` is team/web). The human chose to commit it on team/api, but `.githooks/pre-commit` blocked the commit (web/ files on team/api) and `--no-verify` is denied, so it was first posted as a patch in #44. Later the user got full access to all team dirs and a local hook copy (`core.hooksPath=.git/hooks-local`) allows it, so it was committed on team/api; details in `docs/ai-log/web.md`.
+- Change (patch): `RUN apk upgrade --no-cache libxml2` in the runtime stage of `web/Dockerfile`, result noted in `web/SECURITY.md`.
+- Verified: `docker build` of `web/` OK, `libxml2-2.13.9-r3` in the image, Trivy 0.76.2 CRITICAL/HIGH = 0, `/`, `/findings`, `/calibration` return 200.
+
+## 2026-11-21: web issues #51 (web part) and #44 (docs), with full access
+- Asked: fix the web issues myself. Rules applied: `docs/team/5-web.md` for `web/`, `docs/team/6-infra-pitch.md` for `docs/`, `README.md`, `.env.example`. Plan accepted without the clean-start check.
+- #51: the „Źródło” filter lists only kinds that have a source in `GET /sources` (plus the kind already in the URL); if `/sources` fails it shows every kind. Social kinds stay in the types, so a future TikTok/Instagram adapter appears in the filter by itself. The adapter decision stays with the lead.
+- #44: `docs/DEPENDENCIES.md` and `docs/SECURITY.md` show the new web images and Trivy results; `OLLAMA_NUM_PARALLEL=1` in `.env.example` with a README note (2 = M1 and M3 in parallel, more RAM/VRAM; not tested, so default stays 1).
+- Verified: web Docker build (tsc + vite) OK; scratch Postgres with sources web/youtube/sample + local api: filter shows exactly those 3, `?source=tiktok` keeps tiktok selected, api down → full list. Browser console clean while the api was up. Scratch containers removed.
+- Not done: clean start from zero (skipped by the human), GitHub Actions (`.github/` is outside the team/api hook).

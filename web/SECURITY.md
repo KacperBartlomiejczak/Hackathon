@@ -46,7 +46,7 @@ Docker Scout wymaga konta Docker, którego zespół web nie ma, więc liczby nie
 | `nginx:1.30.7-alpine` (nowy) | runtime | 0 | 1 |
 
 Pozostałe podatności w nowych obrazach:
-- `nginx:1.30.7-alpine`: 1 HIGH, `libxml2 2.13.9-r2` (CVE-2026-86144), poprawka w `2.13.9-r3` (pakiet Alpine, bez nowszego tagu nginx na dziś).
+- `nginx:1.30.7-alpine`: 1 HIGH, `libxml2 2.13.9-r2` (CVE-2026-86144), poprawka w `2.13.9-r3` (pakiet Alpine, bez nowszego tagu nginx na dziś). **Naprawione** w `web/Dockerfile` przez `RUN apk upgrade --no-cache libxml2` (Issue #44). Obraz końcowy `web` po zmianie: Trivy 0.76.2, CRITICAL 0, HIGH 0 (2026-11-21).
 - `node:22.23.5-alpine`: 10 HIGH, wszystkie w pakietach dołączonych do samego `npm` (`/usr/local/lib/node_modules/npm/…`: brace-expansion, ip-address, pacote, picomatch, sigstore). Obraz służy tylko do `npm ci` i `npm run build` (stage `build`) i nie trafia do obrazu końcowego. Obraz runtime to nginx ze statycznym `dist`, bez Node.
 
 Zmiana: node `22.12-alpine` → `22.23.5-alpine` (ta sama wersja Node co `api` i `collector`), nginx `1.27.5-alpine` → `1.30.7-alpine` (gałąź stable). Tagi przypięte, bez `latest`.

@@ -36,7 +36,7 @@ osv-scanner --lockfile=ai/uv.lock
 
 ## 3. Skan obrazów Dockera (`docker scout quickview`)
 
-Skan wykonany 2026-11-21 narzędziem **`docker scout` `v1.28.0`** (`trivy` i `osv-scanner` nie były zainstalowane na hoście).
+Skan wykonany 2026-11-21 narzędziem **`docker scout` `v1.28.0`** (`trivy` i `osv-scanner` nie były zainstalowane na hoście). Obrazy `web` po podbiciu (Issue #44) skanowano Trivy 0.76.2, bo Scout wymaga konta Docker.
 
 | Obraz | Serwis | Digest | Podatności (C / H / M / L / ?) | Health score / Status | Uwagi / zalecenia |
 |---|---|---|---|---|---|
@@ -48,8 +48,8 @@ Skan wykonany 2026-11-21 narzędziem **`docker scout` `v1.28.0`** (`trivy` i `os
 | `node:22.23.5-bookworm-slim` | `api`, `collector` (build) | `47725aca53d3` | `0C / 17H / 24M / 42L` | `D (39%)` | `0` Critical; `api` działa jako `USER node` |
 | `mcr.microsoft.com/playwright:v1.65.1-noble` | `collector` (runtime) | `766137e2d9ca` | `0C / 7H / 220M / 30L` | `D (50%)` | `0` Critical; działa jako `USER pwuser` |
 | `python:3.12.12-slim-bookworm` | `ai` | `2986c55feb36` | `8C / 58H / 57M / 61L / 6?` | `D (39%)` | działa jako `USER app` |
-| `node:22.12-alpine` | `web` (build) | `513c40ed37f6` | `10C / 75H / 59M / 21L / 1?` | `D (39%)` | **przestarzały obraz bazowy** — zgłoszono do `team/web` podbicie np. do `node:22.23.5-alpine` |
-| `nginx:1.27.5-alpine` | `web` (runtime) | `62223d644fa2` | `18C / 68H / 78M / 25L / 3?` | `E (17%)` | **`1C 1H` high-profile, przestarzały obraz bazowy** — zgłoszono do `team/web` podbicie do aktualnego przypiętego patcha (np. `nginx:1.30.7-alpine`) |
+| `node:22.23.5-alpine` | `web` (build) | — | `0C / 10H` (Trivy) | — | podbite z `node:22.12-alpine` (Scout: `10C / 75H`). Wszystkie `10H` w paczkach dołączonych do `npm`; etap build nie trafia do obrazu końcowego (`web/SECURITY.md`) |
+| `nginx:1.30.7-alpine` | `web` (runtime) | — | `0C / 0H` (Trivy, po `apk upgrade libxml2`) | — | podbite z `nginx:1.27.5-alpine` (Scout: `18C / 68H`); ostatnia `HIGH` (`libxml2 2.13.9-r2`) usunięta w `web/Dockerfile` (Issue #44) |
 
 ### Komendy do powtórzenia skanu obrazów
 
@@ -59,6 +59,8 @@ docker scout quickview --platform linux/amd64 <obraz:tag>
 
 # Alternatywnie w CI / na maszynie z Trivy:
 trivy image --severity HIGH,CRITICAL <obraz:tag>
+# albo bez instalacji (tak skanowano obrazy web, Trivy 0.76.2):
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.2 image --severity CRITICAL,HIGH --scanners vuln <obraz:tag>
 ```
 
 ## 4. Znane ograniczenia (środowisko demo)
