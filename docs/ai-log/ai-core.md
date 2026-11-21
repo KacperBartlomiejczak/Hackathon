@@ -24,3 +24,6 @@
 - **Task:** `ai/app/db.py` (asyncpg pool from `DATABASE_URL`), `storage.py` (boto3 `get_html`, S3_* env), `llm.py` (Ollama chat, `format` = Pydantic JSON Schema, temperature 0, 60 s timeout + 1 retry, errors raise `LLMError`, never a default result). Tests with mocks (15 pass, ruff clean).
 - **Human decision:** `psycopg_pool` requested, but psycopg is LGPL (already rejected earlier) → kept `asyncpg`; no new dependencies.
 - **Not verified:** live Postgres, live S3/SeaweedFS, live Ollama; S3 env names (`S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`, optional `S3_REGION`) are assumed.
+
+## 2026-11-21 — pytest-asyncio
+- ai-data `tests/conftest.py` needs `pytest_asyncio`. `dependency-guard`: Apache-2.0, OSV 0 CVE, pinned 1.4.1.post1 (1.5.0 is newer than `exclude-newer`). Suite: 35 passed, 5 skipped (no test Postgres). `pip-audit` not run (not installed in venv).
