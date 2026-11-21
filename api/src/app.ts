@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import type { Config } from "./config.js";
 import { createDb } from "./db/client.js";
 import { buildLoggerOptions } from "./logger.js";
+import { exportRoutes } from "./routes/export.js";
 import { findingsRoutes } from "./routes/findings.js";
 import { internalRoutes } from "./routes/internal.js";
 import { statsRoutes } from "./routes/stats.js";
@@ -49,6 +50,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   app.get("/health", { config: { rateLimit: false } }, async () => ({ status: "ok" }));
   const io = createSocketServer(app, config);
   await app.register(findingsRoutes, { db, storage, io });
+  await app.register(exportRoutes, { db });
   await app.register(statsRoutes, { db });
   await app.register(internalRoutes, { io, internalToken: config.INTERNAL_TOKEN });
   await app.register(settingsRoutes, {
