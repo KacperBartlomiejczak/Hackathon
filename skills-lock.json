@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "skills": {
+    "sca-audit": {
+      "source": "OWASP/secure-agent-playbook",
+      "commit": "65d4efd2cd0b081d52101e9708792b944e4ddebb",
+      "sourceType": "github",
+      "skillPath": "plugins/code-security-skills/skills/sca-audit/SKILL.md",
+      "computedHash": "8531a2d8697bbda9450b95cb1f6aa7e0a6f9a6434ec453d96c936cec2b18f687"
+    },
+    "systematic-debugging": {
+      "source": "obra/superpowers",
+      "commit": "22f0b463e7a5e579904dd6211a520321035526f7",
+      "sourceType": "github",
+      "skillPath": "skills/systematic-debugging/SKILL.md",
+      "computedHash": "79ff0583175346e39431b0dc713b223edd1bd7a7ea2b6c8b78b2fb9a3fed6782"
+    }
+  }
+}
