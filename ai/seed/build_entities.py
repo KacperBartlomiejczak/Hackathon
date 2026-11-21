@@ -20,8 +20,8 @@ TYPES = {"investment_firm", "foreign_firm", "advertiser", "finfluencer", "adviso
 LEGAL = r"(?:S\.A\.|SP\. Z O\.O\.|Sp\. z o\.o\.|S\.A|Ltd\.?|LTD|GmbH|B\.V\.|UAB|AS|ASA|a\.s\.|AG|PLC|Plc|S\.L\.U\.|N\.V\.|S\.r\.l\.|SE)"
 SPLIT = re.compile(rf"({LEGAL})\s+(?=\S)")
 STRIP = re.compile(rf"[\s,]+{LEGAL}$")
-PREFIX = re.compile(r"^(DOM MAKLERSKI|Dom Maklerski|DOM INWESTYCYJNY|Dom Inwestycyjny)\s+", re.I)
-SUFFIX = re.compile(r"\s+(Biuro Maklerskie|Departament Maklerski)$", re.I)
+PREFIX = re.compile(r"^(DOM MAKLERSKI|Dom Maklerski|DOM INWESTYCYJNY|Dom Inwestycyjny)\s+", re.IGNORECASE)
+SUFFIX = re.compile(r"\s+(Biuro Maklerskie|Departament Maklerski)$", re.IGNORECASE)
 
 
 def split_names(raw: str) -> list[str]:
