@@ -39,3 +39,10 @@
 ## 2026-11-21 — embed() env vars
 - Task: `embed()` reads `OLLAMA_BASE_URL` (default `http://localhost:11434`) and `OLLAMA_EMBED_MODEL` (default `bge-m3`); `OLLAMA_URL` removed. Considered switching to Bielik 4096-dim, rejected by the human: bge-m3 stays for embeddings, Bielik is the classification LLM only.
 - Human must verify: 11 unit tests pass, the 4 integration tests were skipped after this rename (Docker daemon was off), rerun them once Docker is up. In compose the ai service needs `OLLAMA_BASE_URL=http://ollama:11434` (default is localhost).
+
+## 2026-11-21 — `/eval` metrics
+- Task: `evaluate()` in `ai/app/eval.py` (stored scores vs gold set, no LLM), empty `ai/eval/gold.csv` (header only, labels are the human's), `ai/tests/test_eval.py`, `findings` table added to the test DDL. Skill risk-classifier.
+- API: `await evaluate(conn, "M2", 0.6) -> EvalResult(module, threshold, tp, fp, fn, tn, precision, recall, total, missing_findings)`; pure `compute_metrics()` underneath. Flagged = `score >= threshold`; several findings per document -> max score; division by zero -> 0.0; threshold outside [0, 1] -> ValueError; gold label must be 0 or 1, conflicting duplicates -> ValueError. Module accepts `M1`, `m1`, `1`.
+- Documents in gold without a finding are scored 0 (not flagged) and counted in `missing_findings` (warning logged). A failed analysis therefore looks like a false negative; check this number before trusting recall.
+- Result: 25 tests pass against pgvector PG16 and Ollama.
+- Human must verify: label the gold set yourself (>= 40 per module); `contracts.md` writes `TP/FP/FN/TN` in upper case, `EvalResult` uses lower case, api and web must agree on the JSON keys; `document_id` in gold must be the `documents.id` from the DB.
