@@ -69,3 +69,6 @@
 - Reviewed the 4 UKNF docx files. Attachments 1 and 2 (register definitions and 4 KNF register URLs) are already covered by `ai/seed/raw/knf_*.json` and `entities.csv`.
 - Added `ai/eval/rubric.md`: 18 risk-information rules (art. 44 of Reg. 2017/565) for M2 and the art. 76/2/3 advisory definition for M3, as labelling rules for `gold.csv`. Labels stay human-made.
 - Needs ai-core (outside this branch's scope): `ai/prompts/m2-risk-info/system.md` has 4 criteria vs. 18 in the UKNF resource; M3 prompt/rules should use the art. 76 definition. Suggested start: text-only rules 1, 2, 3, 6, 9, 10, 14, 15, 17, 18.
+
+## 2026-11-21 — issue #56 (ai-data part)
+- Added `ai/app/preprocess/README.md`: tokenization (dedup word tokens, simhash 3-grams, bge-m3 subword tokenizer) and embeddings as a preprocessing step. Facts checked against clean.py, dedup.py, embeddings.py. Infra can link it from the architecture description.
