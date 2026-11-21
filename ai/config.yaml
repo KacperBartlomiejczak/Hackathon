@@ -15,6 +15,11 @@ thresholds:        # per-module flag threshold (medium risk and above)
   m3: 0.6
 
 llm:
-  timeout_s: 60
+  # Measured on Bielik 11B Q4 (local Ollama): ~37 s per M2 call warm, 60 s+ cold. 60 s was too tight.
+  timeout_s: 120
   retries: 1
   temperature: 0
+
+embedding:         # raw bge-m3 cosine to anchor phrases is mapped linearly: <= floor -> 0, >= ceil -> 1
+  floor: 0.45
+  ceil: 0.75

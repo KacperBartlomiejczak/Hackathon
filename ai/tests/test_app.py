@@ -73,3 +73,17 @@ def test_unconfigured_and_stubs() -> None:
         assert client.post("/reanalyze?module=2").status_code == 501
         assert client.get("/eval?module=2&threshold=0.6").status_code == 503  # no DB
         assert client.get("/eval?module=9&threshold=0.6").status_code == 422
+
+
+def test_ollama_base_url_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    """embeddings.py reads OLLAMA_BASE_URL; the service is configured with OLLAMA_URL only."""
+    import importlib
+
+    import app
+    import app.embeddings as emb
+
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    monkeypatch.setenv("OLLAMA_URL", "http://ollama:11434")
+    importlib.reload(app)
+    importlib.reload(emb)
+    assert emb.OLLAMA_BASE_URL == "http://ollama:11434"

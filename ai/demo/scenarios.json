@@ -1,0 +1,41 @@
+[
+  {
+    "id": "a_legit_xtb",
+    "title": "Legalny komunikat XTB S.A. (domena oficjalna, jest ostrzeżenie o ryzyku)",
+    "request": {
+      "url": "https://www.xtb.com/pl/blog/etf-dla-poczatkujacych",
+      "text": "ETF-y dla początkujących: jak zacząć w XTB. XTB S.A. oferuje dostęp do ponad 5000 instrumentów, w tym ETF-ów i akcji. Otwórz konto w kilka minut. Ostrzeżenie: inwestowanie wiąże się z ryzykiem. Możesz stracić część lub całość zainwestowanego kapitału. Przed podjęciem decyzji zapoznaj się z informacją o ryzyku dostępną na stronie xtb.com. Wyniki z przeszłości nie gwarantują wyników w przyszłości."
+    },
+    "expect": {"module": 2, "risk_level": "low", "score_max": 0.4}
+  },
+  {
+    "id": "b_scam_xtb",
+    "title": "Scam podszywający się pod XTB: gwarantowany zysk, link w bio (ma być alert high)",
+    "request": {
+      "url": "https://www.instagram.com/p/C0scam123/",
+      "authorHandle": "@pewny_zysk_pl",
+      "text": "OFICJALNY partner XTB! Gwarantowany zysk 30% miesięcznie, zero ryzyka. Wpłać 1000 zł, a w 30 dni odbierzesz 1300 zł. XTB potwierdza nasze wyniki, zarabiaj już dziś, miejsc zostało tylko 5! Otwórz konto z moim kodem polecającym, link w bio. Reklama."
+    },
+    "expect": {"module": 1, "risk_level": "high", "score_min": 0.8}
+  },
+  {
+    "id": "c_borderline_xtb",
+    "title": "Przypadek graniczny: polecenie XTB z umiarkowanymi obietnicami (suwak wag przesuwa przez 0.8)",
+    "request": {
+      "url": "https://blog-inwestora.example.pl/moj-broker",
+      "text": "Od roku handluję przez XTB i polecam tę platformę każdemu, kto chce zacząć. Z moim kodem polecającym dostaniesz bonus na start. Moje wyniki są dobre, w tym roku wyszło mi około 12% i nie wydaje mi się, żeby to było trudne do powtórzenia. Link do rejestracji w opisie. Pamiętaj, że inwestowanie niesie ryzyko."
+    },
+    "expect": {"module": 1, "risk_level": "medium", "score_min": 0.6, "score_max": 0.79},
+    "calibrated_weights": {"llm": 0.2, "rules": 0.6, "emb": 0.2}, "calibrated_expect": {"risk_level": "high", "score_min": 0.8}
+  },
+  {
+    "id": "d_shadow_advisory",
+    "title": "Shadow advisory: podmiot spoza rejestru, zarządzanie portfelem i płatne sygnały",
+    "request": {
+      "url": "https://t.me/kapitalnie_z_marcinem",
+      "authorHandle": "@kapitalnie_z_marcinem",
+      "text": "Zarządzam Twoim portfelem, przekaż mi kapitał, a ja zajmę się resztą. Kupuj akcje ABC, cena docelowa 50 zł, stop loss 38 zł. Płatna grupa VIP 99 zł miesięcznie, indywidualne doradztwo inwestycyjne w wiadomości prywatnej."
+    },
+    "expect": {"module": 3, "risk_level": "high", "score_min": 0.8}
+  }
+]
