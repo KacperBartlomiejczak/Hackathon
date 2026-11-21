@@ -1,0 +1,192 @@
+# InvestWatch — Docker Compose stack (infra + application services)
+# Pinned image versions only (no `latest`). Secrets are injected solely via `env_file: [.env]`.
+# Optional NVIDIA GPU support for Ollama:
+#   docker compose -f docker-compose.yml -f infra/docker-compose.gpu.yml up --build
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg16
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./infra/db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER:-investwatch}\" -d \"$${POSTGRES_DB:-investwatch}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:8.1.12-alpine
+    env_file:
+      - .env
+    ports:
+      - "6379:6379"
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.96
+    env_file:
+      - .env
+    command: ["server", "-dir=/data", "-s3", "-s3.port=8333", "-ip.bind=0.0.0.0"]
+    ports:
+      - "8333:8333"
+    volumes:
+      - seaweedfs_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status && wget -q -O /dev/null http://localhost:8333/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  s3-init:
+    image: curlimages/curl:8.23.0
+    env_file:
+      - .env
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    volumes:
+      - ./infra/seaweedfs/init-bucket.sh:/init-bucket.sh:ro
+    entrypoint: ["sh", "/init-bucket.sh"]
+    restart: "no"
+
+  ollama:
+    image: ollama/ollama:0.40.17
+    env_file:
+      - .env
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  ollama-init:
+    image: curlimages/curl:8.23.0
+    env_file:
+      - .env
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./infra/ollama/pull-models.sh:/pull-models.sh:ro
+    entrypoint: ["sh", "/pull-models.sh"]
+    restart: "no"
+
+  # Application services: remove `profiles: ["apps"]` once collector/, api/, ai/, web/ are all merged to main.
+  api:
+    profiles: ["apps"]
+    build:
+      context: ./api
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  ai:
+    profiles: ["apps"]
+    build:
+      context: ./ai
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./infra/seed:/app/seed:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  collector:
+    profiles: ["apps"]
+    build:
+      context: ./collector
+    env_file:
+      - .env
+    volumes:
+      - collector_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_healthy
+      s3-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  web:
+    profiles: ["apps"]
+    build:
+      context: ./web
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    env_file:
+      - .env
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  pg_data:
+  valkey_data:
+  seaweedfs_data:
+  ollama_data:
+  collector_data:
