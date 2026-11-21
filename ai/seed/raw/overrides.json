@@ -1,0 +1,747 @@
+{
+ "_comment": "key = case-insensitive substring of the KNF register name. Domains/aliases written by hand, NOT verified.",
+ "domestic": {
+  "ALIOR BANK": {
+   "name": "Alior Bank S.A. Biuro Maklerskie",
+   "aliases": [
+    "Alior Bank",
+    "Biuro Maklerskie Alior Banku"
+   ],
+   "domains": [
+    "aliorbank.pl"
+   ]
+  },
+  "BANK HANDLOWY": {
+   "name": "Bank Handlowy S.A. Departament Maklerski",
+   "aliases": [
+    "Citi Handlowy",
+    "Bank Handlowy",
+    "Dom Maklerski Citi Handlowy"
+   ],
+   "domains": [
+    "citihandlowy.pl"
+   ]
+  },
+  "BANK MILLENNIUM": {
+   "name": "Bank Millennium S.A. Biuro Maklerskie",
+   "aliases": [
+    "Bank Millennium",
+    "Millennium Biuro Maklerskie"
+   ],
+   "domains": [
+    "bankmillennium.pl"
+   ]
+  },
+  "BANK PEKAO": {
+   "name": "Bank Pekao S.A. Biuro Maklerskie",
+   "aliases": [
+    "Pekao",
+    "Bank Pekao",
+    "Biuro Maklerskie Pekao"
+   ],
+   "domains": [
+    "pekao.com.pl"
+   ]
+  },
+  "BNP Paribas Bank": {
+   "name": "BNP Paribas Bank Polska S.A. Biuro Maklerskie",
+   "aliases": [
+    "BNP Paribas",
+    "Biuro Maklerskie BNP Paribas"
+   ],
+   "domains": [
+    "bnpparibas.pl"
+   ]
+  },
+  "ERSTE BANK": {
+   "name": "Santander Bank Polska S.A. Santander Biuro Maklerskie",
+   "aliases": [
+    "Santander",
+    "Santander Biuro Maklerskie",
+    "Santander Bank Polska"
+   ],
+   "domains": [
+    "santander.pl"
+   ]
+  },
+  "ING BANK": {
+   "name": "ING Bank Śląski S.A. Biuro Maklerskie",
+   "aliases": [
+    "ING Bank Śląski",
+    "ING Biuro Maklerskie",
+    "ING"
+   ],
+   "domains": [
+    "ing.pl"
+   ]
+  },
+  "mBANK": {
+   "name": "mBank S.A. Biuro Maklerskie",
+   "aliases": [
+    "mBank",
+    "mBiuro Maklerskie",
+    "mDM",
+    "mBank Biuro Maklerskie"
+   ],
+   "domains": [
+    "mbank.pl"
+   ]
+  },
+  "POWSZECHNA KASA": {
+   "name": "PKO Bank Polski S.A. Biuro Maklerskie",
+   "aliases": [
+    "PKO BP",
+    "PKO Bank Polski",
+    "PKO Biuro Maklerskie",
+    "PKO BM"
+   ],
+   "domains": [
+    "pkobp.pl"
+   ]
+  },
+  "VeloBank": {
+   "name": "VeloBank S.A. Departament Maklerski",
+   "aliases": [
+    "VeloBank",
+    "Velo Bank"
+   ],
+   "domains": [
+    "velobank.pl"
+   ]
+  },
+  "AIXON": {
+   "name": "Aixon Investment Management Sp. z o.o.",
+   "aliases": [
+    "Aixon"
+   ],
+   "domains": []
+  },
+  "CASPAR": {
+   "name": "Caspar Asset Management S.A.",
+   "aliases": [
+    "Caspar"
+   ],
+   "domains": [
+    "caspar.com.pl"
+   ]
+  },
+  "CERES": {
+   "name": "Ceres Dom Inwestycyjny S.A.",
+   "aliases": [
+    "Ceres",
+    "EFIX Dom Maklerski",
+    "EFIX"
+   ],
+   "domains": []
+  },
+  "CVI": {
+   "name": "CVI Dom Maklerski Sp. z o.o.",
+   "aliases": [
+    "CVI Dom Maklerski",
+    "CVI"
+   ],
+   "domains": []
+  },
+  "NEHREBETIUS": {
+   "name": "Dom Inwestycyjny Nehrebetius S.A.",
+   "aliases": [
+    "Nehrebetius"
+   ],
+   "domains": []
+  },
+  "XELION": {
+   "name": "Dom Inwestycyjny Xelion Sp. z o.o.",
+   "aliases": [
+    "Xelion",
+    "DI Xelion"
+   ],
+   "domains": [
+    "xelion.pl"
+   ]
+  },
+  "AFS": {
+   "name": "Dom Maklerski AFS Sp. z o.o.",
+   "aliases": [
+    "DM AFS",
+    "AFS Dom Maklerski"
+   ],
+   "domains": []
+  },
+  "BANKU OCHRONY": {
+   "name": "Dom Maklerski Banku Ochrony Środowiska S.A.",
+   "aliases": [
+    "DM BOŚ",
+    "BOSSA",
+    "Dom Maklerski BOŚ"
+   ],
+   "domains": [
+    "bossa.pl"
+   ]
+  },
+  "BDM": {
+   "name": "Dom Maklerski BDM S.A.",
+   "aliases": [
+    "BDM",
+    "DM BDM"
+   ],
+   "domains": [
+    "bdm.com.pl"
+   ]
+  },
+  "INC S.A.": {
+   "name": "Dom Maklerski INC S.A.",
+   "aliases": [
+    "DM INC",
+    "INC Dom Maklerski"
+   ],
+   "domains": []
+  },
+  "NAVIGATOR": {
+   "name": "Dom Maklerski Navigator S.A.",
+   "aliases": [
+    "Navigator",
+    "DM Navigator"
+   ],
+   "domains": [
+    "dmnavigator.pl"
+   ]
+  },
+  "DORADZTWO DLA POLSKICH": {
+   "name": "Doradztwo dla Polskich Przedsiębiorstw Securities S.A.",
+   "aliases": [
+    "DPP Securities"
+   ],
+   "domains": []
+  },
+  "ERSTE SECURITIES": {
+   "name": "Erste Securities Polska S.A.",
+   "aliases": [
+    "Erste Securities"
+   ],
+   "domains": []
+  },
+  "EVEREST": {
+   "name": "Everest Investment Management S.A.",
+   "aliases": [
+    "Everest Investment"
+   ],
+   "domains": []
+  },
+  "EVO DOM": {
+   "name": "EVO Dom Maklerski S.A.",
+   "aliases": [
+    "EVO Dom Maklerski",
+    "Prime Selection Dom Maklerski",
+    "PSDM"
+   ],
+   "domains": []
+  },
+  "IFDS": {
+   "name": "IFDS Dom Maklerski S.A.",
+   "aliases": [
+    "IFDS",
+    "Investment Funds Depositary Services"
+   ],
+   "domains": []
+  },
+  "IPOPEMA": {
+   "name": "Ipopema Securities S.A.",
+   "aliases": [
+    "Ipopema"
+   ],
+   "domains": [
+    "ipopema.pl"
+   ]
+  },
+  "IX ASSET": {
+   "name": "Niezależny Dom Maklerski S.A.",
+   "aliases": [
+    "NDM",
+    "IX Asset Management",
+    "Niezależny Dom Maklerski"
+   ],
+   "domains": [
+    "ndm.pl"
+   ]
+  },
+  "LFI": {
+   "name": "LFI Dom Maklerski S.A.",
+   "aliases": [
+    "LFI DM",
+    "LFI"
+   ],
+   "domains": []
+  },
+  "MICHAEL/STR": {
+   "name": "Michael/Ström Dom Maklerski S.A.",
+   "aliases": [
+    "Michael/Ström",
+    "Michael Strom",
+    "Michael/Ström Dom Maklerski"
+   ],
+   "domains": [
+    "michaelstrom.pl"
+   ]
+  },
+  "NOBLE": {
+   "name": "Noble Securities S.A.",
+   "aliases": [
+    "Noble Securities"
+   ],
+   "domains": [
+    "noblesecurities.pl"
+   ]
+  },
+  "NWAI": {
+   "name": "NWAI Dom Maklerski S.A.",
+   "aliases": [
+    "NWAI"
+   ],
+   "domains": []
+  },
+  "OANDA TMS": {
+   "name": "OANDA TMS Brokers S.A.",
+   "aliases": [
+    "OANDA TMS",
+    "TMS Brokers",
+    "TMS",
+    "OANDA"
+   ],
+   "domains": [
+    "tms.pl"
+   ]
+  },
+  "PEKAO INVESTMENT": {
+   "name": "Pekao Investment Banking S.A.",
+   "aliases": [
+    "Pekao IB",
+    "Pekao Investment Banking"
+   ],
+   "domains": []
+  },
+  "PGE DOM": {
+   "name": "PGE Dom Maklerski S.A.",
+   "aliases": [
+    "PGE DM",
+    "PGE Dom Maklerski"
+   ],
+   "domains": []
+  },
+  "Q SECURITIES": {
+   "name": "Q Securities S.A.",
+   "aliases": [
+    "Q Securities"
+   ],
+   "domains": []
+  },
+  "TRIGON": {
+   "name": "Trigon Dom Maklerski S.A.",
+   "aliases": [
+    "Trigon"
+   ],
+   "domains": [
+    "trigon.pl"
+   ]
+  },
+  "XTB S.A.": {
+   "name": "XTB S.A.",
+   "aliases": [
+    "XTB",
+    "X-Trade Brokers",
+    "X-Trade Brokers Dom Maklerski"
+   ],
+   "domains": [
+    "xtb.com"
+   ]
+  }
+ },
+ "foreign": {
+  "Etoro (Europe)": {
+   "name": "eToro (Europe) Ltd",
+   "aliases": [
+    "eToro",
+    "Etoro"
+   ],
+   "domains": [
+    "etoro.com"
+   ]
+  },
+  "Plus500CY": {
+   "name": "Plus500CY Ltd",
+   "aliases": [
+    "Plus500"
+   ],
+   "domains": [
+    "plus500.com"
+   ]
+  },
+  "Plus500EE": {
+   "name": "Plus500EE AS",
+   "aliases": [
+    "Plus500"
+   ],
+   "domains": [
+    "plus500.com"
+   ]
+  },
+  "Trading 212 Markets": {
+   "name": "Trading 212 Markets Ltd",
+   "aliases": [
+    "Trading 212",
+    "Trading212"
+   ],
+   "domains": [
+    "trading212.com"
+   ]
+  },
+  "Trading 212 Ltd": {
+   "name": "Trading 212 Ltd",
+   "aliases": [
+    "Trading 212",
+    "Trading212"
+   ],
+   "domains": [
+    "trading212.com"
+   ]
+  },
+  "Trading 212 EU": {
+   "name": "Trading 212 EU GmbH",
+   "aliases": [
+    "Trading 212",
+    "Trading212"
+   ],
+   "domains": [
+    "trading212.com"
+   ]
+  },
+  "Revolut Securities": {
+   "name": "Revolut Securities Europe UAB",
+   "aliases": [
+    "Revolut",
+    "Revolut Trading"
+   ],
+   "domains": [
+    "revolut.com"
+   ]
+  },
+  "Interactive Brokers": {
+   "name": "Interactive Brokers Ireland Ltd",
+   "aliases": [
+    "Interactive Brokers",
+    "IBKR"
+   ],
+   "domains": [
+    "interactivebrokers.ie",
+    "interactivebrokers.com"
+   ]
+  },
+  "Trading Point": {
+   "name": "Trading Point of Financial Instruments Ltd",
+   "aliases": [
+    "XM",
+    "XM.com",
+    "Trading Point"
+   ],
+   "domains": [
+    "xm.com"
+   ]
+  },
+  "Freedom Finance": {
+   "name": "Freedom Finance Europe Ltd",
+   "aliases": [
+    "Freedom24",
+    "Freedom Finance"
+   ],
+   "domains": [
+    "freedom24.com"
+   ]
+  },
+  "Capital Com SV": {
+   "name": "Capital Com SV Investments Ltd",
+   "aliases": [
+    "Capital.com"
+   ],
+   "domains": [
+    "capital.com"
+   ]
+  },
+  "CAPITAL COM GROUP": {
+   "name": "Capital Com Group Ltd",
+   "aliases": [
+    "Capital.com"
+   ],
+   "domains": [
+    "capital.com"
+   ]
+  },
+  "Admiral Markets AS": {
+   "name": "Admiral Markets AS",
+   "aliases": [
+    "Admiral Markets",
+    "Admirals"
+   ],
+   "domains": [
+    "admiralmarkets.com",
+    "admirals.com"
+   ]
+  },
+  "Admirals Europe": {
+   "name": "Admirals Europe Ltd",
+   "aliases": [
+    "Admirals",
+    "Admiral Markets"
+   ],
+   "domains": [
+    "admirals.com",
+    "admiralmarkets.com"
+   ]
+  },
+  "Ava Trade EU": {
+   "name": "Ava Trade EU Ltd",
+   "aliases": [
+    "AvaTrade"
+   ],
+   "domains": [
+    "avatrade.com"
+   ]
+  },
+  "FXPRO": {
+   "name": "FxPro Financial Services Ltd",
+   "aliases": [
+    "FxPro"
+   ],
+   "domains": [
+    "fxpro.com"
+   ]
+  },
+  "iFOREX": {
+   "name": "iFOREX (Cyprus) Ltd",
+   "aliases": [
+    "iFOREX"
+   ],
+   "domains": [
+    "iforex.com"
+   ]
+  },
+  "Naga Markets Europe": {
+   "name": "Naga Markets Europe Ltd",
+   "aliases": [
+    "NAGA"
+   ],
+   "domains": [
+    "naga.com"
+   ]
+  },
+  "IronFX": {
+   "name": "Notesco Financial Services Ltd (IronFX)",
+   "aliases": [
+    "IronFX"
+   ],
+   "domains": [
+    "ironfx.com"
+   ]
+  },
+  "Skilling": {
+   "name": "Skilling Ltd",
+   "aliases": [
+    "Skilling"
+   ],
+   "domains": [
+    "skilling.com"
+   ]
+  },
+  "Swissquote Capital": {
+   "name": "Swissquote Capital Markets Ltd",
+   "aliases": [
+    "Swissquote"
+   ],
+   "domains": [
+    "swissquote.com"
+   ]
+  },
+  "Tickmill Europe": {
+   "name": "Tickmill Europe Ltd",
+   "aliases": [
+    "Tickmill"
+   ],
+   "domains": [
+    "tickmill.com"
+   ]
+  },
+  "Pepperstone EU": {
+   "name": "Pepperstone EU Ltd",
+   "aliases": [
+    "Pepperstone"
+   ],
+   "domains": [
+    "pepperstone.com"
+   ]
+  },
+  "Exness": {
+   "name": "Exness (Cy) Ltd",
+   "aliases": [
+    "Exness"
+   ],
+   "domains": [
+    "exness.com"
+   ]
+  },
+  "Robomarkets": {
+   "name": "Robomarkets Ltd (RoboForex)",
+   "aliases": [
+    "RoboForex"
+   ],
+   "domains": [
+    "roboforex.com"
+   ]
+  },
+  "IC Markets": {
+   "name": "IC Markets (EU) Ltd",
+   "aliases": [
+    "IC Markets"
+   ],
+   "domains": [
+    "icmarkets.com"
+   ]
+  },
+  "EQUITI": {
+   "name": "Equiti Global Markets Ltd",
+   "aliases": [
+    "Equiti"
+   ],
+   "domains": [
+    "equiti.com"
+   ]
+  },
+  "ORBEX": {
+   "name": "Orbex Ltd",
+   "aliases": [
+    "Orbex"
+   ],
+   "domains": [
+    "orbex.com"
+   ]
+  },
+  "Bitpanda": {
+   "name": "Bitpanda Financial Services GmbH",
+   "aliases": [
+    "Bitpanda"
+   ],
+   "domains": [
+    "bitpanda.com"
+   ]
+  },
+  "Coinbase Financial": {
+   "name": "Coinbase Financial Services Europe Ltd",
+   "aliases": [
+    "Coinbase"
+   ],
+   "domains": [
+    "coinbase.com"
+   ]
+  },
+  "Lightyear": {
+   "name": "Lightyear Europe AS",
+   "aliases": [
+    "Lightyear"
+   ],
+   "domains": [
+    "lightyear.com"
+   ]
+  },
+  "Dukascopy": {
+   "name": "Dukascopy Europe IBS AS",
+   "aliases": [
+    "Dukascopy"
+   ],
+   "domains": [
+    "dukascopy.com"
+   ]
+  },
+  "Oanda Europe": {
+   "name": "OKX Europe Markets Ltd / Oanda Europe Markets Ltd",
+   "aliases": [
+    "OANDA",
+    "OKX"
+   ],
+   "domains": [
+    "oanda.com",
+    "okx.com"
+   ]
+  },
+  "Stratos Europe": {
+   "name": "Stratos Europe Ltd (FXCM EU)",
+   "aliases": [
+    "FXCM"
+   ],
+   "domains": [
+    "fxcm.com"
+   ]
+  },
+  "XNT Ltd": {
+   "name": "XNT Ltd (Exante)",
+   "aliases": [
+    "Exante"
+   ],
+   "domains": [
+    "exante.eu"
+   ]
+  },
+  "GO Markets": {
+   "name": "GO Markets Ltd",
+   "aliases": [
+    "GO Markets"
+   ],
+   "domains": [
+    "gomarkets.com"
+   ]
+  },
+  "Safecap": {
+   "name": "Safecap Investments Ltd",
+   "aliases": [
+    "Safecap"
+   ],
+   "domains": [
+    "safecap.com"
+   ]
+  },
+  "CMC Markets": {
+   "name": "CMC Markets Germany GmbH",
+   "aliases": [
+    "CMC Markets"
+   ],
+   "domains": [
+    "cmcmarkets.com"
+   ]
+  },
+  "IG Europe": {
+   "name": "IG Europe GmbH",
+   "aliases": [
+    "IG",
+    "IG Markets"
+   ],
+   "domains": [
+    "ig.com"
+   ]
+  },
+  "XTB Ltd": {
+   "name": "XTB Ltd",
+   "aliases": [
+    "XTB"
+   ],
+   "domains": [
+    "xtb.com"
+   ]
+  },
+  "LYNX": {
+   "name": "LYNX B.V.",
+   "aliases": [
+    "LYNX Broker",
+    "LYNX"
+   ],
+   "domains": [
+    "lynxbroker.com"
+   ]
+  }
+ }
+}
