@@ -51,3 +51,8 @@
 ## 2026-11-21 — issue #8 (czysty start) + #15/#16/#17/#19/#37
 Zlecono: plan i wdrożenie poprawek infra (wyjątek od własności za zgodą leada). Subagenci (sonnet) prześledzili statycznie `docker compose up --build` i zweryfikowali README/SECURITY.md.
 Zrobione: usunięty profil `apps`, depends_on (ai→ollama-init/s3-init, collector→api/ai), `.env.example` z wartościami dev + `S3_PUBLIC_ENDPOINT` + `WEB_ORIGIN`, `.gitattributes` LF, poprawny tag Bielika, README, docs/SECURITY.md. Sprawdzone: `docker compose config`, `docker manifest inspect` wszystkich obrazów, manifest Bielika w rejestrze Ollamy (200), build api z HEAD. Pełnego `up` nie uruchamiano.
+
+## 2026-11-21 — issue #43 (analiza w collectorze: współbieżność, timeout, re-crawl)
+Zlecono: plan zaakceptowany przed zmianami. Znalezione przy okazji: `void postAnalyze` w `onItem` nie ogranicza równoległości (N dokumentów = N naraz do jednego Bielika), a upsert resetował `status` na `fetched` przy każdym re-crawlu.
+Zrobione: semafor `ANALYZE_CONCURRENCY` (domyślnie 1) w `ai/client.ts`, timeout z `AI_ANALYZE_TIMEOUT_MS` (300 s, poprawiony komentarz), upsert nie rusza `status`, `/analyze` tylko dla `fetched`. Test: 3 analizy naraz → max 1 aktywna.
+Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline'u na bazie (re-crawl) i budżet timeoutu — czeka na decyzję ai-core w #41. Kolejka w pamięci: restart collectora gubi oczekujące analizy (dokumenty zostają `fetched`).
