@@ -33,3 +33,5 @@
 - **Human decisions:** keep `asyncpg`; 4-criterion checklist for v1 (full UKNF annex in v2); prompt path per CLAUDE.md; alert to `/internal/alerts` postponed until after 19:00.
 - **Tests:** 42 pass, 5 skipped (mocked LLM/DB), new files lint clean. Pre-existing E501 in ai-data files and conftest/test_eval untouched.
 - **Not verified:** live Postgres/S3/Ollama; `embeddings.py` still reads `OLLAMA_BASE_URL` (ai-data must switch to `OLLAMA_URL` or `/analyze` embeds against localhost).
+
+- **Task:** live test of M2 against remote Bielik-11B showed one copied quote for all 4 criteria and constant confidence 0.5. Prompt bumped to `m2-v2` (per-criterion quotes, confidence calibration, one format-only example); `CriterionResult.quote` is now required in the schema (the model omitted it otherwise). **Verified:** re-run on a "15% guaranteed" ad gives differentiated confidence and 2/2 quotes kept. **Open:** for `risk_warning_present`/`risk_prominence` the model still returns an empty quote when the warning is absent, so that reason is dropped. Skill: `risk-classifier`.

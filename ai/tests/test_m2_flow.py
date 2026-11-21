@@ -27,7 +27,7 @@ CONFIG = {
 
 
 def test_prompt_version() -> None:
-    assert load_prompt("m2-risk-info/system.md").version == "m2-v1"
+    assert load_prompt("m2-risk-info/system.md").version == "m2-v2"
 
 
 def test_quotes_drop_hallucination() -> None:
@@ -134,7 +134,7 @@ async def test_m2_finding_with_valid_quote(patched: FakePool) -> None:
     res = await pipeline.analyze_document(patched, FakeLLM(_output("Gwarantowany zysk.")), CONFIG, 7)  # type: ignore[arg-type]
     assert res.status == "processed" and patched.status == "processed"
     (f,) = res.findings
-    assert f.module == 2 and f.prompt_version == "m2-v1" and f.firm_entity_id == 4
+    assert f.module == 2 and f.prompt_version == "m2-v2" and f.firm_entity_id == 4
     assert {r.criterion for r in f.reasons} == {"no_guaranteed_returns", "risk_warning_present"}
     assert f.score > 0.3
 

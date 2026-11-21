@@ -42,7 +42,7 @@ _RULES = re.compile(
 class CriterionResult(BaseModel):
     criterion: CriterionId
     verdict: Literal["pass", "fail", "unclear"]
-    quote: str = Field(default="", max_length=600)
+    quote: str = Field(max_length=600)
     confidence: float = Field(ge=0, le=1)
 
 
