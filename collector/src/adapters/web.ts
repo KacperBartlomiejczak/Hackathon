@@ -2,6 +2,7 @@ import pLimit from 'p-limit';
 import { chromium, type Browser, type Page } from 'playwright';
 import { logger } from '../logger.js';
 import { htmlKey, screenshotKey, urlHash } from '../storage/s3.js';
+import { extractLinks } from './discovery.js';
 import type { CollectedDocument, CrawlContext, DiscoveredItem, SourceAdapter } from './types.js';
 
 // Fix these at night when a site's markup differs.
@@ -13,6 +14,7 @@ const SELECTORS = {
 
 const NAV_TIMEOUT_MS = 30_000;
 const PER_HOST_CONCURRENCY = 2;
+const DISCOVERY_TIMEOUT_MS = 15_000;
 
 let browserPromise: Promise<Browser> | null = null;
 
@@ -127,8 +129,20 @@ export const webAdapter: SourceAdapter = {
       logger.warn({ source: ctx.source.name, startUrl }, 'invalid or missing startUrl, nothing to discover');
       return;
     }
-    // TODO(hack): step 20 link discovery
     yield { url: startUrl };
+    // shortcut: plain fetch without JS, so JS-rendered sites yield few links; use Playwright here if needed.
+    try {
+      const res = await fetch(startUrl, {
+        headers: { 'User-Agent': ctx.nextUserAgent(), 'Accept-Language': 'pl-PL,pl;q=0.9' },
+        signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const links = extractLinks(await res.text(), res.url || startUrl);
+      logger.info({ source: ctx.source.name, startUrl, links: links.length }, 'web discovery done');
+      for (const url of links) yield { url };
+    } catch (err) {
+      logger.warn({ source: ctx.source.name, startUrl, err: String(err) }, 'web discovery failed, start_url only');
+    }
   },
 
   fetch(item: DiscoveredItem, ctx: CrawlContext): Promise<CollectedDocument> {
