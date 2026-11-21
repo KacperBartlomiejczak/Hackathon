@@ -72,3 +72,7 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 - Zlecono: `src/scheduler.ts` (`syncSchedulers`: dla każdego włączonego źródła z cronem BullMQ `upsertJobScheduler('source-<id>', { pattern, tz: 'Europe/Warsaw' })` z payloadem `{ sourceId, trigger: 'schedule' }`; zły cron = log error tylko dla tego źródła; nieaktualne `source-*` usuwane), wywołanie przy starcie w `index.ts`, `syncSources` zwraca też `cron`, blogi i YouTube co 6 h w `sources.yaml`. Plan zaakceptowany przed zmianami.
 - Skille: `scraper-adapter`; zero nowych paczek.
 - Weryfikacja: `tsc`, `eslint`, 18 testów (nowy: dodanie, pominięcie wyłączonego i bez crona, zły cron, usunięcie nieaktualnego); na żywo w Valkey na osobnej kolejce testowej: harmonogram zapisany z tz, zły cron odrzucony przez BullMQ, nieaktualny usunięty, zaplanowany job ma `trigger: 'schedule'`; kolejka testowa skasowana.
+## 2026-11-21 — test kroków 19–25 w compose + ponowna analiza `failed`
+- Zlecono: test całości w compose, potem jedna linijka w `pipeline.ts`: `/analyze` także dla dokumentów `failed` (przy re-crawlu), żeby dokumenty z wcześniejszych błędów 502 dostały szansę na analizę. Akceptacja człowieka przed zmianą.
+- Skille: brak nowych paczek.
+- Weryfikacja na żywo: 8 źródeł, 6 harmonogramów, 7 crawl_runs `ok`, 96 dokumentów (16 sample, 36 web, 45 YouTube), pierwsze findingi M1/M2/M3. Zgłoszone do ai-core: `M1Output` odrzuca odpowiedź Bieliko (walidacja Pydantic), ~90 s na dokument na CPU. Po zmianie: `tsc`, `eslint`, 18 testów.
