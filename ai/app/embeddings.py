@@ -6,7 +6,7 @@ import httpx
 
 log = logging.getLogger(__name__)
 
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 EMBED_MODEL = os.environ.get("OLLAMA_EMBED_MODEL", "bge-m3")
 DIM = 1024
 TIMEOUT_S = 60.0
@@ -14,7 +14,7 @@ TIMEOUT_S = 60.0
 
 async def embed(text: str) -> list[float]:
     """Return the bge-m3 embedding of `text`. Raises on any failure, never returns a made-up vector."""
-    async with httpx.AsyncClient(base_url=OLLAMA_BASE_URL, timeout=TIMEOUT_S) as client:
+    async with httpx.AsyncClient(base_url=OLLAMA_URL, timeout=TIMEOUT_S) as client:
         resp = await client.post("/api/embed", json={"model": EMBED_MODEL, "input": text})
         resp.raise_for_status()
     vectors = resp.json().get("embeddings") or []

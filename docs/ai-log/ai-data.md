@@ -57,3 +57,6 @@
 - Task: merged `origin/main` (no conflicts; PR #3 was already merged), fixed 15 ruff errors under `ai/pyproject.toml` (line-length 110, E/F/I/B/UP/T20): 14 long lines wrapped, one lambda -> def, two duplicated `Entity(...)` comprehension lines wrapped. No behaviour change.
 - Result: `ruff check .` clean, 37 tests pass (mine + ai-core `test_app.py`) against pgvector PG16 and Ollama.
 - Still open (ai-core): tests need `pytest-asyncio` + `asyncio_mode = "auto"` (not in `ai/pyproject.toml`, so a plain `uv run pytest` fails at conftest; I ran `uv run --with pytest-asyncio pytest -p asyncio --asyncio-mode=auto`); `embed()` reads `OLLAMA_BASE_URL` while `main.py` and `.env.example` use `OLLAMA_URL`; Dockerfile does not copy `seed/` and `eval/`; `/analyze` and `/eval` are not wired.
+
+## 2026-11-21 — embed() back to `OLLAMA_URL`
+- `embed()` reads `OLLAMA_URL` (default `http://localhost:11434`, for local runs) and `OLLAMA_EMBED_MODEL` (default `bge-m3`), matching `main.py`, `.env.example` and the request in `docs/ai-log/ai-core.md`. `OLLAMA_BASE_URL` is gone; this supersedes the earlier rename note.
