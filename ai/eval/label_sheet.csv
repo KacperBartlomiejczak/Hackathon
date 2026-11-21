@@ -131,3 +131,5 @@
 130;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s23;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta na polecenie czlowieka)
 131;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s24;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta na polecenie czlowieka)
 132;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s25;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta na polecenie czlowieka)
+133;1;syntetyczny;https://finfluencer-test.example/m1-s01;1;;SYNTETYCZNE; fixture w ai/eval/synthetic_m1_m3.jsonl: osoba trzecia o Trading 212, kod polecajacy (etykieta zaproponowana przez agenta na polecenie czlowieka)
+134;3;syntetyczny;https://edukacja-test.example/m3-s01;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m1_m3.jsonl: edukacja, brak rekomendacji (etykieta zaproponowana przez agenta na polecenie czlowieka)
