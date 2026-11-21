@@ -5,6 +5,7 @@ import { DocumentCard } from "@/components/DocumentCard";
 import { ReasonsCard } from "@/components/ReasonsCard";
 import { StatusHistory } from "@/components/StatusHistory";
 import { DemoBadge } from "@/components/DemoBadge";
+import { QueryState } from "@/components/QueryState";
 import { StatusSelect } from "@/components/StatusSelect";
 import { fetchFinding, updateFindingStatus } from "@/lib/api";
 import { MODULE_LABEL } from "@/lib/utils";
@@ -15,7 +16,7 @@ export default function FindingDetailsPage() {
   const numericId = Number(id);
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["finding", numericId],
     queryFn: () => fetchFinding(numericId),
   });
@@ -28,8 +29,10 @@ export default function FindingDetailsPage() {
     },
   });
 
-  if (isLoading) return <p className="text-sm text-slate-500">Ładowanie…</p>;
-  if (isError || !data) return <p className="text-sm text-red-600">Nie znaleziono findingu.</p>;
+  if (isLoading || isError) {
+    return <QueryState isLoading={isLoading} isError={isError} errorMessage="Nie udało się pobrać findingu." onRetry={() => void refetch()} />;
+  }
+  if (!data) return <p className="text-sm text-slate-500">Nie znaleziono findingu.</p>;
 
   const quotes = data.reasons.map((r) => r.quote);
 

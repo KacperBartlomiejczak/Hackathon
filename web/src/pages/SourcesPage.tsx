@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SourcesTable } from "@/components/SourcesTable";
 import { DemoBadge } from "@/components/DemoBadge";
+import { QueryState } from "@/components/QueryState";
 import { fetchSources, runSource } from "@/lib/api";
 
 export default function SourcesPage() {
@@ -29,8 +30,7 @@ export default function SourcesPage() {
         <DemoBadge endpoints={["sources"]} />
       </div>
 
-      {sources.isLoading && <p className="text-sm text-slate-500">Ładowanie…</p>}
-      {sources.isError && <p className="text-sm text-red-600">Nie udało się pobrać źródeł.</p>}
+      <QueryState isLoading={sources.isLoading} isError={sources.isError} errorMessage="Nie udało się pobrać źródeł." onRetry={() => void sources.refetch()} />
       {sources.data && sources.data.length === 0 && <p className="text-sm text-slate-500">Brak skonfigurowanych źródeł.</p>}
 
       {sources.data && sources.data.length > 0 && (

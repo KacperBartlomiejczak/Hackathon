@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { QueryState } from "@/components/QueryState";
 import { IncidentChart } from "@/components/IncidentChart";
 import { ModuleSelect } from "@/components/ModuleSelect";
 import { Tile } from "@/components/Tile";
@@ -23,8 +24,7 @@ export default function TrendsPage() {
         <DemoBadge endpoints={["summary","trend"]} />
       </div>
 
-      {summary.isLoading && <p className="text-sm text-slate-500">Ładowanie…</p>}
-      {summary.isError && <p className="text-sm text-red-600">Nie udało się pobrać statystyk.</p>}
+      <QueryState isLoading={summary.isLoading} isError={summary.isError} errorMessage="Nie udało się pobrać statystyk." onRetry={() => void summary.refetch()} />
       {summary.data && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -46,8 +46,7 @@ export default function TrendsPage() {
           <h2 className="text-sm font-semibold uppercase text-slate-500">Incydenty w czasie</h2>
           <ModuleSelect value={module} onChange={setModule} />
         </div>
-        {trend.isLoading && <p className="text-sm text-slate-500">Ładowanie…</p>}
-        {trend.isError && <p className="text-sm text-red-600">Nie udało się pobrać trendu.</p>}
+        <QueryState isLoading={trend.isLoading} isError={trend.isError} errorMessage="Nie udało się pobrać trendu." onRetry={() => void trend.refetch()} />
         {trend.data && trend.data.length === 0 && <p className="text-sm text-slate-500">Brak danych.</p>}
         {trend.data && trend.data.length > 0 && <IncidentChart data={trend.data} />}
       </section>

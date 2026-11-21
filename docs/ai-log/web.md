@@ -14,3 +14,8 @@
 - Asked Claude to: read `origin/team/api` contract for `PATCH /findings/:id/status`, `/stats/trend`, `/stats/summary` and adapt web.
 - Changes: summary lists mapped to the `StatsSummary` records; trend points (day x module) summed per day; PATCH sends `changedBy`; `StatusSelect` offers only transitions the api accepts (new→in_review→confirmed|dismissed); `status`, `trend`, `summary` removed from the default mocked list.
 - Human to verify: after `team/api` is merged and the stack runs, status change, trend chart and tiles against real data.
+
+## Error and loading states
+- Asked Claude to: replace ad-hoc "Ladowanie..." / error paragraphs with one component and make failures show up quickly.
+- Changes: `QueryState` (loading, error with "Spr�buj ponownie" retry) on findings, details, trends, calibration and sources; `QueryClient` retry 1 with 500 ms delay, no refetch on window focus.
+- Human to verify: with the api stopped the error appears after about 1 s and retry works once the api is back; in mock mode the console stays clean.

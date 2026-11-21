@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { QueryState } from "@/components/QueryState";
 import { useSearchParams } from "react-router-dom";
 import { FiltersBar, type FilterKey } from "@/components/FiltersBar";
 import { FindingsTable } from "@/components/FindingsTable";
@@ -30,7 +31,7 @@ export default function FindingsPage() {
   const [params, setParams] = useSearchParams();
   const filters = readFilters(params);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["findings", filters],
     queryFn: () => fetchFindings(filters),
   });
@@ -82,8 +83,7 @@ export default function FindingsPage() {
         onExport={(format) => void runExport(format)}
       />
 
-      {isLoading && <p className="text-sm text-slate-500">Ładowanie…</p>}
-      {isError && <p className="text-sm text-red-600">Nie udało się pobrać findingów.</p>}
+      <QueryState isLoading={isLoading} isError={isError} errorMessage="Nie udało się pobrać findingów." onRetry={() => void refetch()} />
       {data && data.items.length === 0 && <p className="text-sm text-slate-500">Brak findingów dla wybranych filtrów.</p>}
 
       {data && data.items.length > 0 && (

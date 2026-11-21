@@ -4,6 +4,7 @@ import { EvalMetrics } from "@/components/EvalMetrics";
 import { ModuleTabs } from "@/components/ModuleTabs";
 import { ThresholdControl } from "@/components/ThresholdControl";
 import { DemoBadge } from "@/components/DemoBadge";
+import { QueryState } from "@/components/QueryState";
 import { isMocked, fetchEval, fetchModuleSettings, saveModuleSettings } from "@/lib/api";
 import { MODULE_LABEL } from "@/lib/utils";
 import { mockFindings } from "@/mocks";
@@ -70,8 +71,7 @@ export default function CalibrationPage() {
       <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
         <ModuleTabs value={module} onChange={changeModule} />
 
-        {settings.isLoading && <p className="text-sm text-slate-500">Ładowanie ustawień…</p>}
-        {settings.isError && <p className="text-sm text-red-600">Nie udało się pobrać ustawień modułu.</p>}
+        <QueryState isLoading={settings.isLoading} isError={settings.isError} errorMessage="Nie udało się pobrać ustawień modułu." loadingMessage="Ładowanie ustawień…" onRetry={() => void settings.refetch()} />
 
         {threshold !== null && (
           <ThresholdControl
@@ -88,8 +88,7 @@ export default function CalibrationPage() {
       </section>
 
       <section className="space-y-3">
-        {evalQuery.isLoading && <p className="text-sm text-slate-500">Ładowanie wyników ewaluacji…</p>}
-        {evalQuery.isError && <p className="text-sm text-red-600">Nie udało się pobrać wyników ewaluacji.</p>}
+        <QueryState isLoading={evalQuery.isLoading} isError={evalQuery.isError} errorMessage="Nie udało się pobrać wyników ewaluacji." loadingMessage="Ładowanie wyników ewaluacji…" onRetry={() => void evalQuery.refetch()} />
         {data && <EvalMetrics data={data} />}
         {isMocked("eval") && threshold !== null && (
           <div className="rounded-lg border border-slate-200 bg-white p-4">
