@@ -38,13 +38,16 @@ export default function FindingsPage() {
 
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
+  const [exportTruncated, setExportTruncated] = useState(false);
 
   async function runExport(format: ExportFormat) {
     setExporting(true);
     setExportError(false);
+    setExportTruncated(false);
     try {
-      const { blob, filename } = await exportFindings(filters, format);
+      const { blob, filename, truncated } = await exportFindings(filters, format);
       downloadBlob(blob, filename);
+      setExportTruncated(truncated);
     } catch {
       setExportError(true);
     } finally {
@@ -82,6 +85,9 @@ export default function FindingsPage() {
         exportError={exportError}
         onExport={(format) => void runExport(format)}
       />
+      {exportTruncated && (
+        <p className="text-sm text-amber-700">Eksport obcięty do 10 000 wierszy. Zawęź filtry, żeby pobrać całość.</p>
+      )}
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage="Nie udało się pobrać findingów." onRetry={() => void refetch()} />
       {data && data.items.length === 0 && <p className="text-sm text-slate-500">Brak findingów dla wybranych filtrów.</p>}

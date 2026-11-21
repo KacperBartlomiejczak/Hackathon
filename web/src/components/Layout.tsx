@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { ShieldCheck } from "lucide-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAlerts } from "@/components/AlertsProvider";
@@ -61,7 +61,9 @@ export default function Layout() {
         </div>
       </nav>
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">
-        <Outlet />
+        <Suspense fallback={<p className="text-sm text-slate-500">Ładowanie…</p>}>
+          <Outlet />
+        </Suspense>
       </main>
       <footer className="border-t border-line bg-head px-6 py-3 text-center text-xs text-slate-600">
         InvestWatch · monitoring rynku finansowego

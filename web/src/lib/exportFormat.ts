@@ -18,8 +18,10 @@ const CSV_HEADERS = [
 ];
 
 function csvField(value: string | number | null | undefined): string {
-  const text = value === null || value === undefined ? "" : String(value);
-  if (/[",\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  const raw = value === null || value === undefined ? "" : String(value);
+  // Scraped text is untrusted: neutralise spreadsheet formulas (CSV injection); numbers stay as-is.
+  const text = typeof value === "string" && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+  if (/[";,\t\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }
 
@@ -39,9 +41,9 @@ export function findingsToCsv(findings: Finding[]): string {
       f.reasons.map((r) => r.quote).filter(Boolean).join("\n"),
     ]
       .map(csvField)
-      .join(","),
+      .join(";"),
   );
-  return `﻿${[CSV_HEADERS.map(csvField).join(","), ...rows].join("\r\n")}\r\n`;
+  return `﻿${[CSV_HEADERS.map(csvField).join(";"), ...rows].join("\r\n")}\r\n`;
 }
 
 export function findingsToJson(findings: Finding[]): string {
