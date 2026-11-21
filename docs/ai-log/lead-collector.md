@@ -56,3 +56,7 @@ Zrobione: usunięty profil `apps`, depends_on (ai→ollama-init/s3-init, collect
 Zlecono: plan zaakceptowany przed zmianami. Znalezione przy okazji: `void postAnalyze` w `onItem` nie ogranicza równoległości (N dokumentów = N naraz do jednego Bielika), a upsert resetował `status` na `fetched` przy każdym re-crawlu.
 Zrobione: semafor `ANALYZE_CONCURRENCY` (domyślnie 1) w `ai/client.ts`, timeout z `AI_ANALYZE_TIMEOUT_MS` (300 s, poprawiony komentarz), upsert nie rusza `status`, `/analyze` tylko dla `fetched`. Test: 3 analizy naraz → max 1 aktywna.
 Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline'u na bazie (re-crawl) i budżet timeoutu — czeka na decyzję ai-core w #41. Kolejka w pamięci: restart collectora gubi oczekujące analizy (dokumenty zostają `fetched`).
+## 2026-11-21 — krok 19: rotacja User-Agentów i walidacja proxy
+- Zlecono: lista 23 realnych UA (Chrome/Edge/Firefox/Safari/Opera, Windows/macOS/Linux/Android/iOS) w `src/userAgents.ts`, losowy UA per item zamiast round-robin z 3; walidacja `PROXY_LIST` (każdy wpis to URL http/https/socks5, pusty = bez proxy). Jitter 1–3 s i limit 2/host już były w adapterze web. Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 12 testów `node:test` (nowe: ≥ 20 unikalnych UA, losowanie z listy); `PROXY_LIST=foo` → błąd zod przy starcie. Proxy nie testowane na żywo (brak proxy).
