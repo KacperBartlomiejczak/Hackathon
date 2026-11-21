@@ -8,6 +8,7 @@ import { DemoBadge } from "@/components/DemoBadge";
 import { QueryState } from "@/components/QueryState";
 import { StatusSelect } from "@/components/StatusSelect";
 import { fetchFinding, updateFindingStatus } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/apiError";
 import { MODULE_LABEL } from "@/lib/utils";
 import type { FindingStatus } from "@/types";
 
@@ -54,7 +55,11 @@ export default function FindingDetailsPage() {
           <StatusSelect value={data.status} disabled={mutation.isPending} onChange={(s) => mutation.mutate(s)} />
         </div>
       </div>
-      {mutation.isError && <p className="text-sm text-red-600">Nie udało się zmienić statusu.</p>}
+      {mutation.isError && (
+        <p role="alert" className="text-sm text-red-600">
+          {apiErrorMessage(mutation.error, "Nie udało się zmienić statusu.")}
+        </p>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ReasonsCard finding={data} />

@@ -1,4 +1,5 @@
 import { defaultExportFilename, findingsToCsv, findingsToJson, type ExportFormat } from "@/lib/exportFormat";
+import { toApiError } from "@/lib/apiError";
 import { mockFindingDetails, mockFindings, mockHistory } from "@/mocks";
 import { mockEval, mockModuleSettings } from "@/mocks/calibration";
 import { mockSources } from "@/mocks/sources";
@@ -49,8 +50,25 @@ type ApiFindingDetails = Omit<FindingDetails, "history" | "document"> & {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, init);
-  if (!res.ok) throw new Error(`API ${res.status}`);
+  if (!res.ok) throw await toApiError(res);
   return (await res.json()) as T;
+}
+
+function addDays(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// The api returns only buckets with findings; fill the gaps with zeros so the chart shows quiet days.
+function fillMissingDays(perDay: Map<string, number>): TrendPoint[] {
+  const days = [...perDay.keys()].sort();
+  if (days.length === 0) return [];
+  const points: TrendPoint[] = [];
+  for (let day = days[0]; day <= days[days.length - 1]; day = addDays(day, 1)) {
+    points.push({ date: day, count: perDay.get(day) ?? 0 });
+  }
+  return points;
 }
 
 function matches(f: Finding, filters: FindingsFilters): boolean {
@@ -89,7 +107,7 @@ export async function exportFindings(
     if (value !== undefined && value !== "") params.set(key, String(value));
   }
   const res = await fetch(`${API_URL}/export?${params.toString()}`);
-  if (!res.ok) throw new Error(`API ${res.status}`);
+  if (!res.ok) throw await toApiError(res);
   const disposition = res.headers.get("Content-Disposition") ?? "";
   const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
   const filename = match ? decodeURIComponent(match[1]) : defaultExportFilename(format);
@@ -128,7 +146,7 @@ export async function fetchTrend(module?: ModuleId): Promise<TrendPoint[]> {
       const day = f.createdAt.slice(0, 10);
       counts.set(day, (counts.get(day) ?? 0) + 1);
     }
-    return [...counts.entries()].map(([date, count]) => ({ date, count })).sort((a, b) => a.date.localeCompare(b.date));
+    return fillMissingDays(counts);
   }
   const params = new URLSearchParams({ bucket: "day" });
   if (module) params.set("module", String(module));
@@ -140,7 +158,7 @@ export async function fetchTrend(module?: ModuleId): Promise<TrendPoint[]> {
     const day = p.bucket.slice(0, 10);
     perDay.set(day, (perDay.get(day) ?? 0) + p.count);
   }
-  return [...perDay.entries()].map(([date, count]) => ({ date, count })).sort((a, b) => a.date.localeCompare(b.date));
+  return fillMissingDays(perDay);
 }
 
 export async function fetchSummary(): Promise<StatsSummary> {
