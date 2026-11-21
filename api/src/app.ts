@@ -70,6 +70,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
 
   await app.register(cors, {
     origin: config.WEB_ORIGIN,
+    methods: ["GET", "HEAD", "POST", "PATCH", "PUT", "OPTIONS"],
     // Lets the browser read the export file name and the truncation flag (web/src/lib/api.ts).
     exposedHeaders: ["Content-Disposition", "X-Export-Truncated"],
   });
