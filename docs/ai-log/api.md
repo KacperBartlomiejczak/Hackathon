@@ -30,3 +30,18 @@
 - Asked Claude to: document query params (incl. new `pageSize`) and the list/detail JSON in `docs/contracts.md`, matching the implemented endpoints.
 - Skill used: `data-contract`. Additive, docs only: no DB migration, no schema change; `api/src/types/findings.ts` already matches.
 - Follow-ups for others: web updates `web/src/types` (list + detail shapes, `pageSize`). collector and ai-core are not affected.
+
+## Step 11: Socket.io + POST /internal/alerts, /internal/crawl-status
+- Asked Claude to: attach Socket.io to Fastify (CORS = `WEB_ORIGIN` only), add `X-Internal-Token`-guarded internal routes with zod validation, emit `alert:new` / `crawl:status`. Plan approved first; human approved the `/internal/alerts` body (no DB lookup, `riskLevel` must be `high`), 1:1 `crawl:status`, rate limit off for `/internal/*`.
+- Skill used: `data-contract` (docs only: `/internal/alerts` body + 202/400/401 responses added to `docs/contracts.md`; no DB change). No new dependencies.
+- Decisions: token compared with `timingSafeEqual` on SHA-256 digests (equal-length buffers); auth runs in `onRequest`, before body parsing; logs carry only ids/status, never headers or body.
+- Verified: typecheck, lint, build; real server on a random port: 401 without/with wrong/short token, 400 on `riskLevel:"low"` and bad crawl status, 202 + both events received by a Socket.io polling client; CORS header is `WEB_ORIGIN` even for a foreign Origin; token string absent from logs; `grep console.` empty; clean shutdown.
+- Follow-ups for others: ai-core sends the body from `docs/contracts.md` with `X-Internal-Token` (ai/app/models.py); collector sends `/internal/crawl-status` with the token; web types for `alert:new` / `crawl:status` (web/src/types); #6 `INTERNAL_TOKEN` in `.env.example` and compose.
+
+## Steps 14-15: PATCH /findings/:id/status, GET /stats/trend, GET /stats/summary
+- Asked Claude to: add the status endpoint (zod, allowed transitions `new -> in_review -> confirmed|dismissed`, one DB transaction for `findings.status` + `finding_status_history`, emit `finding:updated`), plus trend (`date_trunc`, `bucket=day|hour`) and summary (per module / risk / source kind / status). Plan with proposed response shapes approved first.
+- Skill used: `data-contract` (docs only: PATCH body/responses, trend, summary and `finding:updated` payload in `docs/contracts.md`; no DB change, no new dependencies).
+- Decisions: row locked with `SELECT ... FOR UPDATE` so concurrent PATCHes cannot both pass the transition check; no re-open; `changedBy` optional (max 100, default null); `note` only logged by pino (no column); trend does not zero-fill gaps; emit happens after commit.
+- Human caught/verified: Claude's first trend query returned 500 (bound `date_trunc` parameter differs between SELECT and GROUP BY) - fixed by inlining the zod-validated enum literal. Re-tested after the fix.
+- Verified: typecheck, lint, build; `app.inject` against a scratch DB built from `001_init.sql` (dropped afterwards): 200/409 (skip, same status, re-open)/404/400 cases, 2 history rows, 2 `finding:updated` events received by a raw Socket.io polling client, trend/summary counts match manual `GROUP BY`; `grep console.` empty.
+- Follow-ups for others: web updates `web/src/types` (PATCH, trend, summary, `finding:updated`) and listens to `finding:updated`; web fills empty trend buckets itself. Not affected: collector, ai.
