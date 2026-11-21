@@ -1,6 +1,6 @@
 # Scoring: score = w_llm*llm + w_rules*rules + w_emb*emb
 # Runtime overrides live in DB table module_settings (editable from the calibration panel).
-# Model name is NOT here: set OLLAMA_MODEL in .env.
+# Model name is NOT here: set OLLAMA_LLM_MODEL and OLLAMA_EMBED_MODEL in .env.
 weights:
   w_llm: 0.6
   w_rules: 0.25

@@ -41,7 +41,7 @@ def test_finding_camel_case() -> None:
 
 
 def test_health_degraded_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    monkeypatch.delenv("OLLAMA_URL", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     with TestClient(main.app) as client:
         r = client.get("/health")

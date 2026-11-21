@@ -66,9 +66,9 @@ app = FastAPI(title="InvestWatch AI", version="0.1.0", lifespan=lifespan)
 
 
 async def _check_ollama(client: httpx.AsyncClient) -> bool:
-    base = os.getenv("OLLAMA_BASE_URL")
+    base = os.getenv("OLLAMA_URL")
     if not base:
-        logger.error("OLLAMA_BASE_URL not set")
+        logger.error("OLLAMA_URL not set")
         return False
     try:
         resp = await client.get(f"{base.rstrip('/')}/api/tags")

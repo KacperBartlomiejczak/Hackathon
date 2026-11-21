@@ -13,6 +13,8 @@ WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 COPY app ./app
 COPY config.yaml ./
+COPY prompts ./prompts
+COPY rules ./rules
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 USER app
 EXPOSE 8000

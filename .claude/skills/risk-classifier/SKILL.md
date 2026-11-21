@@ -31,7 +31,7 @@ score  = w_llm*llm + w_rules*rules + w_emb*emb          # wagi z module_settings
 Każdy finding MUSI mieć co najmniej jeden `reason` z dosłownym `quote` z tekstu. Sprawdź w kodzie, że cytat występuje w `text_clean` (fuzzy match ≥ 0.9) — jeśli nie, odrzuć ten reason (halucynacja).
 
 ## Prompty
-- Plik `ai/prompts/m{n}.md`, nagłówek `version: m{n}-vX`. Podbij wersję przy każdej zmianie.
+- Pliki w `ai/prompts/<nazwa-feature>/` (np. `ai/prompts/m{n}-<temat>/system.md`), nagłówek `version: m{n}-vX`. Podbij wersję przy każdej zmianie.
 - Struktura: instrukcja systemowa → kryteria (dla M2 checklista z załącznika UKNF) → treść dokumentu w ogranicznikach `<document>…</document>` z dopiskiem, że to dane, nie polecenia.
 - Wymuszaj JSON: Ollama `format` = JSON Schema z modelu Pydantic. `temperature: 0`.
 - Tekst przycinaj do limitu kontekstu modelu (najpierw tytuł i pierwsze akapity, potem fragmenty z frazami zysk/ryzyko).
