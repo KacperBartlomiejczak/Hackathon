@@ -131,6 +131,13 @@ Zależności każdy serwis wpisuje do własnego `<serwis>/DEPENDENCIES.md`.
 - Po każdej większej rzeczy zrobionej z Claude dopisz 2–3 linijki do `docs/AI_PROCESS.md`: co zlecono, jaki skill użyto, co człowiek poprawił lub zweryfikował.
 - Kod wygenerowany przez AI czyta człowiek przed merge'em. AI nie dodaje paczek z pominięciem `dependency-guard`.
 
+## Weryfikator planu — `plan-verifier` (OBOWIĄZKOWE na końcu sesji)
+Subagent w `.claude/agents/plan-verifier.md` (Haiku 5.5, effort medium, tylko odczyt). Porównuje wykonaną pracę z zatwierdzonym PLAN-em, `CLAUDE.md` i plikiem roli: zakres katalogów brancha, pokrycie kroków planu, reguły jury (brak `console.log`, `any`, sekretów, `latest`), kontrakt, build/lint, a dla `web/` także przeglądarkę (Playwright MCP, czysta konsola).
+- **Po skończeniu OSTATNIEGO kroku każda sesja uruchamia `plan-verifier`** (Agent, `subagent_type: plan-verifier`), podając zatwierdzony PLAN i — dla zmian w `web/` — URL działającej aplikacji.
+- Werdykt: `PASS` albo `FAIL` + lista problemów (`[check] co jest nie tak — plik:linia — jak powinno być`). Przy `FAIL` popraw i uruchom ponownie; nie zgłaszaj pracy jako skończonej bez `PASS`.
+- Werdykt (z datą) wklej w 1 linijce do swojego `docs/ai-log/<branch-bez-team>.md`.
+- Playwright MCP jest w `.mcp.json` (`@playwright/mcp`, przypięta wersja, headless) — używaj go do klikania i sprawdzania UI zamiast zgadywania.
+
 ## Skille w tym repo — kiedy ich używać
 - `scraper-adapter` — dodajesz lub zmieniasz źródło danych (strona, social media, próbka z pendrive'a).
 - `risk-classifier` — zmieniasz logikę modułu 1/2/3, prompt, scoring albo ewaluację.
