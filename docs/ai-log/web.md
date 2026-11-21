@@ -34,3 +34,8 @@
 - Asked Claude to: stop mocking `/eval`, `/settings`, `/sources` (now on main), fix CSV formula injection, show the export-truncated notice, code-split pages and slim the web image.
 - Changes: `DEFAULT_MOCKED` is now only `export`; CSV fields starting with `= + - @ tab CR` get an apostrophe prefix, `;` separator and decimal comma; `X-Export-Truncated` shows a Polish notice; pages are `React.lazy` (main chunk 850 kB -> 346 kB, Recharts only in the trends chunk); Dockerfile serves `dist` from `nginx:1.27.5-alpine` with an SPA fallback.
 - Human to verify: `docker build web` and the page on port 5173, calibration slider against the real api, a CSV with a `=1+1` quote opened in Excel, export once `GET /export` lands on main (remove `export` from `VITE_MOCKED_ENDPOINTS`).
+
+## Export on the real api (issue #29)
+- Asked Claude to: switch export from the mock to `GET /export` (landed on main in #39) and add the JSON response type.
+- Changes: `DEFAULT_MOCKED` is empty (mocks only with `VITE_USE_MOCKS=true`); `ExportJson` type in `types/index.ts`; the api already exposes `Content-Disposition` and `X-Export-Truncated` through CORS.
+- Human to verify: with the full stack up, download CSV and JSON with a module filter and without, open the CSV in Excel, check the truncation notice. Here only checked against a local stub (query string, truncation notice).
