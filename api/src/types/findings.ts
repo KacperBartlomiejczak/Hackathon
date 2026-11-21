@@ -22,6 +22,30 @@ export const idParamsSchema = z.object({
   id: z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 });
 
+export const statusBodySchema = z.object({
+  status: z.enum(["in_review", "confirmed", "dismissed"]),
+  changedBy: z.string().trim().min(1).max(100).nullish(),
+  note: z.string().max(500).optional(),
+});
+
+// No re-open: terminal states have no outgoing transitions.
+export const STATUS_TRANSITIONS: Record<string, readonly string[]> = {
+  new: ["in_review"],
+  in_review: ["confirmed", "dismissed"],
+  confirmed: [],
+  dismissed: [],
+};
+
+export type FindingUpdatedPayload = {
+  id: number;
+  module: number;
+  riskLevel: string;
+  oldStatus: string;
+  status: string;
+  changedBy: string | null;
+  changedAt: string;
+};
+
 export type EntityRef = { id: number; name: string } | null;
 
 export type FindingListItem = {
