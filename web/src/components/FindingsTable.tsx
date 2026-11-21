@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
 import { RiskBadge, StatusBadge } from "@/components/Badges";
 import { formatDate, MODULE_LABEL } from "@/lib/utils";
-import type { Finding } from "@/types";
+import type { FindingListItem } from "@/types";
 
-export function FindingsTable({ items }: { items: Finding[] }) {
+export function FindingsTable({ items }: { items: FindingListItem[] }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
       <table className="w-full text-left text-sm">

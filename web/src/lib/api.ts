@@ -8,6 +8,7 @@ import type {
   ModuleSettingsInput,
   Finding,
   FindingDetails,
+  FindingListItem,
   FindingStatus,
   FindingsFilters,
   ModuleId,
@@ -20,6 +21,12 @@ import type {
 export const API_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 export const USE_MOCKS: boolean = import.meta.env.VITE_USE_MOCKS !== "false";
 export const PAGE_SIZE = 10;
+
+type ApiFindingDetails = Omit<FindingDetails, "history" | "document"> & {
+  document: Omit<FindingDetails["document"], "screenshotUrl">;
+  screenshotUrl: string | null;
+  statusHistory: FindingDetails["history"];
+};
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, init);
@@ -70,18 +77,18 @@ export async function exportFindings(
   return { blob: await res.blob(), filename };
 }
 
-export async function fetchFindings(filters: FindingsFilters): Promise<Page<Finding>> {
+export async function fetchFindings(filters: FindingsFilters): Promise<Page<FindingListItem>> {
   const page = filters.page ?? 1;
   if (USE_MOCKS) {
     const all = mockFindings.filter((f) => matches(f, filters));
     const start = (page - 1) * PAGE_SIZE;
     return { items: all.slice(start, start + PAGE_SIZE), total: all.length, page, pageSize: PAGE_SIZE };
   }
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ pageSize: String(PAGE_SIZE) });
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== "") params.set(key, String(value));
   }
-  return request<Page<Finding>>(`/findings?${params.toString()}`);
+  return request<Page<FindingListItem>>(`/findings?${params.toString()}`);
 }
 
 export async function fetchFinding(id: number): Promise<FindingDetails> {
@@ -90,7 +97,8 @@ export async function fetchFinding(id: number): Promise<FindingDetails> {
     if (!found) throw new Error("Nie znaleziono");
     return found;
   }
-  return request<FindingDetails>(`/findings/${id}`);
+  const { statusHistory, screenshotUrl, ...rest } = await request<ApiFindingDetails>(`/findings/${id}`);
+  return { ...rest, document: { ...rest.document, screenshotUrl }, history: statusHistory };
 }
 
 export async function fetchTrend(module?: ModuleId): Promise<TrendPoint[]> {

@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { FiltersBar, type FilterKey } from "@/components/FiltersBar";
 import { FindingsTable } from "@/components/FindingsTable";
 import { Pagination } from "@/components/Pagination";
-import { exportFindings, fetchFindings, PAGE_SIZE } from "@/lib/api";
+import { exportFindings, fetchFindings } from "@/lib/api";
 import { downloadBlob } from "@/lib/download";
 import type { ExportFormat } from "@/lib/exportFormat";
 import type { FindingStatus, FindingsFilters, ModuleId, RiskLevel, SourceKind } from "@/types";
@@ -60,7 +60,7 @@ export default function FindingsPage() {
 
   const values = Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ""])) as Record<FilterKey, string>;
   const hasFilters = FILTER_KEYS.some((k) => params.has(k));
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
   const page = filters.page ?? 1;
 
   return (

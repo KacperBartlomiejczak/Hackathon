@@ -55,6 +55,39 @@ export interface Finding {
   document: DocumentInfo;
 }
 
+export interface EntityRef {
+  id: number;
+  name: string;
+}
+
+/** Row of GET /findings: no reasons, no document text. */
+export interface FindingListItem {
+  id: number;
+  module: ModuleId;
+  score: number;
+  riskLevel: RiskLevel;
+  label: string;
+  status: FindingStatus;
+  createdAt: string;
+  document: Pick<DocumentInfo, "id" | "url" | "title" | "sourceKind">;
+  firm?: EntityRef | null;
+  advertiser?: EntityRef | null;
+}
+
+/** Payload of the Socket.io event alert:new. */
+export interface AlertPayload {
+  findingId: number;
+  documentId: number;
+  module: ModuleId;
+  score: number;
+  riskLevel: "high";
+  label: string;
+  title: string | null;
+  url: string;
+  firm: EntityRef | null;
+  createdAt: string;
+}
+
 export interface StatusHistoryEntry {
   oldStatus: FindingStatus | null;
   newStatus: FindingStatus;

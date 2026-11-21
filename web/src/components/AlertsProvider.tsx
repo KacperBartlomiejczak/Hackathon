@@ -6,7 +6,7 @@ import { Toaster, toast } from "sonner";
 import { API_URL, USE_MOCKS } from "@/lib/api";
 import { mockFindings } from "@/mocks";
 import { MODULE_LABEL } from "@/lib/utils";
-import type { Finding } from "@/types";
+import type { AlertPayload } from "@/types";
 
 interface AlertsContextValue {
   newCount: number;
@@ -31,15 +31,15 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
   navigateRef.current = navigate;
 
   const handleAlert = useCallback(
-    (finding: Finding) => {
+    (alert: AlertPayload) => {
       setNewCount((n) => n + 1);
       void queryClient.invalidateQueries({ queryKey: ["findings"] });
       void queryClient.invalidateQueries({ queryKey: ["summary"] });
       void queryClient.invalidateQueries({ queryKey: ["trend"] });
-      toast.error(`Wysokie ryzyko · ${MODULE_LABEL[finding.module]}`, {
-        description: finding.reasons[0]?.quote ?? finding.label,
+      toast.error(`Wysokie ryzyko · ${MODULE_LABEL[alert.module]}`, {
+        description: alert.title ?? alert.label,
         duration: 10000,
-        action: { label: "Zobacz", onClick: () => navigateRef.current(`/findings/${finding.id}`) },
+        action: { label: "Zobacz", onClick: () => navigateRef.current(`/findings/${alert.findingId}`) },
       });
     },
     [queryClient],
@@ -68,7 +68,19 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
       mockMode: USE_MOCKS,
       simulateAlert: () => {
         const high = mockFindings.filter((f) => f.riskLevel === "high");
-        handleAlert(high[Math.floor(Math.random() * high.length)]);
+        const f = high[Math.floor(Math.random() * high.length)];
+        handleAlert({
+          findingId: f.id,
+          documentId: f.documentId,
+          module: f.module,
+          score: f.score,
+          riskLevel: "high",
+          label: f.label,
+          title: f.document.title,
+          url: f.document.url,
+          firm: f.firm ? { id: f.firm.id, name: f.firm.name } : null,
+          createdAt: new Date().toISOString(),
+        });
       },
     }),
     [newCount, handleAlert],
