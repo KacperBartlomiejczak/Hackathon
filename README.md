@@ -9,7 +9,7 @@ flowchart LR
   web["web<br/>React + Vite (:5173)"]
   api["api<br/>Fastify + Drizzle + Socket.io (:3000)"]
   collector["collector<br/>Playwright + BullMQ"]
-  ai["ai<br/>FastAPI (:8000)"]
+  ai["ai<br/>FastAPI (:8000)<br/>clean -> dedup -> tokenizacja i embeddingi -> M1/M2/M3"]
   pg[("postgres (pgvector)<br/>PostgreSQL 16 (:5432)")]
   valkey[("valkey<br/>Valkey 8 (:6379)")]
   s3[("seaweedfs (S3)<br/>SeaweedFS (:8333)")]
@@ -26,9 +26,23 @@ flowchart LR
   collector -- "POST /analyze/{document_id}" --> ai
   ai -- "odczyt HTML" --> s3
   ai <--> pg
-  ai -- "embeddingi bge-m3 + LLM M1/M2/M3" --> ollama
+  ai -- "tokeny i embeddingi bge-m3 + LLM M1/M2/M3" --> ollama
   ai -- "POST /internal/alerts (riskLevel=high, X-Internal-Token)" --> api
 ```
+
+### Etapy preprocessingu i analizy w serwisie `ai`
+1. **Ekstrakcja i czyszczenie tekstu:** `trafilatura` usuwa szum HTML, pozostawiając czystą treść (`text_clean`).
+2. **Deduplikacja:** dokładna (`content_hash` SHA-256) oraz przybliżona (64-bitowy `simhash` na 3-gramach słów, próg odległości Hamminga `6`).
+3. **Tokenizacja i embeddingi:** tekst jest dzielony na tokeny do dopasowania fleksyjnego/leksykalnego (polskie końcówki, granice słów i anchory promocyjne dla 86 podmiotów KNF) oraz przekształcany przez model **`bge-m3`** w gęsty wektor semantyczny **`vector(1024)`** zapisywany w `pgvector`.
+4. **Klasyfikacja M1 / M2 / M3 i walidacja cytatów:** hybrydowy scoring (`score = w_llm * llm + w_rules * rules + w_emb * emb`) z udziałem modelu **`SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M`** oraz weryfikacją dosłownych cytatów w tekście (`rapidfuzz.partial_ratio >= 90`).
+
+### Uzasadnienie wyboru modeli: Bielik-11B + `bge-m3` (zamiast Gemma / klasycznego BERT)
+- **`SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` zamiast ogólnego modelu `Gemma`:**
+  - **Natywny polski tokenizer i korpus:** Bielik (SpeakLeash / ACK Cyfronet AGH) został wytrenowany na szerokim polskim korpusie z dedykowanym polskim tokenizerem, dzięki czemu znacznie lepiej radzi sobie z polską fleksją, idiomami reklamowymi oraz terminologią finansowo-regulacyjną KNF/UKNF niż ogólne modele wielojęzyczne pokroju Gemmy.
+  - **Precyzja cytowania i struktury JSON:** przy 11B parametrów (w kwantyzacji `Q4_K_M` mieszczącej się na pojedynczym GPU/CPU) stabilnie zwraca odpowiedzi zgodne ze schematem Pydantic (`format`, `temperature: 0`) i dosłowne cytaty z polskiego tekstu.
+  - **Licencja Apache-2.0 i działanie 100% on-premise:** pełne prawo do komercyjnego i instytucjonalnego wdrożenia w infrastrukturze UKNF bez wysyłania wrażliwych materiałów nadzorczych do chmury.
+- **`bge-m3` zamiast klasycznego `BERT`:**
+  - Obsługuje długi kontekst (do 8192 tokenów wobec 512 w klasycznym BERT), daje 1024-wymiarowe wielojęzyczne embeddingi o wysokiej jakości dopasowania semantycznego dla polskich fraz doradczych (M3) i działa natywnie w tym samym silniku Ollama na licencji MIT.
 
 ## Wymagania sprzętowe
 
@@ -75,16 +89,19 @@ curl -s http://localhost:3000/health
 |---|---|---|---|
 | `web` | React + Vite + TS (Nginx) | `5173` | Dashboard analityka UKNF, filtry, trendy, kalibracja, toasty alertów |
 | `api` | Node 22 + Fastify + Drizzle + Socket.io | `3000` | REST API, eksport, `X-Internal-Token`, eventy real-time |
-| `ai` | Python 3.12 + FastAPI | `8000` | Czyszczenie tekstu, dedup (hash + simhash), `bge-m3`, moduły M1/M2/M3, `/eval` |
+| `ai` | Python 3.12 + FastAPI | `8000` | Czyszczenie tekstu, dedup, tokenizacja i embeddingi `bge-m3`, moduły M1/M2/M3, `/eval` |
 | `collector` | Node 22 + TypeScript + Playwright + BullMQ | — | Harmonogram i wykonywanie crawli, zapis HTML/screenshotów do S3 |
 | `postgres` | `pgvector/pgvector:0.8.7-pg16` | `5432` | Dane relacyjne i wektory `vector(1024)` (init z `infra/db/`) |
 | `valkey` | `valkey/valkey:8.1.12-alpine` | `6379` | Broker kolejek BullMQ (`crawl-source`) |
 | `seaweedfs` | `chrislusf/seaweedfs:3.96` | `8333` | Object storage kompatybilny z S3 (bucket inicjowany przez `s3-init`) |
 | `ollama` | `ollama/ollama:0.40.17` | `11434` | Lokalna inferencja LLM i embeddingów (modele pobiera `ollama-init`) |
 
-## Konfiguracja
+## Konfiguracja i dokumentacja
 
 Wszystkie zmienne środowiskowe oraz ich opisy znajdują się w [.env.example](.env.example). Sekrety są przekazywane do kontenerów wyłącznie przez `env_file: [.env]` — pliku `.env` nie wolno commitować do repozytorium.
 Najważniejsze zmienne: `OLLAMA_LLM_MODEL`, `OLLAMA_EMBED_MODEL`, `S3_PUBLIC_ENDPOINT` (adres S3 widziany z przeglądarki), `WEB_ORIGIN`, `VITE_API_URL`.
 
-Kontrakt schematu bazy danych i endpointów znajduje się w [docs/contracts.md](docs/contracts.md), raport bezpieczeństwa i audytu zależności w [docs/SECURITY.md](docs/SECURITY.md), a lista zależności i licencji w [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md).
+- Kontrakt schematu DB i API: [docs/contracts.md](docs/contracts.md)
+- Bezpieczeństwo i skany obrazów/paczek: [docs/SECURITY.md](docs/SECURITY.md)
+- Wykaz bibliotek, narzędzi i licencji: [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)
+- Standaryzowany proces pracy z AI: [docs/AI_PROCESS.md](docs/AI_PROCESS.md)
