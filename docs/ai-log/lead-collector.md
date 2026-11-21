@@ -80,3 +80,6 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 - Zlecono: przegląd issues dla lead-collector i plan; po akceptacji: domyślny `AI_ANALYZE_TIMEOUT_MS` 300 s → 600 s (M1+M2+M3 sekwencyjnie, LLM do 120 s na zimno), dedupe dokumentu w locie w `ai/client.ts` (overlapping re-crawl nie odpala drugiego `/analyze`), błąd analizy dopisywany do `crawl_runs.error` w `pipeline.ts`.
 - Skille: brak nowych paczek.
 - Weryfikacja: `tsc`, `eslint`, 8 testów klienta (nowy: ten sam dokument w locie = 1 wywołanie). Nie sprawdzone: pełny `docker compose up --build` (demo-check pkt 1–2).
+## 2026-11-21 — healthcheck `web` (z #49, #43)
+- Zlecono: naprawa healthchecka `web` w `docker-compose.yml` (używał `node`, którego nie ma w `nginx:alpine`) → `wget` na `127.0.0.1:5173` (nginx słucha tylko IPv4). Plik infra, zmiana jednej linijki za zgodą człowieka; do powiadomienia osoby #6.
+- Weryfikacja: `docker compose up -d --no-deps web` → `healthy` po 25 s (wcześniej `unhealthy`). Nie sprawdzone: czysty start od zera (`down -v` + `up --build`).
