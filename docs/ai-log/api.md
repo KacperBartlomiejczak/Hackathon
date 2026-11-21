@@ -76,3 +76,28 @@
 - Verified: typecheck, lint, build, `grep console.` empty; the 64-check `app.inject` suite re-run on a fresh scratch DB (parser switched to `;`, new checks for quoting `;` and the decimal comma), DB dropped afterwards.
 - Still to check by a human: double-click `findings.csv` in Excel with Polish regional settings (columns split, Polish characters, score as a number).
 - Issues 2-6 from the list above created on GitHub as KacperBartlomiejczak/Hackathon#25-#29 (human approved).
+
+## Steps 24-25: hardening — issues #31, #28, #27, #25, #15 + error format + audit
+- Asked Claude to: close every open GitHub issue owned by api (#31, #28, #27, #25, #15) in PR #32, plus two hardening items from `docs/team/4-api.md`: one `{ error, message }` error format without stack traces, and `npm audit --audit-level=high` saved to `api/SECURITY.md`. Plan approved first. The human picked the defaults: strip `@` from handles in CSV (#25), and add `pg_trgm` only if the measurement shows a clear gain (#27).
+- Skill used: `data-contract`. The Skill tool did not list the project skill, so Claude followed `.claude/skills/data-contract/SKILL.md` by hand. `docs/contracts.md` now covers the error format, rate limits, CORS exposed headers, `@` in the CSV handle columns and the trigram indexes. `api/src/db/schema.ts` mirrors the new indexes. No column changes and no new dependencies.
+- Changes:
+  - #31: CORS `exposedHeaders: Content-Disposition, X-Export-Truncated`, so web gets `findings.csv` from the API instead of its own default name. The formula guard (incl. TAB/CR) was already in step 22. `=HYPERLINK` is now covered by a committed unit test.
+  - #28: `/export` has its own 10/min per-IP limit (global stays 300/min), 429 with `Retry-After`. No streaming, the 10 000-row cap is enough.
+  - #27: `infra/db/003_trgm.sql` with `pg_trgm` + GIN `gin_trgm_ops` on `documents.title` and `documents.text_clean`. It sits next to 001/002, not in `infra/db/migrations/` as the skill says, because compose only runs top-level files from `docker-entrypoint-initdb.d`.
+  - #25: column flag `handle` (Reklamujący, Podmiot). CSV drops the leading `@` before the formula guard, so `@=1+1` still becomes `'=1+1`. JSON keeps the `@`.
+  - Error handler: 4xx keep their status, with `error` mapped by status (`unauthorized`, `not_found`, `payload_too_large`, `unsupported_media_type`, `rate_limited`, …). 5xx always return `{error:"internal", message:"Internal server error"}`. A not-found handler covers unknown routes (Fastify's default body was `{message,error,statusCode}`). The `/internal/*` 401 now also has a `message`. 4xx are logged at `warn` without a stack, 5xx at `error` with the stack, only in pino.
+  - Tests: `npm test` (`node --import tsx --test`, no new dependencies) with 15 unit tests for `csvCell`/`toCsv`. These are the first tests committed in `api/`, earlier suites only lived in a scratchpad.
+- #27 measurement (scratch pgvector:pg16, 50 000 documents × ~1.5 KB, the same query shape as `/findings?q=`):
+  - Rare phrase (25 hits): 1 625 ms → 45 ms (count) and 1 739 ms → 3 ms (first page).
+  - A word present in every document: no gain, 1.7 s → 2-3 s (bitmap heap scan of all rows).
+  - Cost: index build 46 s, 70 MB GIN on `text_clean` (table is 67 MB), insert about +1.6 ms per document (1 000 docs: 66 ms → 1 645 ms).
+  - Kept the index, because real searches are firm names and phrases, i.e. selective.
+- #15 result (real SeaweedFS `chrislusf/seaweedfs:3.96`, scratch container):
+  - The presigned URL signed for `S3_PUBLIC_ENDPOINT` downloads in a plain `fetch` (200, same bytes, `image/png`, `X-Amz-Expires=900`). A missing object gives 404.
+  - Found two problems for infra (#6). First, `.env.example` has no `S3_PUBLIC_ENDPOINT`, so URLs are signed for `http://seaweedfs:8333`, which the browser cannot open. The fix is `S3_PUBLIC_ENDPOINT=http://localhost:8333`. Second, SeaweedFS runs without `-s3.config`, so it does not verify signatures at all: a tampered signature and an unsigned GET both return 200.
+- Verified: typecheck, lint, build, `grep console.` empty, `npm test` 15/15, `npm audit --audit-level=high` 0 vulnerabilities (report in `api/SECURITY.md`). 62 `app.inject` checks against scratch Postgres (001-003), Valkey 8.1.12 and SeaweedFS 3.96, all removed afterwards:
+  - #15 presign, CORS (allow and expose headers, foreign origin, preflight), #28 limit (10 × 200, 11th 429, other routes unaffected).
+  - Error format 400/401/404/409/413/415/429/500 (DB down: no driver text).
+  - The export suite with #25 handles, export/findings parity for 9 filters, smoke of every endpoint incl. a job read back from Valkey.
+  - The token never appeared in the logs.
+- Follow-ups for others: infra (#6) adds `S3_PUBLIC_ENDPOINT=http://localhost:8333` to `.env.example` and decides on `-s3.config`. Everyone runs `docker compose down -v` (or `psql -f infra/db/003_trgm.sql`) to get the new indexes. web (#5): nothing required, `exportFindings()` now receives the real file name.

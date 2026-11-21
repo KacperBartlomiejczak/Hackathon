@@ -1,4 +1,4 @@
-// Mirrors infra/db/001_init.sql (DDL source of truth). Used for queries only.
+// Mirrors infra/db/001_init.sql + 003_trgm.sql (DDL source of truth). Used for queries only.
 // Columns are declared in camelCase; drizzle({ casing: "snake_case" }) maps them to DB names.
 import { sql } from "drizzle-orm";
 import {
@@ -111,6 +111,9 @@ export const documents = pgTable(
     index("documents_source_id_idx").on(t.sourceId),
     index("documents_crawl_run_id_idx").on(t.crawlRunId),
     index("documents_content_hash_idx").on(t.contentHash),
+    // infra/db/003_trgm.sql — trigram GIN for the ILIKE `q` filter.
+    index("documents_title_trgm_idx").using("gin", t.title.op("gin_trgm_ops")),
+    index("documents_text_clean_trgm_idx").using("gin", t.textClean.op("gin_trgm_ops")),
   ],
 );
 
