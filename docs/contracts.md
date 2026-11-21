@@ -57,7 +57,9 @@ CREATE TABLE documents (
   simhash        bigint,        -- dedup przybliżony; 64-bit ZE ZNAKIEM (patrz notka niżej)
   duplicate_of   bigint REFERENCES documents(id),
   embedding      vector(1024),  -- bge-m3
-  status         text NOT NULL DEFAULT 'fetched' CHECK (status IN ('fetched','processed','duplicate','failed'))
+  status         text NOT NULL DEFAULT 'fetched' CHECK (status IN ('fetched','processed','duplicate','failed')),
+  first_seen_at  timestamptz NOT NULL DEFAULT now(),  -- infra/db/004_seen_tracking.sql, ustawia trigger
+  last_seen_at   timestamptz NOT NULL DEFAULT now()   -- infra/db/004_seen_tracking.sql, ustawia trigger
 );
 
 CREATE TABLE findings (
@@ -96,6 +98,12 @@ CREATE TABLE module_settings (
 **Notka `findings`:** `UNIQUE (document_id, module)` — zapis z `ai/` ma być upsertem (`INSERT … ON CONFLICT (document_id, module) DO UPDATE`), inaczej `/reanalyze` wywali się na duplikacie.
 
 **Notka wyszukiwanie (`infra/db/003_trgm.sql`):** rozszerzenie `pg_trgm` i indeksy GIN `gin_trgm_ops` na `documents.title` (`documents_title_trgm_idx`) i `documents.text_clean` (`documents_text_clean_trgm_idx`) pod filtr `q` (`ILIKE '%…%'`). Bez zmian w kolumnach. Plik wykonuje się tylko na pustym wolumenie (`docker compose down -v`). Istniejącą bazę można zaktualizować ręcznie, bo plik jest idempotentny: `psql -f infra/db/003_trgm.sql`.
+
+**Notka okresowa aktualizacja M1 (`infra/db/004_seen_tracking.sql`, issue #55):** mechanizm okresowej aktualizacji to cron źródła (`sources.cron`, np. co 6 h, harmonogram w `collector/sources.yaml`) plus śledzenie widoczności reklamy:
+- `documents.first_seen_at` = pierwsze pobranie URL-a, `documents.last_seen_at` = ostatnie. Oba pola ustawia trigger `documents_track_seen`. Collector nic nie zmienia, bo jego upsert po `url_hash` i tak nadpisuje `fetched_at` przy każdym re-crawlu. `first_seen_at` się nie zmienia, a `last_seen_at` tylko rośnie (`greatest`), więc spóźniony retry go nie cofnie. Nikt inny nie zapisuje tych kolumn.
+- `isActive` (liczone w api, nie zapisywane): `false`, gdy istnieje `crawl_run` tego samego źródła ze statusem `ok`, który wystartował po `last_seen_at` i skończył się ponad **1 h** temu, czyli późniejszy pełny crawl już tej reklamy nie znalazł. Karencja 1 h jest potrzebna, bo collector ustawia `ok` po zakolejkowaniu itemów, a nie po ich pobraniu. Biegi `partial`/`failed` się nie liczą. Dokument bez `source_id` albo ze źródła bez takiego runu ma `isActive = true`.
+- Zmiana treści pod tym samym URL-em **nie** jest jeszcze wykrywana (collector nie liczy hasha HTML, a ai nie analizuje ponownie dokumentów `processed`).
+- Plik wykonuje się sam na pustym wolumenie. Na istniejącej bazie trzeba go odpalić ręcznie (idempotentny, uzupełnia oba pola z `fetched_at`): `docker compose exec -T postgres psql -U <user> -d <db> < infra/db/004_seen_tracking.sql`.
 
 ## Format dokumentu z collectora (wejście do bazy)
 ```json
@@ -139,6 +147,8 @@ CREATE TABLE module_settings (
 |---|---|---|
 | GET | `/findings?module=&risk=&status=&source=&from=&to=&q=&page=&pageSize=` | lista z filtrami i paginacją |
 | GET | `/findings/:id` | szczegóły + dokument + cytaty + link do screenshota |
+| GET | `/documents?module=&risk=&status=&source=&from=&to=&q=&page=&pageSize=` | **agregator wyników M1/M2/M3**: dokumenty z findingami, jeden obiekt na dokument |
+| GET | `/documents/:id` | agregator dla jednego dokumentu: dokument + wyniki 3 modułów z cytatami |
 | PATCH | `/findings/:id/status` | `{status}` → zapis historii + emit `finding:updated` |
 | GET | `/stats/trend?module=&bucket=day` | liczba incydentów w czasie (wykres) |
 | GET | `/stats/summary` | liczniki per moduł, ryzyko, źródło |
@@ -165,14 +175,15 @@ CREATE TABLE module_settings (
   "items": [{
     "id": 7, "module": 2, "score": 0.83, "riskLevel": "high", "label": "risk_info_insufficient",
     "status": "new", "createdAt": "2026-11-21T18:02:11.000Z",
-    "document": { "id": 812, "url": "https://…", "title": "…", "sourceKind": "instagram" },
+    "document": { "id": 812, "url": "https://…", "title": "…", "sourceKind": "instagram",
+                  "firstSeenAt": "2026-11-21T08:01:00.000Z", "lastSeenAt": "2026-11-21T14:01:00.000Z", "isActive": true },
     "firm": { "id": 4, "name": "…" },
     "advertiser": null
   }],
   "page": 1, "pageSize": 20, "total": 134
 }
 ```
-`firm` / `advertiser` = `{ id, name }` albo `null`.
+`firm` / `advertiser` = `{ id, name }` albo `null`. `document.firstSeenAt` / `lastSeenAt` / `isActive` — patrz „Notka okresowa aktualizacja M1”.
 
 `GET /findings/:id` — odpowiedź (404 `{error:"not_found"}`, gdy brak; `id` niebędące liczbą → 400):
 ```json
@@ -184,6 +195,7 @@ CREATE TABLE module_settings (
   "status": "new", "createdAt": "…",
   "document": {
     "id": 812, "url": "https://…", "sourceId": 3, "sourceKind": "instagram", "fetchedAt": "…",
+    "firstSeenAt": "…", "lastSeenAt": "…", "isActive": true,
     "publishedAt": null, "authorHandle": "@…", "title": "…", "textClean": "pełna treść…", "status": "processed"
   },
   "firm": { "id": 4, "name": "…", "aliases": [], "type": "investment_firm", "isAuthorized": true,
@@ -194,6 +206,54 @@ CREATE TABLE module_settings (
 }
 ```
 `screenshotUrl` = `null`, gdy dokument nie ma screenshotu albo podpisanie URL-a się nie powiodło. `statusHistory` rosnąco po `changedAt`. `firm`/`advertiser` = pełny rekord `entities` albo `null`.
+
+### Agregator wyników M1/M2/M3 (`api/src/routes/documents.ts`, issue #54)
+Moduły zapisują wyniki osobno (`findings`, max jeden wiersz na dokument i moduł). Agregator składa je w **jeden ujednolicony obiekt na dokument**: `document` + `modules` (jedno miejsce na każdy moduł: `"1"`, `"2"`, `"3"`, wynik modułu albo `null`, gdy moduł nie dał wyniku) + `overall` (podsumowanie przez moduły). Logika jest w czystej funkcji `aggregateModules` (testy: `api/test/documents.test.ts`).
+
+`overall`:
+- `maxScore` = najwyższy `score` spośród modułów (`null` bez findingów),
+- `riskLevel` = najwyższy poziom ryzyka (`high` > `medium` > `low`), `null` bez findingów,
+- `flaggedModules` = moduły z `riskLevel` `medium|high` (score ≥ próg modułu), rosnąco,
+- `findingsCount` = liczba modułów z wynikiem (0–3),
+- `lastFindingAt` = najnowszy `createdAt` spośród modułów.
+
+`GET /documents` — te same parametry i walidacja co `GET /findings` (`module, risk, status, source, from, to, q, page, pageSize`). Filtry **wybierają dokumenty**: dokument trafia na listę, gdy co najmniej jeden jego finding spełnia filtry. Element zawiera jednak **wszystkie** wyniki dokumentu, np. `?module=2` zwraca dokumenty z findingiem M2 razem z ich M1 i M3. Dokumenty bez findingów nie występują. `total` = liczba dokumentów. Sortowanie: najnowszy finding dokumentu malejąco, potem `document.id` malejąco. Odpowiedź:
+```json
+{
+  "items": [{
+    "document": { "id": 812, "url": "https://…", "title": "…", "sourceKind": "web", "authorHandle": null,
+                  "firstSeenAt": "2026-11-21T08:01:00.000Z", "lastSeenAt": "2026-11-21T14:01:00.000Z", "isActive": true },
+    "overall": { "maxScore": 0.91, "riskLevel": "high", "flaggedModules": [1, 3], "findingsCount": 2,
+                 "lastFindingAt": "2026-11-21T14:12:00.000Z" },
+    "modules": {
+      "1": { "id": 7, "module": 1, "score": 0.65, "riskLevel": "medium", "label": "third_party_promotion", "status": "new",
+             "createdAt": "2026-11-21T14:10:00.000Z", "firm": { "id": 4, "name": "…" }, "advertiser": null },
+      "2": null,
+      "3": { "id": 8, "module": 3, "score": 0.91, "riskLevel": "high", "label": "shadow_advisory", "status": "new",
+             "createdAt": "2026-11-21T14:12:00.000Z", "firm": null, "advertiser": { "id": 9, "name": "…" } }
+    }
+  }],
+  "page": 1, "pageSize": 20, "total": 57
+}
+```
+
+`GET /documents/:id` — `id` nie-liczba → `400`, brak dokumentu → `404 {error:"not_found"}`. Dokument bez findingów zwraca `200` z trzema `null` w `modules` i pustym `overall` (`maxScore`/`riskLevel`/`lastFindingAt` = `null`, `findingsCount` = 0). `document` ma te same pola co `document` w `GET /findings/:id` (bez `screenshotKey`) + `screenshotUrl` (presigned, 15 min, albo `null`). Wynik modułu ma dodatkowo `reasons`, `model` i `promptVersion`:
+```json
+{
+  "document": { "id": 812, "url": "https://…", "sourceId": 3, "sourceKind": "web", "fetchedAt": "…",
+                "firstSeenAt": "…", "lastSeenAt": "…", "isActive": true, "publishedAt": null, "authorHandle": null,
+                "title": "…", "textClean": "pełna treść…", "status": "processed", "screenshotUrl": null },
+  "overall": { "maxScore": 0.91, "riskLevel": "high", "flaggedModules": [1, 3], "findingsCount": 2, "lastFindingAt": "…" },
+  "modules": {
+    "1": { "id": 7, "module": 1, "score": 0.65, "riskLevel": "medium", "label": "…", "status": "new", "createdAt": "…",
+           "firm": { "id": 4, "name": "…" }, "advertiser": null,
+           "reasons": [{ "criterion": "…", "verdict": "fail", "quote": "…", "weight": 0.4 }],
+           "model": "bielik-11b-q4", "promptVersion": "m1-v1" },
+    "2": null,
+    "3": { "…": "jak wyżej" }
+  }
+}
+```
 
 `PATCH /findings/:id/status` — body (`id` nie-liczba → 400):
 ```json
@@ -262,12 +322,12 @@ api **nie** emituje `crawl:status` — robi to collector przez `/internal/crawl-
 `GET /export?format=csv|json&module=&risk=&status=&source=&from=&to=&q=` — `format` **wymagany** (`csv|json`). Pozostałe filtry działają dokładnie jak w `GET /findings`: te same wartości i ta sama walidacja, bez `page`/`pageSize`. Błędna albo brakująca wartość → `400`. Sortowanie: `created_at` malejąco. Limit **10 000 wierszy**. Przy większej liczbie trafień eksport jest obcinany, odpowiedź ma nagłówek `X-Export-Truncated: true`, a w JSON `truncated: true`.
 
 Kolumny (nagłówki po polsku; klucz JSON w nawiasie):
-- `module=1`: Firma (`firm`) · Reklamujący (`advertiser`) · Treść (skrót) (`contentExcerpt`) · URL (`url`) · Data (`createdAt`) · Score (`score`) · Status (`status`)
+- `module=1`: Firma (`firm`) · Reklamujący (`advertiser`) · Treść (skrót) (`contentExcerpt`) · URL (`url`) · Data (`createdAt`) · Score (`score`) · Status (`status`) · Ostatnio widziana (`lastSeenAt`) · Aktywna (`active`)
 - `module=2`: Firma (`firm`) · Niespełnione kryteria (`failedCriteria`) · Cytaty (`quotes`) · URL · Data · Score
 - `module=3`: Podmiot (`entity`) · Frazy doradcze (`advisoryPhrases`) · Cytaty (`quotes`) · URL · Data · Score
 - bez `module` (zestaw wspólny): ID (`id`) · Moduł (`module`) · Firma (`firm`) · Reklamujący (`advertiser`) · Tytuł (`title`) · URL (`url`) · Źródło (`sourceKind`) · Data (`createdAt`) · Score (`score`) · Ryzyko (`riskLevel`) · Status (`status`) · Etykieta (`label`)
 
-Mapowanie: `firm` = `firm_entity.name`. `advertiser` = `advertiser_entity.name`, gdy brak: `documents.author_handle`. `entity` = `advertiser_entity.name` → `firm_entity.name` → `author_handle`. `contentExcerpt` = pierwsze 300 znaków `text_clean` (białe znaki zwinięte do spacji, `…` gdy ucięte), gdy brak tekstu: `title`. `failedCriteria` = `criterion` z `reasons`, gdzie `verdict = "fail"`. `advisoryPhrases` = `criterion` z `reasons`, gdzie `verdict ≠ "pass"`. `quotes` = `quote` z `reasons`, gdzie `verdict ≠ "pass"` (bez duplikatów). `createdAt` = `findings.created_at` w ISO 8601 (to samo pole co filtr `from`/`to`). Puste wartości: w CSV pusta komórka, w JSON `null`.
+Mapowanie: `firm` = `firm_entity.name`. `advertiser` = `advertiser_entity.name`, gdy brak: `documents.author_handle`. `entity` = `advertiser_entity.name` → `firm_entity.name` → `author_handle`. `contentExcerpt` = pierwsze 300 znaków `text_clean` (białe znaki zwinięte do spacji, `…` gdy ucięte), gdy brak tekstu: `title`. `failedCriteria` = `criterion` z `reasons`, gdzie `verdict = "fail"`. `advisoryPhrases` = `criterion` z `reasons`, gdzie `verdict ≠ "pass"`. `quotes` = `quote` z `reasons`, gdzie `verdict ≠ "pass"` (bez duplikatów). `createdAt` = `findings.created_at` w ISO 8601 (to samo pole co filtr `from`/`to`). `lastSeenAt` = `documents.last_seen_at` w ISO 8601. `active` = `isActive` dokumentu (patrz „Notka okresowa aktualizacja M1”): w CSV `tak`/`nie`, w JSON `true`/`false`. Puste wartości: w CSV pusta komórka, w JSON `null`.
 
 **CSV:** `Content-Type: text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="findings.csv"`. Plik zaczyna się od BOM UTF-8 (`﻿`, polskie znaki w Excelu). **Separator `;`** (polski Excel dzieli kolumny po średniku), linie `CRLF`, pierwszy wiersz to nagłówki. Cudzysłowy jak w RFC 4180: pole z `"`, `;`, `,`, `\r` albo `\n` trafia w cudzysłowy, a `"` jest podwajany. Listy w jednej komórce łączone są przez `; ` (kryteria, frazy) albo ` | ` (cytaty). `score` ma 2 miejsca po przecinku i **przecinek dziesiętny** (`0,83`). W JSON zostaje liczba. **Ochrona przed formula injection:** komórka tekstowa zaczynająca się od `=`, `+`, `-`, `@`, TAB albo CR dostaje prefiks `'` (np. `'=HYPERLINK(…)`). **Handle'e:** w kolumnach Reklamujący (`advertiser`) i Podmiot (`entity`) CSV zdejmuje wiodące `@`, więc zamiast `'@lukasz_inwestuje` jest `lukasz_inwestuje`. Ochrona działa dalej na resztę, np. `@=1+1` → `'=1+1`. JSON zachowuje `@`. Limit: 10 eksportów/min na IP (patrz „Rate limit”).
 
