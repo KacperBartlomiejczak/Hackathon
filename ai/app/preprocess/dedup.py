@@ -8,7 +8,7 @@ import asyncpg
 
 log = logging.getLogger(__name__)
 
-HAMMING_THRESHOLD = 3  # max differing bits of 64 to call two texts near-duplicates
+HAMMING_THRESHOLD = 6  # max differing bits of 64 for near-duplicates; one changed word in a ~35-word post gives 5-6, unrelated texts ~32
 MIN_WORDS_FOR_SIMHASH = 20  # shorter texts give unstable simhash
 SHINGLE = 3
 

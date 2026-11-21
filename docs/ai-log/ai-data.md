@@ -18,5 +18,12 @@
 - Skills: risk-classifier (preprocessing area), dependency-guard (listing only, `ai/DEPENDENCIES.md`).
 - Result: `ai/app/preprocess/{clean,dedup}.py`, `ai/app/embeddings.py`, `ai/seed/seed_entities.py`, `ai/tests/test_preprocess.py` (7 pass, pure functions only).
 - Own 64-bit simhash (word 3-grams, blake2b) instead of the `simhash` package: no dependency.
-- Human must verify: `HAMMING_THRESHOLD=3` and `MIN_WORDS_FOR_SIMHASH=20` on real data; `dedup()` SQL (`bit_count((simhash # $1)::bit(64))`, needs PG14+) and `seed_entities()` NOT run against a DB (no Docker on this machine); `embed()` NOT run against Ollama.
+- Human must verify: `HAMMING_THRESHOLD` and `MIN_WORDS_FOR_SIMHASH=20` on real data.
 - Packages needed (for ai-core's pyproject + `ai/DEPENDENCIES.md`): trafilatura (Apache-2.0), httpx (BSD-3), asyncpg (Apache-2.0; psycopg skipped, LGPL), pytest (MIT, dev). `pip-audit` not yet run.
+
+## 2026-11-21 — integration tests (pgvector PG16 + Ollama bge-m3)
+- Task: run dedup, seed and embed against real services. Added `ai/tests/conftest.py` (DDL copy of `entities`/`documents` from contracts.md, keep in sync with infra/db) and `test_integration.py`. Tests skip if Postgres/Ollama are unreachable.
+- Found: `HAMMING_THRESHOLD=3` missed a near-duplicate with one changed word (distance 5-6 on a ~35-word post; unrelated text ~32). Raised to 6.
+- Result: 11 tests pass: SQL `bit_count`, idempotent seed (2nd run = 0 inserted), duplicates never chosen as canonical, bge-m3 vector(1024) stored.
+- Extra dev dependency: pytest-asyncio (MIT). Run with `--asyncio-mode=auto` (ai-core: set `asyncio_mode = "auto"` in pyproject).
+- Human must verify: threshold 6 on real posts (an appended sentence gave 10, so it is not flagged).
