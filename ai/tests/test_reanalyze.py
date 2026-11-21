@@ -28,6 +28,11 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     """Patch the db / embedding / alert layer used by the pipeline; record what was written."""
     rec: dict[str, Any] = {"status": [], "alerts": [], "findings": [], "doc": dict(DOC), "analyze": []}
 
+    async def no_emb(_v: list[float], _m: int, _c: Any) -> float:
+        return 0.0
+
+    monkeypatch.setattr(m2, "emb_score", no_emb)  # no Ollama in unit tests
+
     async def fetch_document(_p: Any, i: int) -> dict[str, Any] | None:
         return rec["doc"] if i == 7 else None
 

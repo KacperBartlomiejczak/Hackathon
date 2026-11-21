@@ -13,7 +13,7 @@ from app.models import FindingCreate, high_threshold, risk_level
 from app.modules.common import ModuleRun
 from app.modules.m1 import run_m1
 from app.modules.m2 import LABEL as M2_LABEL
-from app.modules.m2 import run_m2, score_m2
+from app.modules.m2 import llm_score, m2_emb, run_m2, score_m2
 from app.modules.m3 import run_m3
 from app.modules.quotes import validate_reasons
 from app.preprocess.entity_match import Entity
@@ -34,7 +34,7 @@ def default_settings(config: dict[str, Any]) -> Settings:
 
 async def _run_m2(
     llm: OllamaClient, config: dict[str, Any], text: str, document_id: int, firm_entity_id: int | None,
-    threshold: float, weights: dict[str, float],
+    threshold: float, weights: dict[str, float], doc_vector: list[float] | None,
 ) -> ModuleRun:
     t = time.monotonic()
     res = await run_m2(llm, text)
@@ -44,8 +44,9 @@ async def _run_m2(
     if not valid:
         logger.info("analyze document_id=%s module=2 no valid quotes, no finding", document_id)
         return run
-    # M2 has no embedding anchors: w_emb is dropped and the other weights renormalised
-    run.score = score_m2(res, valid, weights)
+    run.emb = await m2_emb(doc_vector, config)  # None without a document vector: w_emb dropped
+    run.llm = llm_score(res.outputs, {r.criterion for r in valid})
+    run.score = score_m2(res, valid, weights, run.emb)
     run.finding = FindingCreate(
         document_id=document_id, module=2, score=run.score,
         risk_level=risk_level(run.score, threshold, high_threshold(config)),
@@ -62,7 +63,8 @@ async def _run_one(
     threshold, weights = settings[module]
     started = time.monotonic()
     if module == 2:
-        run = await _run_m2(llm, config, text, document_id, route.official_entity_id, threshold, weights)
+        run = await _run_m2(llm, config, text, document_id, route.official_entity_id, threshold, weights,
+                            doc_vector)
     elif module == 1:
         run = await run_m1(
             llm, config, text, doc_vector, route.m1_candidates, document_id, threshold, weights)

@@ -93,3 +93,8 @@
 - **Result (Ollama 192.168.1.88, bielik:latest):** 3/3 live OK, wyniki z injection identyczne jak bez (M1 0.941, M2 1.000, M3 0.956, `high`), cytaty ≥ 90 rapidfuzz, brak cytatu z injection jako dowodu `fail`. Offline: 107 passed, 8 skipped, 1 xfailed; ruff czysty.
 - **Luki:** M2 bez cytatu LLM nie daje findingu (xfail strict); w M2 `llm=0.00` nawet bez injection, flaga z reguł — do przejrzenia. Szczegóły w `ai/SECURITY.md`.
 - **Human to verify:** czy akceptujemy lukę M2 (fail-closed = brak flagi) czy dodać finding z samych reguł; test live wymaga ~3 min GPU.
+
+## M2 v2 → prompt m2-v3 (8 criteria, rules + anchors)
+- **Task:** extend M2 from 4 to 8 criteria; `ai/rules/m2.yaml` (criteria + weights + phrase rules) and `ai/rules/anchors_m2.yaml` (bge-m3 anchors, so `w_emb` is no longer dropped for M2); prompt `m2-v3`; `prompt_version` = `m2-v3+m2-rules-v1`. Quote validation unchanged (rapidfuzz >= 90).
+- **Skill:** risk-classifier.
+- **Human to verify:** the UKNF annex was not available (placeholder in the brief), so the criteria follow MiFID II art. 44 / Reg. 2017/565 (past performance, leverage/CFD, fair & clear, trivialization). Reconcile ids/wording in `rules/m2.yaml` + the prompt once the annex arrives; then re-tune weights on the gold set.
