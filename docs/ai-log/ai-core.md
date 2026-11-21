@@ -74,3 +74,9 @@
 - **What this does fix:** worst case is now bounded (240 s + retries cannot push `/analyze` past the collector timeout), and one failing module no longer discards the other modules' findings. Router sends most documents to a single module, so the typical document was never affected.
 - **Not done:** plan B (LLM only for candidates with a high rules/embedding score) — changes scoring and the gold-set results, left for a separate step; async 202 variant of `/analyze` (needs api/collector/contract changes).
 - **Human to verify:** that a document with one module missing (`partial=true` in logs) is acceptable as `processed` — there is no per-document marker in the DB for it.
+
+## 2026-11-21 — X-Internal-Token guard for ai endpoints (opt-in)
+- **Task:** `ai` had no auth on any endpoint (`/analyze-text` included; the contract says "no token"). Added `ai/app/auth.py` (`require_internal_token`, `hmac.compare_digest`) on `/analyze/{id}`, `/analyze-text`, `/reanalyze`, `/eval`; `/health` stays open for the compose healthcheck. 8 new tests in `tests/test_app.py` (401 missing/wrong token, pass with valid token, fail-closed 503 when `INTERNAL_TOKEN` is empty, `/health` open, off by default). `scripts/demo_check.py` sends the header when `INTERNAL_TOKEN` is set.
+- **Why opt-in (`AI_REQUIRE_TOKEN=true`, default off):** the collector (`collector/src/ai/client.ts`) calls `/analyze/{id}` without the header; enforcing now would break the pipeline on `main`. Collector, contract and compose are other owners' files.
+- **Needs others:** lead-collector sends `X-Internal-Token`; api (#4) updates `docs/contracts.md` and any `/eval` caller; infra (#6) sets `AI_REQUIRE_TOKEN=true` and `OLLAMA_NUM_PARALLEL=2`. Only then enable.
+- **Human to verify:** full stack with `AI_REQUIRE_TOKEN=true` once the collector sends the header.

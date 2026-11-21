@@ -73,3 +73,50 @@ def test_unconfigured_and_stubs() -> None:
         assert client.post("/reanalyze?module=2").status_code == 501
         assert client.get("/eval?module=2&threshold=0.6").status_code == 503  # no DB
         assert client.get("/eval?module=9&threshold=0.6").status_code == 422
+
+
+@pytest.fixture
+def token_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_REQUIRE_TOKEN", "true")
+    monkeypatch.setenv("INTERNAL_TOKEN", "secret-token")
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("post", "/analyze/1"),
+        ("post", "/analyze-text"),
+        ("post", "/reanalyze?module=2"),
+        ("get", "/eval?module=2&threshold=0.6"),
+    ],
+)
+def test_internal_endpoints_reject_missing_or_wrong_token(token_auth: None, method: str, path: str) -> None:
+    with TestClient(main.app) as client:
+        assert client.request(method, path).status_code == 401
+        assert client.request(method, path, headers={"X-Internal-Token": "nope"}).status_code == 401
+
+
+def test_valid_token_passes_guard(token_auth: None) -> None:
+    with TestClient(main.app) as client:
+        r = client.post("/reanalyze?module=2", headers={"X-Internal-Token": "secret-token"})
+    assert r.status_code == 501  # reached the handler
+
+
+def test_health_stays_open_with_auth_enabled(token_auth: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OLLAMA_URL", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with TestClient(main.app) as client:
+        assert client.get("/health").status_code == 503  # degraded, not 401
+
+
+def test_auth_fails_closed_without_configured_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AI_REQUIRE_TOKEN", "true")
+    monkeypatch.delenv("INTERNAL_TOKEN", raising=False)
+    with TestClient(main.app) as client:
+        assert client.post("/reanalyze?module=2", headers={"X-Internal-Token": ""}).status_code == 503
+
+
+def test_auth_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("AI_REQUIRE_TOKEN", raising=False)
+    with TestClient(main.app) as client:
+        assert client.post("/reanalyze?module=2").status_code == 501

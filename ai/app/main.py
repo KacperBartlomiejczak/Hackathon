@@ -15,11 +15,12 @@ from typing import Annotated, Any
 import asyncpg
 import httpx
 import yaml
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi import Path as PathParam
 
 from app import db, pipeline
 from app.analysis import default_settings, run_modules
+from app.auth import require_internal_token
 from app.embeddings import embed
 from app.eval import evaluate as run_eval
 from app.llm import LLMError, OllamaClient
@@ -163,7 +164,9 @@ async def health(response: Response) -> HealthStatus:
     )
 
 
-@app.post("/analyze/{document_id}", response_model=AnalyzeResult)
+@app.post(
+    "/analyze/{document_id}", response_model=AnalyzeResult, dependencies=[Depends(require_internal_token)]
+)
 async def analyze(document_id: Annotated[int, PathParam(ge=1)]) -> AnalyzeResult:
     if app.state.pool is None or app.state.llm is None:
         raise HTTPException(status_code=503, detail="database or llm not configured")
@@ -175,7 +178,9 @@ async def analyze(document_id: Annotated[int, PathParam(ge=1)]) -> AnalyzeResult
         raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
 
 
-@app.post("/analyze-text", response_model=AnalyzeTextResult)
+@app.post(
+    "/analyze-text", response_model=AnalyzeTextResult, dependencies=[Depends(require_internal_token)]
+)
 async def analyze_text(req: AnalyzeTextRequest) -> AnalyzeTextResult:
     """Run the full pipeline (embedding + routing + M1/M2/M3 + scoring) on raw text. Saves nothing."""
     if app.state.llm is None:
@@ -231,14 +236,19 @@ async def analyze_text(req: AnalyzeTextRequest) -> AnalyzeTextResult:
     )
 
 
-@app.post("/reanalyze", response_model=ReanalyzeResult, status_code=501)
+@app.post(
+    "/reanalyze",
+    response_model=ReanalyzeResult,
+    status_code=501,
+    dependencies=[Depends(require_internal_token)],
+)
 async def reanalyze(module: Annotated[int | None, Query(ge=1, le=3)] = None) -> ReanalyzeResult:
     logger.info("reanalyze module=%s result=not_implemented", module)
     raise HTTPException(status_code=501, detail="not implemented")
 
 
 # contracts.md specifies GET /eval (the request asked for POST; contract wins).
-@app.get("/eval", response_model=EvalResult)
+@app.get("/eval", response_model=EvalResult, dependencies=[Depends(require_internal_token)])
 async def evaluate(
     module: Annotated[int, Query(ge=1, le=3)],
     threshold: Annotated[float, Query(ge=0, le=1)],
