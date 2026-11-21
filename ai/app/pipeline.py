@@ -10,16 +10,14 @@ import asyncpg
 import httpx
 
 from app import db
+from app.alerts import send_alert
+from app.analysis import Settings, run_modules
 from app.embeddings import embed, to_pgvector
 from app.llm import LLMError, OllamaClient
-from app.models import AnalyzeResult, Finding, FindingCreate, Reason, risk_level
-from app.modules.m2 import LABEL as M2_LABEL
-from app.modules.m2 import run_m2, score_m2
-from app.modules.quotes import validate_reasons
+from app.models import AnalyzeResult, Finding
 from app.preprocess.clean import clean_text
 from app.preprocess.dedup import dedup
 from app.preprocess.entity_match import load_entities
-from app.routing import route_document
 from app.scoring import weights_from_config
 from app.storage import StorageError, get_html
 
@@ -82,39 +80,25 @@ async def _analyze(
         )
         entities = await load_entities(conn)
 
-    route = route_document(text, doc["url"], doc.get("author_handle"), entities, document_id)
-    logger.info("analyze document_id=%s route=%s", document_id, route.modules)
+    settings: Settings = {}
+    for module in (1, 2, 3):
+        settings[module] = await db.load_module_settings(
+            pool, module, float(config["thresholds"][f"m{module}"]), weights_from_config(config)
+        )
+    _, runs = await run_modules(
+        llm, config, settings, text, doc["url"], doc.get("author_handle"), entities, document_id, vector
+    )
 
     findings: list[Finding] = []
-    for module in route.modules:
-        if module == 2:
-            finding = await _run_m2(pool, llm, config, document_id, text, route.official_entity_id)
-            if finding is not None:
-                findings.append(finding)
-        else:
-            logger.info("analyze document_id=%s module=%d not implemented yet, skipped", document_id, module)
+    names = {e.id: e.name for e in entities}
+    for run in runs:
+        if run.finding is None:
+            continue
+        async with pool.acquire() as conn:
+            saved = await db.upsert_finding(conn, run.finding)
+        findings.append(saved)
+        if saved.risk_level == "high":
+            await send_alert(saved, doc, names.get(saved.firm_entity_id) if saved.firm_entity_id else None)
 
     await db.set_document_status(pool, document_id, "processed")
     return AnalyzeResult(document_id=document_id, status="processed", findings=findings)
-
-
-async def _run_m2(
-    pool: asyncpg.Pool, llm: OllamaClient, config: dict[str, Any], document_id: int, text: str,
-    firm_entity_id: int | None,
-) -> Finding | None:
-    threshold, weights = await db.load_module_settings(
-        pool, 2, float(config["thresholds"]["m2"]), weights_from_config(config)
-    )
-    res = await run_m2(llm, text)
-    valid: list[Reason] = validate_reasons(res.reasons, text)
-    if not valid:
-        logger.info("analyze document_id=%s module=2 no valid quotes, no finding", document_id)
-        return None
-    score = score_m2(res, valid, weights)
-    create = FindingCreate(
-        document_id=document_id, module=2, score=score, risk_level=risk_level(score, threshold),
-        label=M2_LABEL, reasons=valid, firm_entity_id=firm_entity_id,
-        model=res.model, prompt_version=res.prompt_version,
-    )
-    async with pool.acquire() as conn:
-        return await db.upsert_finding(conn, create)

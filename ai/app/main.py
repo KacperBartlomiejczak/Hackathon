@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import time
@@ -17,16 +18,24 @@ import yaml
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi import Path as PathParam
 
-from app import pipeline
+from app import db, pipeline
+from app.analysis import default_settings, run_modules
+from app.embeddings import embed
 from app.eval import evaluate as run_eval
 from app.llm import LLMError, OllamaClient
 from app.models import (
     AnalyzeResult,
+    AnalyzeTextRequest,
+    AnalyzeTextResult,
     EvalResult,
     HealthStatus,
+    ModuleRunOut,
     ReanalyzeResult,
 )
-from seed.seed_entities import seed_entities
+from app.modules.common import warm_anchors
+from app.preprocess.clean import normalize
+from app.preprocess.entity_match import Entity, load_entities
+from seed.seed_entities import load_rows, seed_entities
 
 
 def _resolve_log_level(raw: str | None) -> tuple[int, bool]:
@@ -82,17 +91,31 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning("DATABASE_URL not set")
     app.state.llm = None
     try:
-        app.state.llm = OllamaClient()
+        llm_cfg = app.state.config.get("llm", {})
+        app.state.llm = OllamaClient(timeout_s=float(llm_cfg.get("timeout_s", 60)),
+                                     retries=int(llm_cfg.get("retries", 1)))
     except LLMError as exc:
         logger.error("llm client init failed: %s", exc)
+    warm = asyncio.create_task(_warmup(app)) if app.state.llm is not None else None
     try:
         yield
     finally:
+        if warm is not None:
+            warm.cancel()
         if app.state.llm is not None:
             await app.state.llm.aclose()
         await app.state.http.aclose()
         if app.state.pool is not None:
             await app.state.pool.close()
+
+
+async def _warmup(app: FastAPI) -> None:
+    """Load Bielik and the embedding anchors in the background so the first document is not cold."""
+    try:
+        await app.state.llm.warmup()
+        await warm_anchors()
+    except (httpx.HTTPError, ValueError, OSError) as exc:
+        logger.warning("warmup failed: %r", exc)
 
 
 app = FastAPI(title="InvestWatch AI", version="0.1.0", lifespan=lifespan)
@@ -150,6 +173,62 @@ async def analyze(document_id: Annotated[int, PathParam(ge=1)]) -> AnalyzeResult
         raise HTTPException(status_code=404, detail="document not found") from None
     except pipeline.AnalysisFailed as exc:
         raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
+
+
+@app.post("/analyze-text", response_model=AnalyzeTextResult)
+async def analyze_text(req: AnalyzeTextRequest) -> AnalyzeTextResult:
+    """Run the full pipeline (embedding + routing + M1/M2/M3 + scoring) on raw text. Saves nothing."""
+    if app.state.llm is None:
+        raise HTTPException(status_code=503, detail="llm not configured")
+    config = app.state.config
+    settings = default_settings(config)
+    entities: list[Entity]
+    if app.state.pool is not None:
+        async with app.state.pool.acquire() as conn:
+            entities = await load_entities(conn)
+        for module in (1, 2, 3):
+            settings[module] = await db.load_module_settings(
+                app.state.pool, module, settings[module][0], settings[module][1]
+            )
+    else:
+        entities = [
+            Entity(i, r["name"], tuple(r["aliases"]), r["is_authorized"], tuple(r["official_domains"]),
+                   tuple(r["social_handles"]))
+            for i, r in enumerate(load_rows(), start=1)
+        ]
+    if req.weights is not None:
+        if set(req.weights) != {"llm", "rules", "emb"}:
+            raise HTTPException(status_code=422, detail="weights must have keys llm, rules, emb")
+        settings = {m: (t, dict(req.weights)) for m, (t, _) in settings.items()}
+    if req.threshold is not None:
+        settings = {m: (req.threshold, w) for m, (_, w) in settings.items()}
+
+    timings: dict[str, int] = {}
+    started = time.monotonic()
+    text = normalize(req.text)
+    try:
+        t = time.monotonic()
+        vector = await embed(text)
+        timings["embed"] = int((time.monotonic() - t) * 1000)
+        t = time.monotonic()
+        route, runs = await run_modules(
+            app.state.llm, config, settings, text, req.url, req.author_handle, entities, 0, vector
+        )
+        timings["modules"] = int((time.monotonic() - t) * 1000)
+    except (LLMError, httpx.HTTPError, ValueError) as exc:
+        logger.error("analyze-text failed: %r", exc)
+        raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
+    timings["total"] = int((time.monotonic() - started) * 1000)
+    logger.info("analyze-text route=%s ms=%d", route.modules, timings["total"])
+    return AnalyzeTextResult(
+        modules=route.modules, timings_ms=timings,
+        runs=[
+            ModuleRunOut(module=r.module, score=r.score,  # type: ignore[arg-type]
+                         risk_level=r.finding.risk_level if r.finding else None, threshold=r.threshold,
+                         weights=r.weights, llm=r.llm, rules=r.rules, emb=r.emb, ms=r.ms, finding=r.finding)
+            for r in runs
+        ],
+    )
 
 
 @app.post("/reanalyze", response_model=ReanalyzeResult, status_code=501)

@@ -149,6 +149,35 @@ class AnalyzeResult(CamelModel):
     findings: list[Finding] = Field(default_factory=list)
 
 
+class AnalyzeTextRequest(CamelModel):
+    """Demo/test input: analyse raw text without touching the database (nothing is saved, no alert)."""
+
+    text: str = Field(min_length=20, max_length=50_000)
+    url: str = "https://demo.invalid/post"
+    author_handle: str | None = None
+    weights: dict[str, float] | None = None  # override {"llm","rules","emb"} (as the calibration panel does)
+    threshold: float | None = Field(default=None, ge=0, le=1)
+
+
+class ModuleRunOut(CamelModel):
+    module: Module
+    score: float
+    risk_level: RiskLevel | None  # None when no quote survived validation (no finding)
+    threshold: float
+    weights: dict[str, float]
+    llm: float
+    rules: float
+    emb: float | None
+    ms: dict[str, int]
+    finding: FindingCreate | None
+
+
+class AnalyzeTextResult(CamelModel):
+    modules: list[Module]
+    runs: list[ModuleRunOut]
+    timings_ms: dict[str, int]
+
+
 class ReanalyzeResult(CamelModel):
     module: Module | None = None
     queued: int = 0
@@ -160,10 +189,16 @@ class HealthStatus(CamelModel):
     postgres: Literal["ok", "error"]
 
 
-def risk_level(score: float, threshold: float) -> RiskLevel:
-    """high >= 0.8, medium >= module threshold, otherwise low (contracts.md)."""
-    if score >= HIGH_RISK_SCORE:
+def risk_level(score: float, threshold: float, high: float = HIGH_RISK_SCORE) -> RiskLevel:
+    """high >= `high` (0.8, config risk.high), medium >= module threshold, otherwise low (contracts.md)."""
+    if score >= high:
         return "high"
     if score >= threshold:
         return "medium"
     return "low"
+
+
+def high_threshold(config: dict[str, object]) -> float:
+    """risk.high from config.yaml, 0.8 when absent."""
+    risk = config.get("risk")
+    return float(risk.get("high", HIGH_RISK_SCORE)) if isinstance(risk, dict) else HIGH_RISK_SCORE
