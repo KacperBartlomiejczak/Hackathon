@@ -16,7 +16,19 @@ const schema = z.object({
   S3_ACCESS_KEY: z.string().default(''),
   S3_SECRET_KEY: z.string().default(''),
   DATA_DIR: z.string().default('/data'),
-  PROXY_LIST: z.string().default(''),
+  // Comma-separated proxy URLs (http/https/socks5); empty = no proxy.
+  PROXY_LIST: z
+    .string()
+    .default('')
+    .refine(
+      (v) =>
+        v
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean)
+          .every((p) => URL.canParse(p) && /^(https?|socks5):$/.test(new URL(p).protocol)),
+      { message: 'PROXY_LIST: each entry must be an http(s):// or socks5:// URL' },
+    ),
   SOURCES_FILE: z.string().default('sources.yaml'),
   // Queue one crawl per enabled source at startup (demo trigger until POST /sources/:id/run exists).
   CRAWL_ON_START: z
