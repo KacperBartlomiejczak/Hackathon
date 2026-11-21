@@ -36,7 +36,8 @@ flowchart LR
 - **GPU / CPU dla Ollama:**
   - Zalecane GPU NVIDIA >= 8 GB VRAM (uruchamiane opcjonalnym nadpisaniem `infra/docker-compose.gpu.yml`).
   - W trybie CPU inferencja LLM jest wolniejsza; reguły i dopasowanie embeddingów działają niezależnie.
-- **Dysk:** minimum 15 GB wolnego miejsca (model `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M`, `bge-m3`, obrazy Docker oraz przeglądarka Chromium dla Playwrighta).
+- **Dysk:** minimum 15 GB wolnego miejsca (modele `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` i `bge-m3` to łącznie **~7–8 GB**, do tego obrazy Docker oraz przeglądarka Chromium dla Playwrighta).
+- **Czas pierwszego uruchomienia (zimny start):** pierwsze uruchomienie pobiera obrazy oraz ~7–8 GB modeli Ollamy (`ollama-init`), a samo załadowanie Bielika 11B Q4 trwa **> 60 s** — przy pierwszym starcie odczekaj na zakończenie inicjalizacji przed oceną healthchecków.
 
 ## Quick Start
 
@@ -46,7 +47,7 @@ flowchart LR
 cp .env.example .env
 ```
 
-2. Uruchom cały stos jedną komendą:
+2. Uruchom cały stos jedną komendą (pierwszy start z pobraniem ~7–8 GB modeli Ollamy i zimnym startem > 60 s potrwa kilka minut):
 
 ```bash
 docker compose up --build -d
