@@ -1,9 +1,27 @@
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app import main
 from app.models import FindingCreate, Reason, risk_level
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected", "ok"),
+    [
+        ("info", logging.INFO, True),
+        ("INFO", logging.INFO, True),
+        (" warn ", logging.WARNING, True),
+        ("debug", logging.DEBUG, True),
+        ("trace", logging.DEBUG, True),
+        (None, logging.INFO, True),
+        ("verbose", logging.INFO, False),
+    ],
+)
+def test_resolve_log_level(raw: str | None, expected: int, ok: bool) -> None:
+    assert main._resolve_log_level(raw) == (expected, ok)
 
 
 def test_risk_level() -> None:

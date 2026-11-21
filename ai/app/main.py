@@ -28,11 +28,29 @@ from app.models import (
 )
 from seed.seed_entities import seed_entities
 
+
+def _resolve_log_level(raw: str | None) -> tuple[int, bool]:
+    """Map LOG_LEVEL (shared with pino, lowercase) to a logging level.
+
+    Returns (level, recognized). Unknown values fall back to INFO instead of crashing.
+    """
+    name = (raw or "INFO").strip().upper()
+    if name == "TRACE":  # pino-only level
+        name = "DEBUG"
+    level = logging.getLevelNamesMapping().get(name)
+    if level is None:
+        return logging.INFO, False
+    return level, True
+
+
+_log_level, _log_level_ok = _resolve_log_level(os.getenv("LOG_LEVEL"))
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO"),
+    level=_log_level,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("ai")
+if not _log_level_ok:
+    logger.warning("unknown LOG_LEVEL=%r, using INFO", os.getenv("LOG_LEVEL"))
 
 CONFIG_PATH = Path(os.getenv("AI_CONFIG", Path(__file__).resolve().parent.parent / "config.yaml"))
 HEALTH_TIMEOUT_S = 3.0
