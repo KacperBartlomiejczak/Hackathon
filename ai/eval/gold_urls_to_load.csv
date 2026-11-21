@@ -55,7 +55,25 @@ https://przykladowy-broker.example/m2-s09,2,ai/eval/synthetic_m2.jsonl
 https://przykladowy-broker.example/m2-s10,2,ai/eval/synthetic_m2.jsonl
 https://przykladowy-broker.example/m2-s11,2,ai/eval/synthetic_m2.jsonl
 https://przykladowy-broker.example/m2-s12,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s13,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s14,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s15,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s16,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s17,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s18,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s19,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s20,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s21,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s22,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s23,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s24,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s25,2,ai/eval/synthetic_m2.jsonl
+https://www.cmcmarkets.com/pl-pl,2,crawl
 https://www.etoro.com/pl/,2,crawl
+https://www.ig.com/pl,2,crawl
+https://www.tickmill.com/pl,2,crawl
+https://www.tms.pl,2,crawl
+https://www.xtb.com/pl,2,crawl
 https://www.xtb.com/pl/centrum-pomocy/oplaty-i-platnosci-3,2,crawl
 https://www.xtb.com/pl/centrum-pomocy/program-partnerski-7/program-partnerski,2,crawl
 https://www.xtb.com/pl/synthetic/promocja-cfd,2,collector/fixtures/sample/demo.jsonl (already there)
@@ -99,4 +117,3 @@ https://www.biznesradar.pl/rekomendacje/,3,crawl
 https://www.erste.pl/inwestor/analizy-i-rekomendacje/tydzien-na-gpw,3,crawl
 https://www.money.pl/gielda/rekomendacje/,3,crawl
 https://zloty-portfel.example/oferta,3,collector/fixtures/sample/demo.jsonl (already there)
-https://www.tms.pl,2,crawl

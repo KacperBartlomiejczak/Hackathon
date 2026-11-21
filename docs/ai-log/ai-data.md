@@ -86,3 +86,7 @@
 - Added `ai/eval/gold_urls_to_load.csv` (url, module, source) for collector: URLs gold rows need in `documents`.
 
 - M2 row 27 (`tms.pl`, was POMIN) labelled 0 by the agent at the human's request after reading the live page; borderline (risk warning only in footer, rule 6). Review it. gold.csv: M1 39, M2 23, M3 39.
+
+## 2026-11-22 — M2 gold up to 40
+- At the human's request the agent added 17 M2 rows (labels proposed by the agent, to be reviewed): 4 official Polish landing pages checked live on 22.11 (xtb.com/pl, cmcmarkets.com/pl-pl, tickmill.com/pl, ig.com/pl; all with a CFD risk warning, label 0) and 13 new synthetic documents `m2-s13..s25` in `synthetic_m2.jsonl` (7 violations covering rules 1, 2, 10, 12b, 3/6/7, 15, 17; 6 compliant incl. forecast with warning, tax note, comparison with source).
+- Limits: real firm pages are almost always compliant and some geo-block or serve English text, so positives are synthetic. Live page content changes; the collector's copy may differ from what was labelled. `gold_urls_to_load.csv` regenerated.
