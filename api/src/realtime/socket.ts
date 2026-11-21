@@ -1,11 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { Server } from "socket.io";
 import type { Config } from "../config.js";
+import type { FindingUpdatedPayload } from "../types/findings.js";
 import type { AlertPayload, CrawlStatusPayload } from "../types/internal.js";
 
 export type ServerToClientEvents = {
   "alert:new": (payload: AlertPayload) => void;
   "crawl:status": (payload: CrawlStatusPayload) => void;
+  "finding:updated": (payload: FindingUpdatedPayload) => void;
 };
 
 export type Io = Server<Record<string, never>, ServerToClientEvents>;
