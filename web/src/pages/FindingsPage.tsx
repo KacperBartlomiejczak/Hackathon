@@ -83,11 +83,9 @@ export default function FindingsPage() {
         exporting={exporting}
         exportDisabled={!data || data.total === 0}
         exportError={exportError}
+        exportTruncated={exportTruncated}
         onExport={(format) => void runExport(format)}
       />
-      {exportTruncated && (
-        <p className="text-sm text-amber-700">Eksport obcięty do 10 000 wierszy. Zawęź filtry, żeby pobrać całość.</p>
-      )}
 
       <QueryState isLoading={isLoading} isError={isError} errorMessage="Nie udało się pobrać findingów." onRetry={() => void refetch()} />
       {data && data.items.length === 0 && <p className="text-sm text-slate-500">Brak findingów dla wybranych filtrów.</p>}

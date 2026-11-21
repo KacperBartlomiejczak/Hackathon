@@ -13,17 +13,35 @@ import {
   type FindingUpdatedPayload,
   type EntityRef,
   type FindingList,
+  type FindingsFilter,
 } from "../types/findings.js";
 
 type Deps = { db: Db; storage: Storage; io: Io };
 
-const firmEntity = alias(entities, "firm_entity");
-const advertiserEntity = alias(entities, "advertiser_entity");
+export const firmEntity = alias(entities, "firm_entity");
+export const advertiserEntity = alias(entities, "advertiser_entity");
 
 const toRef = (id: number | null, name: string | null): EntityRef =>
   id !== null && name !== null ? { id, name } : null;
 
 const escapeLike = (s: string): string => s.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+/** Filter conditions shared by GET /findings and GET /export. Requires a join on `documents`. */
+export function buildFindingsWhere(query: FindingsFilter): SQL | undefined {
+  const conditions: (SQL | undefined)[] = [
+    query.module !== undefined ? eq(findings.module, query.module) : undefined,
+    query.risk ? eq(findings.riskLevel, query.risk) : undefined,
+    query.status ? eq(findings.status, query.status) : undefined,
+    query.source ? eq(documents.sourceKind, query.source) : undefined,
+    query.from ? gte(findings.createdAt, query.from) : undefined,
+    query.to ? lte(findings.createdAt, query.to) : undefined,
+  ];
+  if (query.q) {
+    const pattern = `%${escapeLike(query.q)}%`;
+    conditions.push(or(ilike(documents.title, pattern), ilike(documents.textClean, pattern)));
+  }
+  return and(...conditions);
+}
 
 export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storage, io }) => {
   app.patch("/findings/:id/status", async (request, reply) => {
@@ -84,20 +102,7 @@ export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storag
   app.get("/findings", async (request): Promise<FindingList> => {
     const started = Date.now();
     const query = listQuerySchema.parse(request.query);
-
-    const conditions: (SQL | undefined)[] = [
-      query.module !== undefined ? eq(findings.module, query.module) : undefined,
-      query.risk ? eq(findings.riskLevel, query.risk) : undefined,
-      query.status ? eq(findings.status, query.status) : undefined,
-      query.source ? eq(documents.sourceKind, query.source) : undefined,
-      query.from ? gte(findings.createdAt, query.from) : undefined,
-      query.to ? lte(findings.createdAt, query.to) : undefined,
-    ];
-    if (query.q) {
-      const pattern = `%${escapeLike(query.q)}%`;
-      conditions.push(or(ilike(documents.title, pattern), ilike(documents.textClean, pattern)));
-    }
-    const where = and(...conditions);
+    const where = buildFindingsWhere(query);
 
     const [rows, countRows] = await Promise.all([
       db

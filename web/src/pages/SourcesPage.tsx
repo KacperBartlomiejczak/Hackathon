@@ -4,6 +4,7 @@ import { SourcesTable } from "@/components/SourcesTable";
 import { DemoBadge } from "@/components/DemoBadge";
 import { QueryState } from "@/components/QueryState";
 import { fetchSources, runSource } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/apiError";
 
 export default function SourcesPage() {
   const queryClient = useQueryClient();
@@ -20,7 +21,7 @@ export default function SourcesPage() {
       toast.success("Uruchomiono crawl");
       void queryClient.invalidateQueries({ queryKey: ["sources"] });
     },
-    onError: () => toast.error("Nie udało się uruchomić crawla"),
+    onError: (err) => toast.error(apiErrorMessage(err, "Nie udało się uruchomić crawla")),
   });
 
   return (

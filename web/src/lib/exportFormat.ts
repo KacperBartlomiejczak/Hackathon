@@ -18,10 +18,11 @@ const CSV_HEADERS = [
 ];
 
 function csvField(value: string | number | null | undefined): string {
-  const raw = value === null || value === undefined ? "" : String(value);
-  // Scraped text is untrusted: neutralise spreadsheet formulas (CSV injection); numbers stay as-is.
-  const text = typeof value === "string" && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
-  if (/[";,\t\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  let text = value === null || value === undefined ? "" : String(value);
+  if (typeof value === "number") text = text.replace(".", ",");
+  // Neutralise spreadsheet formula injection: text scraped from third-party pages.
+  else if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  if (/[";\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }
 
