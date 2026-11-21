@@ -64,3 +64,7 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 - Zlecono: `src/adapters/discovery.ts` (`extractLinks`: linki z tego samego hosta, bez plików, duplikatów i `www.`, filtr słów kluczowych po URL-u i tekście odnośnika bez polskich znaków, max 20), `web.discover` = start_url + linki z głębokości 1 (zwykły `fetch`, timeout 15 s; błąd = tylko start_url), w `sources.yaml` 3 blogi (jakoszczedzacpieniadze.pl, marciniwuc.com, subiektywnieofinansach.pl). Plan zaakceptowany przed zmianami.
 - Skille: `scraper-adapter`; zero nowych paczek.
 - Weryfikacja: `tsc`, `eslint`, 14 testów (nowe: filtr hosta, deduplikacja, zły `%`-escape, limit); discovery na żywo: 3 / 7 / 20 linków. Pełny crawl z Playwrightem w compose nie był powtarzany (ścieżka `fetch` bez zmian).
+## 2026-11-21 — krok 22: adapter YouTube (publiczny RSS kanału)
+- Zlecono: `src/adapters/youtube.ts`: `channel_id` z URL-a `/channel/UC…` albo ze strony `@handle` (cookie zgody `SOCS`), RSS `feeds/videos.xml` → 1 dokument na film (tytuł, kanał, data, opis; HTML z escapowaniem, bez screenshotu). Kanały wybrał agent i sprawdził je na żywo: Strefa Inwestorów, Inwestomat (finfluencerzy), XTB Polska (oficjalny). Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek (fetch + regex, bez parsera XML, bez klucza API).
+- Weryfikacja: `tsc`, `eslint`, 17 testów (nowe: parser RSS z encjami i złym videoId, escaping HTML, channelId bez sieci); discover na żywo: 3 × 15 filmów z opisami. Bez pełnego crawla w compose.

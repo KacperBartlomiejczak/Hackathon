@@ -30,3 +30,22 @@ sources:
     module_hint: null
     enabled: true
     cron: null
+  # YouTube (step 22): public channel RSS, last 15 videos (title + description).
+  - kind: youtube
+    name: Strefa Inwestorów (YouTube)
+    start_url: https://www.youtube.com/channel/UC4Qc_TYL6BsqiqXXorBFoaA
+    module_hint: null
+    enabled: true
+    cron: null
+  - kind: youtube
+    name: Inwestomat (YouTube)
+    start_url: https://www.youtube.com/channel/UCbTCMPrEGARddFKS5P9onoA
+    module_hint: null
+    enabled: true
+    cron: null
+  - kind: youtube
+    name: XTB Polska (YouTube)
+    start_url: https://www.youtube.com/channel/UCILwajCs145hxNvB4nckALg
+    module_hint: null
+    enabled: true
+    cron: null
