@@ -203,7 +203,18 @@ CREATE TABLE module_settings (
 ```
 `lastRun` = `null`, gdy źródło nie było jeszcze crawlowane.
 
-Zdarzenia Socket.io: `alert:new` (finding high), `finding:updated`, `crawl:status` (payload jak w `/internal/crawl-status`).
+`POST /internal/alerts` — body (wysyła ai po zapisaniu findingu z `riskLevel = high`; `X-Internal-Token` wymagany, brak/zły → `401 {error:"unauthorized"}`, zły body → `400`, sukces → `202 {ok:true}`):
+```json
+{
+  "findingId": 7, "documentId": 812, "module": 2, "score": 0.83, "riskLevel": "high",
+  "label": "risk_info_insufficient", "title": "…", "url": "https://…",
+  "firm": { "id": 4, "name": "…" }, "createdAt": "2026-11-21T18:02:11.000Z"
+}
+```
+`riskLevel` musi być dokładnie `"high"`. `score` 0–1, `module` 1|2|3, `title` = `string` albo `null` (gdy dokument nie ma tytułu), `firm` = `{ id, name }` albo `null`, `createdAt` = ISO 8601. Ten sam obiekt api emituje 1:1 jako `alert:new` (bez dociągania z bazy).
+`POST /internal/crawl-status` odpowiada tak samo (`401` / `400` / `202`), a payload emituje 1:1 jako `crawl:status`.
+
+Zdarzenia Socket.io: `alert:new` (payload jak body `/internal/alerts`), `finding:updated`, `crawl:status` (payload jak w `/internal/crawl-status`). CORS Socket.io = tylko `WEB_ORIGIN`.
 
 ## Kolejka BullMQ (collector, Valkey)
 Kolejka `crawl-source`, payload joba (do potwierdzenia z Kacprem):
