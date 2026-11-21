@@ -5,7 +5,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.eval import GOLD_PATH, compute_metrics, evaluate, load_gold, parse_module  # noqa: E402
+from app.eval import GOLD_PATH, compute_metrics, evaluate, load_gold, parse_module
 
 
 def test_metrics_and_threshold_moves_fp_fn() -> None:
@@ -64,3 +64,12 @@ async def test_evaluate_from_db(conn, tmp_path: Path) -> None:
     assert (await evaluate(conn, "M3", 0.6, f)).total == 0
     with pytest.raises(ValueError):
         await evaluate(conn, "M2", 1.5, f)
+
+
+def test_metrics_hand_computed() -> None:
+    gold = {i: i <= 4 for i in range(1, 11)}  # docs 1-4 positive, 5-10 negative
+    scores = {1: 0.9, 2: 0.8, 3: 0.4, 4: 0.2, 5: 0.7, 6: 0.6, 7: 0.3, 8: 0.1, 9: 0.05}  # doc 10 missing
+    r = compute_metrics(2, 0.35, gold, scores)
+    assert (r.tp, r.fp, r.fn, r.tn) == (3, 2, 1, 4)
+    assert r.precision == pytest.approx(0.6) and r.recall == pytest.approx(0.75)
+    assert r.total == 10 and r.missing_findings == 1
