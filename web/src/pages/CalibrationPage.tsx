@@ -40,7 +40,7 @@ export default function CalibrationPage() {
   }, [module, threshold]);
 
   const save = useMutation({
-    mutationFn: (value: number) => saveModuleSettings(module, { threshold: value }),
+    mutationFn: (value: number) => saveModuleSettings(module, { threshold: value, weights: settings.data?.weights }),
     onSuccess: (data) => {
       queryClient.setQueryData(["module-settings", module], data);
       setOverride(null);
