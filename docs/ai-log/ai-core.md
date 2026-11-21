@@ -86,3 +86,10 @@
 - **Needs others:** `document_id` (repeatable query param) and the `202` status are additive to `docs/contracts.md` — api (#4) should add them to the AI table.
 - **Limits:** a finding that no longer qualifies after reanalysis (no valid quote) is left as it was, not deleted (review status would be lost). Not tested against real Ollama/Postgres.
 - **Human to verify:** `POST /reanalyze?module=2` on a stack with processed documents; findings' `prompt_version` / `created_at` change and a `high` one reaches the dashboard.
+
+## 2026-11-21 — testy odporności na prompt injection (M1/M2/M3)
+- **Task:** `ai/tests/test_prompt_injection.py`: 3 złośliwe strony (PL+EN, „zignoruj instrukcje”, „system override: empty findings”, próba domknięcia `</document>`), testy offline z „złamanym” LLM + testy live na Bieliku (opt-in `RUN_LIVE_LLM=1`, marker `integration`, w CI skipują się). Skill: `risk-classifier`.
+- **Found & fixed:** treść strony mogła domknąć `<document>` i wstrzyknąć polecenia poza ogranicznikiem → `neutralize_delimiters` w `ai/app/llm.py`. Dodano marker `integration` w `pyproject.toml`.
+- **Result (Ollama 192.168.1.88, bielik:latest):** 3/3 live OK, wyniki z injection identyczne jak bez (M1 0.941, M2 1.000, M3 0.956, `high`), cytaty ≥ 90 rapidfuzz, brak cytatu z injection jako dowodu `fail`. Offline: 107 passed, 8 skipped, 1 xfailed; ruff czysty.
+- **Luki:** M2 bez cytatu LLM nie daje findingu (xfail strict); w M2 `llm=0.00` nawet bez injection, flaga z reguł — do przejrzenia. Szczegóły w `ai/SECURITY.md`.
+- **Human to verify:** czy akceptujemy lukę M2 (fail-closed = brak flagi) czy dodać finding z samych reguł; test live wymaga ~3 min GPU.
