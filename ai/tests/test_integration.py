@@ -6,9 +6,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.embeddings import DIM, OLLAMA_BASE_URL, embed, to_pgvector  # noqa: E402
-from app.preprocess.dedup import dedup  # noqa: E402
-from seed.seed_entities import load_rows, seed_entities  # noqa: E402
+from app.embeddings import DIM, OLLAMA_BASE_URL, embed, to_pgvector
+from app.preprocess.dedup import dedup
+from seed.seed_entities import load_rows, seed_entities
 
 pytestmark = pytest.mark.asyncio
 

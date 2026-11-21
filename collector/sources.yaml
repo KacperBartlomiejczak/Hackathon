@@ -5,3 +5,9 @@ sources:
     module_hint: null
     enabled: true
     cron: null
+  - kind: web
+    name: example.com (smoke test)
+    start_url: https://example.com
+    module_hint: null
+    enabled: false
+    cron: null

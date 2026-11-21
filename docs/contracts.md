@@ -187,6 +187,32 @@ CREATE TABLE module_settings (
 ```
 `screenshotUrl` = `null`, gdy dokument nie ma screenshotu albo podpisanie URL-a się nie powiodło. `statusHistory` rosnąco po `changedAt`. `firm`/`advertiser` = pełny rekord `entities` albo `null`.
 
+`PATCH /findings/:id/status` — body (`id` nie-liczba → 400):
+```json
+{ "status": "in_review", "changedBy": "anna", "note": "sprawdzam źródło" }
+```
+`status` wymagane (`in_review|confirmed|dismissed`); `changedBy` opcjonalny string (1–100 znaków, domyślnie `null`); `note` opcjonalny string (max 500 znaków) — tylko logowany, **nie zapisywany** w bazie. Dozwolone przejścia (bez re-open): `new → in_review`, `in_review → confirmed | dismissed`. Wszystko inne (też ten sam status) → `409 {error:"invalid_transition"}`. Brak findingu → `404 {error:"not_found"}`, zły body → `400`. Zapis `findings.status` + wpis do `finding_status_history` w jednej transakcji. Odpowiedź `200`:
+```json
+{ "id": 7, "status": "in_review", "oldStatus": "new", "changedAt": "2026-11-21T18:30:00.000Z" }
+```
+
+`GET /stats/trend?module=&bucket=&from=&to=` — `module` 1|2|3 (opcjonalny = wszystkie), `bucket` `day|hour` (domyślnie `day`), `from`/`to` = data ISO po `findings.created_at` (opcjonalne). Błędna wartość → 400. Grupowanie `date_trunc(bucket, created_at)`; **bez wypełniania luk** (bucket'y bez findingów nie występują), sortowane rosnąco:
+```json
+{ "bucket": "day", "module": null, "points": [{ "bucket": "2026-11-21T00:00:00.000Z", "module": 2, "count": 5 }] }
+```
+Top-level `module` = wartość filtra albo `null`. Punkt = jeden bucket czasu × moduł.
+
+`GET /stats/summary` — bez parametrów. Każda lista to `{ key, count }`, malejąco po `count`, tylko klucze z `count > 0`; `key` to: moduł jako liczba (`byModule`), `low|medium|high` (`byRisk`), `documents.source_kind` (`bySourceKind`), status findingu (`byStatus`):
+```json
+{
+  "total": 134,
+  "byModule": [{ "key": 2, "count": 80 }],
+  "byRisk": [{ "key": "high", "count": 31 }],
+  "bySourceKind": [{ "key": "instagram", "count": 52 }],
+  "byStatus": [{ "key": "new", "count": 100 }]
+}
+```
+
 `POST /internal/crawl-status` — payload:
 ```json
 { "crawlRunId": 12, "sourceId": 3, "status": "running", "itemsFound": 0, "error": null }
@@ -214,7 +240,12 @@ CREATE TABLE module_settings (
 `riskLevel` musi być dokładnie `"high"`. `score` 0–1, `module` 1|2|3, `title` = `string` albo `null` (gdy dokument nie ma tytułu), `firm` = `{ id, name }` albo `null`, `createdAt` = ISO 8601. Ten sam obiekt api emituje 1:1 jako `alert:new` (bez dociągania z bazy).
 `POST /internal/crawl-status` odpowiada tak samo (`401` / `400` / `202`), a payload emituje 1:1 jako `crawl:status`.
 
-Zdarzenia Socket.io: `alert:new` (payload jak body `/internal/alerts`), `finding:updated`, `crawl:status` (payload jak w `/internal/crawl-status`). CORS Socket.io = tylko `WEB_ORIGIN`.
+`finding:updated` — payload emitowany po udanym `PATCH /findings/:id/status`:
+```json
+{ "id": 7, "module": 2, "riskLevel": "high", "oldStatus": "new", "status": "in_review", "changedBy": null, "changedAt": "2026-11-21T18:30:00.000Z" }
+```
+
+Zdarzenia Socket.io: `alert:new` (payload jak body `/internal/alerts`), `finding:updated` (payload wyżej), `crawl:status` (payload jak w `/internal/crawl-status`). CORS Socket.io = tylko `WEB_ORIGIN`.
 
 ## Kolejka BullMQ (collector, Valkey)
 Kolejka `crawl-source`, payload joba (do potwierdzenia z Kacprem):
