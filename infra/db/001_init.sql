@@ -16,7 +16,7 @@ CREATE TABLE crawl_runs (
   source_id     int REFERENCES sources(id),
   started_at    timestamptz NOT NULL DEFAULT now(),
   finished_at   timestamptz,
-  status        text NOT NULL DEFAULT 'running',   -- running|ok|partial|failed
+  status        text NOT NULL DEFAULT 'running' CHECK (status IN ('running','ok','partial','failed')),
   items_found   int DEFAULT 0,
   error         text
 );
@@ -48,10 +48,10 @@ CREATE TABLE documents (
   screenshot_key text,          -- S3 key (SeaweedFS)
   text_clean     text,          -- filled by ai/
   content_hash   text,          -- exact dedup
-  simhash        bigint,        -- near dedup
+  simhash        bigint,        -- near dedup; signed 64-bit (ai/ must cast u64 <-> i64)
   duplicate_of   bigint REFERENCES documents(id),
   embedding      vector(1024),  -- bge-m3
-  status         text NOT NULL DEFAULT 'fetched'  -- fetched|processed|duplicate|failed
+  status         text NOT NULL DEFAULT 'fetched' CHECK (status IN ('fetched','processed','duplicate','failed'))
 );
 
 CREATE TABLE findings (
@@ -67,19 +67,20 @@ CREATE TABLE findings (
   model                text NOT NULL,
   prompt_version       text NOT NULL,
   status               text NOT NULL DEFAULT 'new' CHECK (status IN ('new','in_review','confirmed','dismissed')),
-  created_at           timestamptz NOT NULL DEFAULT now()
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (document_id, module)   -- one finding per document and module; /reanalyze upserts
 );
 
 CREATE TABLE finding_status_history (
   id          bigserial PRIMARY KEY,
-  finding_id  bigint REFERENCES findings(id),
+  finding_id  bigint NOT NULL REFERENCES findings(id),
   old_status  text, new_status text, changed_by text,
   changed_at  timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE module_settings (
-  module     smallint PRIMARY KEY,
-  threshold  real NOT NULL DEFAULT 0.6,
+  module     smallint PRIMARY KEY CHECK (module IN (1,2,3)),
+  threshold  real NOT NULL DEFAULT 0.6 CHECK (threshold >= 0 AND threshold <= 1),
   weights    jsonb NOT NULL DEFAULT '{"llm":0.6,"rules":0.25,"emb":0.15}'
 );
 
