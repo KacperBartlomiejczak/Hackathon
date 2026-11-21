@@ -160,3 +160,9 @@
   - testy regresji dla wszystkich trzech zmian.
 - **Wynik:** family_office 0.496 → 0.724, Noble 0.498 → 0.635, zloty-portfel 0.619 → 0.862 (high), sygnaly-vip 0.617 bez zmian, XTB-ok 0.052, demo 5/5, pytest 114 passed.
 - **Świadomie bez zmian:** M1 0.55–0.59 tuż pod progiem (przypadki graniczne do suwaka); `kasa_z_marta` (fikcyjny broker, brak w `entities.csv`; zakres ai-data/lead).
+
+## 2026-11-21 — M2 v4 i M3 v3 według załącznika UKNF (#53)
+- **Zlecono:** zmapować 18 reguł z załącznika UKNF (znalezionych przez ai-data, `ai/eval/rubric.md` na `team/ai-data`) na kryteria M2 i dodać definicję art. 76 do M3.
+- **Zmiany:** `m2-v4` + `m2-rules-v3`: 16 kryteriów zamiast 8. Dotychczasowe 8 zachowało id i wagi (nie ruszamy strojenia z #62). Nowe: `firm_identification` (reguła 1), `advertising_label` (2), `historical_results_conditions` (12a/b), `comparison_basis` (11), `forecast_warning` (15), `tax_disclosure` (16), `supervisor_approval` (17/18), `risk_warning_language` (9/10). Reguły 3, 6/7, 14 mapują się na istniejące kryteria. Wagi llm: `min(1, Σ w·conf)`, suma wag ≥ 1 (nie dokładnie 1). Reguły układu (4, 5, 7 w części graficznej, 8, 13) wymagają HTML/screenshotu i są poza zakresem. Do `m2.yaml` dodane frazy `supervisor_claim`, `forecast`, do anchorów M2 dwie frazy. `m3-v3`: definicja art. 76 i lista instrumentów w prompcie, fraza „trzymaj akcje” w `m3.yaml`.
+- **Do sprawdzenia przez człowieka:** wynik na żywym Bieliku (nie uruchamiano — brak Ollamy na tej maszynie): czas M2 (więcej pól w JSON) oraz czy `firm_identification` / `advertising_label` nie dają fałszywych `fail` na fixtures.
+- **Poza naszym zakresem:** `web/src/lib/utils.ts` nie ma etykiet dla 8 nowych id (UI pokaże surowy kod); `presentation/*` i `docs/contracts.md` wspominają 4 kryteria M2.
