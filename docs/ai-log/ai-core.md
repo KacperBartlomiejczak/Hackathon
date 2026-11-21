@@ -55,3 +55,9 @@
 - **Task:** go through open issues touching `ai`, fix what is in ai-core scope, close only what is fixed on `main`.
 - **Result:** merged `origin/main` into `team/ai-core` (clean; ruff clean, 68 passed / 5 skipped), pushed. PR #38 is mergeable. #36: workaround (`OLLAMA_URL` → `OLLAMA_BASE_URL` alias in `ai/app/__init__.py`) is in PR #38, proper fix is in ai-data PR #34. #19 and #16 are infra files (`.env.example`, `pull-models.sh`, `docker-compose.yml`), patch from the lead is not in any PR yet. Not closed: nothing of this is on `main` yet.
 - **Human to verify:** after merging #34/#38 and the infra PR, `docker compose up --build` then `POST /analyze/1` → 200.
+
+## 2026-11-21 — local live test of /analyze (no Docker for ai, infra/ untouched)
+- **Task:** run `ai` with uvicorn against a throwaway pgvector Postgres + SeaweedFS (docker run, ports 5432/8333), host Ollama, mock api on :3000; seed the 4 `ai/demo/scenarios.json` texts as documents 1–4; `POST /analyze/{1..4}`.
+- **Result:** all 200 in 40–63 s each (Bielik 11B Q4 warm). Doc 1 legit XTB → M2 low 0.00; doc 2 scam → M1 high 0.848 (alert sent); doc 3 borderline → M1 medium 0.766 (no alert; calibrated weights push it to high); doc 4 shadow advisory → M3 high 0.914 (alert sent). Alerts reached the mock api with the right token. Env had only `OLLAMA_URL` (alias worked, no localhost fallback).
+- **Found:** each document gets one finding (router picks one module), not M1+M2+M3 at once. After ai-data PR #34 the test `test_ollama_base_url_alias` failed (it asserted `emb.OLLAMA_BASE_URL`); made it accept both names, so #38 needs no rebase. Merge #38 + #34 is textually clean, 69 passed on the merged tree.
+- **Not verified:** local `.env` (read was denied by permissions, values passed explicitly); the model name `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` is not pulled on this machine, used `hf.co/SpeakLeash/Bielik-11B-v2.3-Instruct-GGUF:Q4_K_M` (same size as `bielik:latest`).
