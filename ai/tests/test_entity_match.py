@@ -56,7 +56,7 @@ def test_unknown_social_handle_lowers_score() -> None:
     assert c.advertiser is None and c.rules_score == 0.7
     [c2] = one("X-Trade Brokers polecam!", "https://instagram.com/p/1", "ktos")
     assert not c2.official_channels_known and c2.rules_score == 0.8
-    assert c2.reasons[-1]["verdict"] == "unverified"
+    assert c2.reasons[-1]["verdict"] == "unclear"
 
 
 def test_unauthorized_and_no_mention() -> None:
@@ -97,3 +97,14 @@ def test_official_channel_from_register_is_not_flagged() -> None:
     assert caspar.id not in names(f"https://{domain}/oferta")
     assert caspar.id not in names(f"https://blog.{domain}/oferta")
     assert caspar.id in names("https://blog.example.com/recenzja")
+
+
+def test_reasons_validate_against_contract_model() -> None:
+    from app.models import Reason
+
+    text = "Handluję na XTB, polecam, link w bio"
+    cands = one(text, "https://instagram.com/p/1", "ktos") + one(text, "https://blog.example.com/x")
+    assert cands
+    for c in cands:
+        for r in c.reasons:
+            Reason.model_validate(r)

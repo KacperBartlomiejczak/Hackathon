@@ -6,7 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.embeddings import DIM, OLLAMA_BASE_URL, embed, to_pgvector
+from app.embeddings import DIM, OLLAMA_URL, embed, to_pgvector
 from app.preprocess.dedup import dedup
 from seed.seed_entities import load_rows, seed_entities
 
@@ -62,7 +62,7 @@ async def test_embed_roundtrip(conn) -> None:
     try:
         vec = await embed(TEXT)
     except (httpx.HTTPError, OSError):
-        pytest.skip(f"Ollama embed model not available at {OLLAMA_BASE_URL}")
+        pytest.skip(f"Ollama embed model not available at {OLLAMA_URL}")
     assert len(vec) == DIM
     doc = await conn.fetchval("INSERT INTO documents (url, url_hash) VALUES ('e','e') RETURNING id")
     await conn.execute("UPDATE documents SET embedding=$1::vector WHERE id=$2", to_pgvector(vec), doc)

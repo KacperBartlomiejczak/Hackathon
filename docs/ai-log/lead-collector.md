@@ -34,3 +34,7 @@
 - Zlecono: przegląd otwartych issues dla collectora → plan → poprawka #22. `onSource` pomija wyłączone źródło tylko przy `trigger === 'schedule'`; nowy `postCrawlStatus` (X-Internal-Token, timeout 5 s, nigdy nie rzuca) wysyła `running` po insercie `crawl_run` i `ok|partial|failed` po update. Plan zaakceptowany przed zmianami.
 - Skille: brak nowych paczek (globalny `fetch`).
 - Weryfikacja: `tsc`, `eslint`, 9 testów `node:test` (nowe: nagłówek + body, zamknięty port bez wyjątku). Bez testu na żywo z api.
+## 2026-11-21 — issue #19: weryfikacja poprawki i przekazanie do team/infra
+- Zlecono: wybrać jeden issue → plan → weryfikacja niezacommitowanej poprawki #19 (plus #16/#17) i przekazanie jej osobie #6 jako patch, bo team/lead-collector nie commituje plików infra. Plan zaakceptowany przed zmianami.
+- Skille: brak nowych paczek. Manifest `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` w registry.ollama.ai: 200, nazwa bez namespace: 404.
+- Weryfikacja: `docker compose run --rm --no-deps ollama-init` ze zmyślonym modelem → exit 1, z prawdziwym → exit 0. Patch (4 pliki) sprawdzony `git apply --check -R`. Komentarze w #19, #16, #17.

@@ -95,6 +95,8 @@ CREATE TABLE module_settings (
 
 **Notka `findings`:** `UNIQUE (document_id, module)` — zapis z `ai/` ma być upsertem (`INSERT … ON CONFLICT (document_id, module) DO UPDATE`), inaczej `/reanalyze` wywali się na duplikacie.
 
+**Notka wyszukiwanie (`infra/db/003_trgm.sql`):** rozszerzenie `pg_trgm` i indeksy GIN `gin_trgm_ops` na `documents.title` (`documents_title_trgm_idx`) i `documents.text_clean` (`documents_text_clean_trgm_idx`) pod filtr `q` (`ILIKE '%…%'`). Bez zmian w kolumnach. Plik wykonuje się tylko na pustym wolumenie (`docker compose down -v`). Istniejącą bazę można zaktualizować ręcznie, bo plik jest idempotentny: `psql -f infra/db/003_trgm.sql`.
+
 ## Format dokumentu z collectora (wejście do bazy)
 ```json
 {
@@ -143,10 +145,16 @@ CREATE TABLE module_settings (
 | GET/PUT | `/settings/modules/:module` | próg i wagi |
 | GET | `/eval?module=&threshold=` | proxy do ai `/eval` → precision, recall, FP, FN, TP, TN |
 | POST | `/sources/:id/run` | ręczne odpalenie crawla (do demo) |
-| GET | `/export?format=csv\|json&...filtry` | raport dla modułów 1/2/3 |
+| GET | `/export?format=csv\|json&module=&risk=&status=&source=&from=&to=&q=` | raport dla modułów 1/2/3 (plik do pobrania) |
 | POST | `/internal/alerts` | tylko z ai/ (nagłówek `X-Internal-Token`) |
 | POST | `/internal/crawl-status` | tylko z collectora (nagłówek `X-Internal-Token`) → emit `crawl:status` |
 | GET | `/sources` | lista źródeł + ostatni `crawl_run` każdego |
+
+**Błędy (wszystkie endpointy):** odpowiedź błędu to zawsze JSON `{ "error": "<kod>", "message": "<opis>" }`, bez stack trace'ów i szczegółów bazy. Przy walidacji `400` dochodzi `issues: [{ path, message }]`. Kody: `400 bad_request`, `401 unauthorized`, `404 not_found` (także nieznana trasa), `409 invalid_transition`, `413 payload_too_large`, `415 unsupported_media_type`, `429 rate_limited`, `500 internal`, `502 ai_unavailable`, `503 queue_unavailable`. Jedyny wyjątek to `GET /eval`, który przekazuje błąd z ai 1:1.
+
+**Rate limit:** 300 żądań/min na IP, `GET /export` 10/min. `/internal/*` i `/health` są bez limitu. Po przekroczeniu `429 {error:"rate_limited"}` z nagłówkiem `Retry-After`. Odpowiedzi mają nagłówki `x-ratelimit-limit|remaining|reset`.
+
+**CORS:** dozwolony tylko origin `WEB_ORIGIN` (domyślnie `http://localhost:5173`). Przeglądarka może odczytać nagłówki `Content-Disposition` i `X-Export-Truncated` (`Access-Control-Expose-Headers`).
 
 `GET /findings` — parametry (wszystkie opcjonalne, błędna wartość → 400):
 `module` 1|2|3, `risk` low|medium|high, `status` new|in_review|confirmed|dismissed, `source` = `documents.source_kind` (web|facebook|instagram|tiktok|youtube|sample), `from`/`to` = data ISO, filtr po `findings.created_at`, `q` (1–200 znaków; `ILIKE` po tytule i `text_clean` dokumentu), `page` (domyślnie 1), `pageSize` (domyślnie 20, max 100). Sortowanie: `created_at` malejąco.
@@ -250,6 +258,31 @@ api **nie** emituje `crawl:status` — robi to collector przez `/internal/crawl-
 ```json
 { "module": 2, "threshold": 0.7, "tp": 5, "fp": 1, "fn": 2, "tn": 10, "precision": 0.83, "recall": 0.71 }
 ```
+
+`GET /export?format=csv|json&module=&risk=&status=&source=&from=&to=&q=` — `format` **wymagany** (`csv|json`). Pozostałe filtry działają dokładnie jak w `GET /findings`: te same wartości i ta sama walidacja, bez `page`/`pageSize`. Błędna albo brakująca wartość → `400`. Sortowanie: `created_at` malejąco. Limit **10 000 wierszy**. Przy większej liczbie trafień eksport jest obcinany, odpowiedź ma nagłówek `X-Export-Truncated: true`, a w JSON `truncated: true`.
+
+Kolumny (nagłówki po polsku; klucz JSON w nawiasie):
+- `module=1`: Firma (`firm`) · Reklamujący (`advertiser`) · Treść (skrót) (`contentExcerpt`) · URL (`url`) · Data (`createdAt`) · Score (`score`) · Status (`status`)
+- `module=2`: Firma (`firm`) · Niespełnione kryteria (`failedCriteria`) · Cytaty (`quotes`) · URL · Data · Score
+- `module=3`: Podmiot (`entity`) · Frazy doradcze (`advisoryPhrases`) · Cytaty (`quotes`) · URL · Data · Score
+- bez `module` (zestaw wspólny): ID (`id`) · Moduł (`module`) · Firma (`firm`) · Reklamujący (`advertiser`) · Tytuł (`title`) · URL (`url`) · Źródło (`sourceKind`) · Data (`createdAt`) · Score (`score`) · Ryzyko (`riskLevel`) · Status (`status`) · Etykieta (`label`)
+
+Mapowanie: `firm` = `firm_entity.name`. `advertiser` = `advertiser_entity.name`, gdy brak: `documents.author_handle`. `entity` = `advertiser_entity.name` → `firm_entity.name` → `author_handle`. `contentExcerpt` = pierwsze 300 znaków `text_clean` (białe znaki zwinięte do spacji, `…` gdy ucięte), gdy brak tekstu: `title`. `failedCriteria` = `criterion` z `reasons`, gdzie `verdict = "fail"`. `advisoryPhrases` = `criterion` z `reasons`, gdzie `verdict ≠ "pass"`. `quotes` = `quote` z `reasons`, gdzie `verdict ≠ "pass"` (bez duplikatów). `createdAt` = `findings.created_at` w ISO 8601 (to samo pole co filtr `from`/`to`). Puste wartości: w CSV pusta komórka, w JSON `null`.
+
+**CSV:** `Content-Type: text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="findings.csv"`. Plik zaczyna się od BOM UTF-8 (`﻿`, polskie znaki w Excelu). **Separator `;`** (polski Excel dzieli kolumny po średniku), linie `CRLF`, pierwszy wiersz to nagłówki. Cudzysłowy jak w RFC 4180: pole z `"`, `;`, `,`, `\r` albo `\n` trafia w cudzysłowy, a `"` jest podwajany. Listy w jednej komórce łączone są przez `; ` (kryteria, frazy) albo ` | ` (cytaty). `score` ma 2 miejsca po przecinku i **przecinek dziesiętny** (`0,83`). W JSON zostaje liczba. **Ochrona przed formula injection:** komórka tekstowa zaczynająca się od `=`, `+`, `-`, `@`, TAB albo CR dostaje prefiks `'` (np. `'=HYPERLINK(…)`). **Handle'e:** w kolumnach Reklamujący (`advertiser`) i Podmiot (`entity`) CSV zdejmuje wiodące `@`, więc zamiast `'@lukasz_inwestuje` jest `lukasz_inwestuje`. Ochrona działa dalej na resztę, np. `@=1+1` → `'=1+1`. JSON zachowuje `@`. Limit: 10 eksportów/min na IP (patrz „Rate limit”).
+
+**JSON:** `Content-Type: application/json; charset=utf-8`, `Content-Disposition: attachment; filename="findings.json"`. `rows` zawiera tylko klucze z `columns`. Listy są tablicami, `score` to surowa liczba (bez zaokrąglenia):
+```json
+{
+  "module": 2, "generatedAt": "2026-11-22T00:30:00.000Z", "count": 1, "truncated": false,
+  "columns": [{ "key": "firm", "label": "Firma" }, { "key": "failedCriteria", "label": "Niespełnione kryteria" }, "…"],
+  "rows": [{
+    "firm": "…", "failedCriteria": ["risk_warning_present"], "quotes": ["Zarabiaj nawet 30% miesięcznie!"],
+    "url": "https://…", "createdAt": "2026-11-21T18:02:11.000Z", "score": 0.83
+  }]
+}
+```
+Top-level `module` = wartość filtra albo `null`.
 
 `POST /internal/alerts` — body (wysyła ai po zapisaniu findingu z `riskLevel = high`; `X-Internal-Token` wymagany, brak/zły → `401 {error:"unauthorized"}`, zły body → `400`, sukces → `202 {ok:true}`):
 ```json

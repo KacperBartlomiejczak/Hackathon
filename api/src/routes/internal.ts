@@ -16,7 +16,7 @@ export const internalRoutes: FastifyPluginAsync<Deps> = async (app, { io, intern
     const provided = typeof header === "string" ? header : "";
     if (provided === "" || !timingSafeEqual(sha256(provided), expected)) {
       request.log.warn({ route: request.routeOptions.url }, "internal auth rejected");
-      return reply.code(401).send({ error: "unauthorized" });
+      return reply.code(401).send({ error: "unauthorized", message: "Missing or invalid X-Internal-Token" });
     }
     return undefined;
   });

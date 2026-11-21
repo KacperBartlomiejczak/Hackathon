@@ -16,6 +16,7 @@ interface FiltersBarProps {
   exporting: boolean;
   exportDisabled: boolean;
   exportError: boolean;
+  exportTruncated: boolean;
   onExport: (format: ExportFormat) => void;
 }
 
@@ -50,7 +51,7 @@ function SelectField({ label, value, options, onChange }: SelectFieldProps) {
   );
 }
 
-export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, exportDisabled, exportError, onExport }: FiltersBarProps) {
+export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, exportDisabled, exportError, exportTruncated, onExport }: FiltersBarProps) {
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-card p-3">
       <Field label="Szukaj">
@@ -111,6 +112,7 @@ export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, e
         ))}
       </div>
       {exportError && <p className="w-full text-sm text-red-600">Nie udało się wyeksportować danych.</p>}
+      {exportTruncated && <p className="w-full text-sm text-amber-700">Eksport obcięto do 10 000 wierszy. Zawęź filtry, aby pobrać resztę.</p>}
     </div>
   );
 }

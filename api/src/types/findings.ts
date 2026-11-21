@@ -17,6 +17,8 @@ export const listQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 export type ListQuery = z.infer<typeof listQuerySchema>;
+/** Filter part of the list query (no pagination); shared with GET /export. */
+export type FindingsFilter = Omit<ListQuery, "page" | "pageSize">;
 
 export const idParamsSchema = z.object({
   id: z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER),
