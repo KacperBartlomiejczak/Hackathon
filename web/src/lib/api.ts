@@ -26,7 +26,7 @@ export type Endpoint = "findings" | "trend" | "summary" | "status" | "eval" | "s
 
 const ALL_ENDPOINTS: readonly Endpoint[] = ["findings", "trend", "summary", "status", "eval", "settings", "sources", "export"];
 // Endpoints that the api does not serve yet; remove a name from VITE_MOCKED_ENDPOINTS once it ships.
-const DEFAULT_MOCKED: readonly Endpoint[] = ["eval", "settings", "sources", "export"];
+const DEFAULT_MOCKED: readonly Endpoint[] = ["export"];
 
 function resolveMocked(): ReadonlySet<Endpoint> {
   const all: string | undefined = import.meta.env.VITE_USE_MOCKS;
@@ -92,14 +92,14 @@ function matches(f: Finding, filters: FindingsFilters): boolean {
 export async function exportFindings(
   filters: FindingsFilters,
   format: ExportFormat,
-): Promise<{ blob: Blob; filename: string }> {
+): Promise<{ blob: Blob; filename: string; truncated: boolean }> {
   if (isMocked("export")) {
     const all = mockFindings.filter((f) => matches(f, filters));
     const blob =
       format === "csv"
         ? new Blob([findingsToCsv(all)], { type: "text/csv;charset=utf-8" })
         : new Blob([findingsToJson(all)], { type: "application/json" });
-    return { blob, filename: defaultExportFilename(format) };
+    return { blob, filename: defaultExportFilename(format), truncated: false };
   }
   const params = new URLSearchParams({ format });
   for (const [key, value] of Object.entries(filters)) {
@@ -111,7 +111,7 @@ export async function exportFindings(
   const disposition = res.headers.get("Content-Disposition") ?? "";
   const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
   const filename = match ? decodeURIComponent(match[1]) : defaultExportFilename(format);
-  return { blob: await res.blob(), filename };
+  return { blob: await res.blob(), filename, truncated: res.headers.get("X-Export-Truncated") === "true" };
 }
 
 export async function fetchFindings(filters: FindingsFilters): Promise<Page<FindingListItem>> {
