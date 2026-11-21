@@ -69,6 +69,15 @@ def test_m3_rules_quote_is_verbatim_sentence() -> None:
     assert all(r.quote in ADVICE for r in reasons)
 
 
+def test_m3_rules_noun_forms_and_plural_dm() -> None:
+    text = ("Family Office Alfa Wealth - oferujemy indywidualne rekomendacje inwestycyjne oraz zarządzanie "
+            "Twoim portfelem. Napisz do nas na priv, a dobierzemy akcje dopasowane do Twojego profilu.")
+    score, reasons = m3.rules_hits(text)
+    assert {"rule:advisory_offer", "rule:portfolio_management", "rule:private_channel"} <= {
+        r.criterion for r in reasons}
+    assert score >= 0.8
+
+
 def test_m3_rules_quiet_text() -> None:
     assert m3.rules_hits("Dziś ładna pogoda, idziemy na spacer.")[0] == 0.0
 

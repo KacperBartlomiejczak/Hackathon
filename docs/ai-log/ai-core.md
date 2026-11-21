@@ -140,3 +140,9 @@
 - **Wynik:** jedyny otwarty PR to #59 (docs, czysty, czeka na merge leada). Issues #42 (pusty gold set), #53 (brak załącznika UKNF) i #56 mają komentarze ze stanem. Nie da się ich zamknąć bez człowieka: etykiety i załącznik trzeba dostarczyć ręcznie.
 - **Dodano:** `ai/scripts/score_fixtures.py`, pomoc przy etykietowaniu gold setu. Wysyła fixtures do `/analyze-text` i zapisuje CSV ze score M1/M2/M3 oraz pustą kolumną `label`. Etykiet nie zgaduje.
 - **Do weryfikacji przez człowieka:** skrypt sprawdzony tylko na atrapie serwera, bo Ollamy nie ma na tym komputerze. Trzeba uruchomić go na maszynie z Ollamą: `python ai/scripts/score_fixtures.py --out scores.csv`.
+
+## 2026-11-21 ~21:30 — #62: pierwszy test na żywym Bieliku + poprawka reguł M3
+- **Zlecono:** uruchomić `score_fixtures`, `demo_check` i `live_check` na maszynie z Ollamą (#62), potem poprawić reguły M3.
+- **Wynik:** serwis lokalnie przez `uv`, bez Postgresa. 14/14 fixtures OK, demo 5/5 OK, JSON z M2 poprawny. RTX 3060 12 GB: ~5 s na dokument dla M1/M3, ~10 s dla M2. Wyniki są w komentarzu do #62.
+- **Poprawka:** `ai/rules/m3.yaml` → `m3-rules-v2`: rzeczownik „zarządzanie portfelem”, „rekomendacje inwestycyjne”, „napisz do nas na priv”. Dodano test regresji. `@family_office_alfa`: rules 0.00 → 0.85, score 0.284 → 0.496. Dalej poniżej progu 0.6 przez LLM 0.33. Pozostałe score bez zmian.
+- **Do weryfikacji przez człowieka:** czy niski llm M3 dla tego tekstu poprawić promptem, czy zostawić jako przypadek graniczny do gold setu.
