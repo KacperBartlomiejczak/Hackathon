@@ -7,6 +7,7 @@ import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -17,6 +18,7 @@ from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi import Path as PathParam
 
 from app import pipeline
+from app.eval import evaluate as run_eval
 from app.llm import LLMError, OllamaClient
 from app.models import (
     AnalyzeResult,
@@ -24,6 +26,7 @@ from app.models import (
     HealthStatus,
     ReanalyzeResult,
 )
+from seed.seed_entities import seed_entities
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
@@ -52,8 +55,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if dsn:
         try:
             app.state.pool = await asyncpg.create_pool(dsn, min_size=1, max_size=5, timeout=HEALTH_TIMEOUT_S)
+            async with app.state.pool.acquire() as conn:
+                inserted, updated = await seed_entities(conn)
+            logger.info("entities seed inserted=%s updated=%s", inserted, updated)
         except (OSError, asyncpg.PostgresError, TimeoutError) as exc:
-            logger.error("postgres pool init failed: %s", exc)
+            logger.error("postgres init/seed failed: %s", exc)
     else:
         logger.warning("DATABASE_URL not set")
     app.state.llm = None
@@ -135,10 +141,18 @@ async def reanalyze(module: Annotated[int | None, Query(ge=1, le=3)] = None) -> 
 
 
 # contracts.md specifies GET /eval (the request asked for POST; contract wins).
-@app.get("/eval", response_model=EvalResult, status_code=501)
+@app.get("/eval", response_model=EvalResult)
 async def evaluate(
     module: Annotated[int, Query(ge=1, le=3)],
     threshold: Annotated[float, Query(ge=0, le=1)],
 ) -> EvalResult:
-    logger.info("eval module=%s threshold=%s result=not_implemented", module, threshold)
-    raise HTTPException(status_code=501, detail="not implemented")
+    if app.state.pool is None:
+        raise HTTPException(status_code=503, detail="database not configured")
+    try:
+        async with app.state.pool.acquire() as conn:
+            res = await run_eval(conn, module, threshold)
+    except (ValueError, OSError, asyncpg.PostgresError) as exc:
+        logger.error("eval module=%s threshold=%s failed: %s", module, threshold, exc)
+        raise HTTPException(status_code=500, detail=f"eval failed: {exc}") from exc
+    logger.info("eval module=%s threshold=%s tp=%d fp=%d fn=%d", module, threshold, res.tp, res.fp, res.fn)
+    return EvalResult(**asdict(res))
