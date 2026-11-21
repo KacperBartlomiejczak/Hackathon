@@ -3,9 +3,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.preprocess.clean import clean_text, normalize  # noqa: E402
-from app.preprocess.dedup import content_hash, hamming, simhash64  # noqa: E402
-from seed.seed_entities import load_rows  # noqa: E402
+from app.preprocess.clean import clean_text, normalize
+from app.preprocess.dedup import content_hash, hamming, simhash64
+from seed.seed_entities import load_rows
 
 TEXT = (
     "Inwestowanie w fundusze ETF pozwala rozproszyć ryzyko i obniżyć koszty prowadzenia portfela "

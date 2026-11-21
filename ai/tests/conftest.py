@@ -12,7 +12,8 @@ CREATE EXTENSION IF NOT EXISTS vector;
 DROP TABLE IF EXISTS findings, documents, entities CASCADE;
 CREATE TABLE entities (
   id serial PRIMARY KEY, name text NOT NULL, aliases text[] DEFAULT '{}',
-  type text NOT NULL CHECK (type IN ('investment_firm','foreign_firm','advertiser','finfluencer','advisory_unlicensed','unknown')),
+  type text NOT NULL CHECK (type IN (
+    'investment_firm','foreign_firm','advertiser','finfluencer','advisory_unlicensed','unknown')),
   is_authorized boolean NOT NULL DEFAULT false, register_ref text, nip text,
   official_domains text[] DEFAULT '{}', social_handles text[] DEFAULT '{}'
 );
@@ -26,7 +27,8 @@ CREATE TABLE findings (
   id bigserial PRIMARY KEY, document_id bigint NOT NULL REFERENCES documents(id),
   module smallint NOT NULL CHECK (module IN (1,2,3)), score real NOT NULL CHECK (score BETWEEN 0 AND 1),
   risk_level text NOT NULL CHECK (risk_level IN ('low','medium','high')), label text NOT NULL,
-  reasons jsonb NOT NULL, firm_entity_id int REFERENCES entities(id), advertiser_entity_id int REFERENCES entities(id),
+  reasons jsonb NOT NULL, firm_entity_id int REFERENCES entities(id),
+  advertiser_entity_id int REFERENCES entities(id),
   model text NOT NULL, prompt_version text NOT NULL, status text NOT NULL DEFAULT 'new',
   created_at timestamptz NOT NULL DEFAULT now()
 );

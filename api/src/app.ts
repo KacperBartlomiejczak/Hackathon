@@ -6,6 +6,8 @@ import type { Config } from "./config.js";
 import { createDb } from "./db/client.js";
 import { buildLoggerOptions } from "./logger.js";
 import { findingsRoutes } from "./routes/findings.js";
+import { internalRoutes } from "./routes/internal.js";
+import { createSocketServer } from "./realtime/socket.js";
 import { createStorage } from "./storage/s3.js";
 
 export async function buildApp(config: Config): Promise<FastifyInstance> {
@@ -38,6 +40,9 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
 
   app.get("/health", { config: { rateLimit: false } }, async () => ({ status: "ok" }));
   await app.register(findingsRoutes, { db, storage });
+
+  const io = createSocketServer(app, config);
+  await app.register(internalRoutes, { io, internalToken: config.INTERNAL_TOKEN });
 
   return app;
 }

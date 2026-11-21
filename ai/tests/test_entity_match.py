@@ -3,8 +3,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.preprocess.entity_match import Entity, match_entities  # noqa: E402
-from seed.seed_entities import load_rows  # noqa: E402
+from app.preprocess.entity_match import Entity, match_entities
+from seed.seed_entities import load_rows
 
 AIXON = Entity(1, "Aixon Investment Management Sp. z o.o.", ("Aixon",), True, ("aixon.pl",), ("aixon_pl",))
 XTB = Entity(2, "XTB S.A.", ("XTB", "X-Trade Brokers"), True, ("xtb.com",), ())
@@ -66,8 +66,34 @@ def test_unauthorized_and_no_mention() -> None:
 
 def test_real_seed_rows() -> None:
     ents = [
-        Entity(i, r["name"], tuple(r["aliases"]), r["is_authorized"], tuple(r["official_domains"]), tuple(r["social_handles"]))
+        Entity(
+            i, r["name"], tuple(r["aliases"]), r["is_authorized"],
+            tuple(r["official_domains"]), tuple(r["social_handles"]),
+        )
         for i, r in enumerate(load_rows(), 1)
     ]
     out = match_entities("Otwórz konto w X-Trade Brokers, polecam!", "https://blog.example.com", None, ents)
     assert any(c.firm_name.startswith("XTB") for c in out)
+
+
+def _seed_entities() -> list[Entity]:
+    return [
+        Entity(
+            i, r["name"], tuple(r["aliases"]), r["is_authorized"],
+            tuple(r["official_domains"]), tuple(r["social_handles"]),
+        )
+        for i, r in enumerate(load_rows(), 1)
+    ]
+
+
+def test_official_channel_from_register_is_not_flagged() -> None:
+    ents = _seed_entities()
+    caspar = next(e for e in ents if e.name.startswith("Caspar") and e.official_domains)
+    domain = caspar.official_domains[0]
+    text = f"{caspar.aliases[0]} oferuje konto, zarejestruj się dziś."
+    def names(url: str) -> set[int]:
+        return {c.firm_entity_id for c in match_entities(text, url, None, ents)}
+
+    assert caspar.id not in names(f"https://{domain}/oferta")
+    assert caspar.id not in names(f"https://blog.{domain}/oferta")
+    assert caspar.id in names("https://blog.example.com/recenzja")
