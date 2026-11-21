@@ -19,3 +19,8 @@
 - **Merge:** both machines built the same skeleton. Kept this version (models, stubs, Postgres check) and took from the other: `exclude-newer` guard (pins lowered to match: fastapi 0.162.0, pydantic 2.14.3, boto3 1.43.126, numpy 2.5.4, ruff 0.17.4), `modules/ prompts/ rules/ SECURITY.md`, model licence table.
 - **Env names aligned with compose/.env.example:** `OLLAMA_URL` (no localhost default), `OLLAMA_LLM_MODEL`, `OLLAMA_EMBED_MODEL`. `ai/app/embeddings.py` (ai-data) still reads `OLLAMA_BASE_URL` with localhost default → ask team/ai-data to switch.
 - Dropped as superseded: `app/config.py`, `app/logging_setup.py`, `tests/test_health.py`; `pytest-asyncio` removed (unused).
+
+## 2026-11-21 — db / storage / llm clients
+- **Task:** `ai/app/db.py` (asyncpg pool from `DATABASE_URL`), `storage.py` (boto3 `get_html`, S3_* env), `llm.py` (Ollama chat, `format` = Pydantic JSON Schema, temperature 0, 60 s timeout + 1 retry, errors raise `LLMError`, never a default result). Tests with mocks (15 pass, ruff clean).
+- **Human decision:** `psycopg_pool` requested, but psycopg is LGPL (already rejected earlier) → kept `asyncpg`; no new dependencies.
+- **Not verified:** live Postgres, live S3/SeaweedFS, live Ollama; S3 env names (`S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`, optional `S3_REGION`) are assumed.
