@@ -3,15 +3,19 @@ import { alias } from "drizzle-orm/pg-core";
 import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db/client.js";
 import { documents, entities, findings, findingStatusHistory } from "../db/schema.js";
+import type { Io } from "../realtime/socket.js";
 import type { Storage } from "../storage/s3.js";
 import {
   idParamsSchema,
   listQuerySchema,
+  statusBodySchema,
+  STATUS_TRANSITIONS,
+  type FindingUpdatedPayload,
   type EntityRef,
   type FindingList,
 } from "../types/findings.js";
 
-type Deps = { db: Db; storage: Storage };
+type Deps = { db: Db; storage: Storage; io: Io };
 
 const firmEntity = alias(entities, "firm_entity");
 const advertiserEntity = alias(entities, "advertiser_entity");
@@ -21,7 +25,62 @@ const toRef = (id: number | null, name: string | null): EntityRef =>
 
 const escapeLike = (s: string): string => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storage }) => {
+export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storage, io }) => {
+  app.patch("/findings/:id/status", async (request, reply) => {
+    const { id } = idParamsSchema.parse(request.params);
+    const body = statusBodySchema.parse(request.body);
+    const changedBy = body.changedBy ?? null;
+
+    const result = await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ status: findings.status, module: findings.module, riskLevel: findings.riskLevel })
+        .from(findings)
+        .where(eq(findings.id, id))
+        .for("update");
+      if (!current) return { kind: "not_found" as const };
+      if (!(STATUS_TRANSITIONS[current.status] ?? []).includes(body.status)) {
+        return { kind: "invalid" as const, from: current.status };
+      }
+      await tx.update(findings).set({ status: body.status }).where(eq(findings.id, id));
+      const [hist] = await tx
+        .insert(findingStatusHistory)
+        .values({ findingId: id, oldStatus: current.status, newStatus: body.status, changedBy })
+        .returning({ changedAt: findingStatusHistory.changedAt });
+      return {
+        kind: "ok" as const,
+        current,
+        changedAt: (hist?.changedAt ?? new Date()).toISOString(),
+      };
+    });
+
+    if (result.kind === "not_found") {
+      return reply.code(404).send({ error: "not_found", message: "Finding not found" });
+    }
+    if (result.kind === "invalid") {
+      request.log.warn({ findingId: id, from: result.from, to: body.status }, "status transition rejected");
+      return reply.code(409).send({
+        error: "invalid_transition",
+        message: `Cannot change status from ${result.from} to ${body.status}`,
+      });
+    }
+
+    const payload: FindingUpdatedPayload = {
+      id,
+      module: result.current.module,
+      riskLevel: result.current.riskLevel,
+      oldStatus: result.current.status,
+      status: body.status,
+      changedBy,
+      changedAt: result.changedAt,
+    };
+    io.emit("finding:updated", payload);
+    request.log.info(
+      { findingId: id, from: payload.oldStatus, to: payload.status, changedBy, note: body.note },
+      "finding status updated",
+    );
+    return { id, status: payload.status, oldStatus: payload.oldStatus, changedAt: payload.changedAt };
+  });
+
   app.get("/findings", async (request): Promise<FindingList> => {
     const started = Date.now();
     const query = listQuerySchema.parse(request.query);
