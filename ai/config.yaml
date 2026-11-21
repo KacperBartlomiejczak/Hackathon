@@ -20,6 +20,11 @@ llm:
   retries: 1
   temperature: 0
 
+analysis:
+  # Wall-clock budget per document for all modules together; must stay below the collector timeout (300 s).
+  # Modules run concurrently; one that misses the budget or fails is skipped (no invented score).
+  budget_s: 240
+
 embedding:         # raw bge-m3 cosine to anchor phrases is mapped linearly: <= floor -> 0, >= ceil -> 1
   floor: 0.45
   ceil: 0.75

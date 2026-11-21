@@ -129,6 +129,95 @@ async def test_module_settings_weights_override_config_defaults() -> None:
     assert tuned_runs[0].score > default_runs[0].score + 0.05
 
 
+def _patch_two_modules(monkeypatch: pytest.MonkeyPatch, m1_fn: Any, m3_fn: Any) -> None:
+    import app.analysis as analysis
+    from app.routing import Route
+
+    monkeypatch.setattr(analysis, "route_document", lambda *a, **k: Route(modules=[1, 3]))
+    monkeypatch.setattr(analysis, "run_m1", m1_fn)
+    monkeypatch.setattr(analysis, "run_m3", m3_fn)
+
+
+async def _run_two(config: dict[str, Any]) -> list[Any]:
+    _, runs = await run_modules(FakeLLM(None), config, default_settings(config),  # type: ignore[arg-type]
+                                SCAM, "https://x.pl/p", None, [], 1, None)
+    return runs
+
+
+@pytest.mark.asyncio
+async def test_modules_run_concurrently(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+    import time
+
+    async def slow(module: int, *a: Any, **k: Any) -> common.ModuleRun:
+        await asyncio.sleep(0.3)
+        return common.ModuleRun(module=module, finding=None)
+
+    _patch_two_modules(monkeypatch, lambda *a, **k: slow(1), lambda *a, **k: slow(3))
+    started = time.monotonic()
+    runs = await _run_two(CONFIG)
+    assert [r.module for r in runs] == [1, 3]
+    assert time.monotonic() - started < 0.55  # sequential would be >= 0.6
+
+
+@pytest.mark.asyncio
+async def test_failed_module_is_skipped_and_others_kept(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.llm import LLMUnavailable
+
+    async def bad(*a: Any, **k: Any) -> common.ModuleRun:
+        raise LLMUnavailable("ollama down")
+
+    async def good(*a: Any, **k: Any) -> common.ModuleRun:
+        return common.ModuleRun(module=3, finding=None, score=0.4)
+
+    _patch_two_modules(monkeypatch, bad, good)
+    runs = await _run_two(CONFIG)
+    assert [r.module for r in runs] == [3]
+
+
+@pytest.mark.asyncio
+async def test_all_modules_failed_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.llm import LLMUnavailable
+
+    async def bad(*a: Any, **k: Any) -> common.ModuleRun:
+        raise LLMUnavailable("ollama down")
+
+    _patch_two_modules(monkeypatch, bad, bad)
+    with pytest.raises(LLMUnavailable):
+        await _run_two(CONFIG)
+
+
+@pytest.mark.asyncio
+async def test_budget_returns_partial_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+
+    async def fast(*a: Any, **k: Any) -> common.ModuleRun:
+        return common.ModuleRun(module=1, finding=None, score=0.5)
+
+    async def hang(*a: Any, **k: Any) -> common.ModuleRun:
+        await asyncio.sleep(30)
+        raise AssertionError("must be cancelled by the budget")
+
+    _patch_two_modules(monkeypatch, fast, hang)
+    runs = await _run_two({**CONFIG, "analysis": {"budget_s": 0.2}})
+    assert [r.module for r in runs] == [1]
+
+
+@pytest.mark.asyncio
+async def test_budget_with_nothing_finished_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+
+    from app.llm import LLMUnavailable
+
+    async def hang(*a: Any, **k: Any) -> common.ModuleRun:
+        await asyncio.sleep(30)
+        raise AssertionError("must be cancelled by the budget")
+
+    _patch_two_modules(monkeypatch, hang, hang)
+    with pytest.raises(LLMUnavailable):
+        await _run_two({**CONFIG, "analysis": {"budget_s": 0.1}})
+
+
 def test_risk_level_uses_configured_high() -> None:
     assert risk_level(0.75, 0.6, 0.7) == "high"
     assert risk_level(0.75, 0.6) == "medium"
