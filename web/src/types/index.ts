@@ -106,6 +106,16 @@ export interface Page<T> {
   pageSize: number;
 }
 
+/** Body of `GET /export?format=json` (docs/contracts.md). */
+export interface ExportJson {
+  module: ModuleId | null;
+  generatedAt: string;
+  count: number;
+  truncated: boolean;
+  columns: { key: string; label: string }[];
+  rows: Record<string, string | number | string[] | null>[];
+}
+
 export interface TrendPoint {
   date: string;
   count: number;

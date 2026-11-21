@@ -78,7 +78,7 @@ async def _anchors(module: int) -> np.ndarray:
 
 
 async def warm_anchors() -> None:
-    for module in (1, 3):
+    for module in (1, 2, 3):
         await _anchors(module)
 
 

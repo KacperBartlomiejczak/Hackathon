@@ -1,0 +1,8 @@
+# Reference phrases for M2: advertising by a registered firm that breaks risk-information rules
+# (misleading promises, no risk warning, trivialised investing). Used with bge-m3 (max cosine to the document).
+phrases:
+  - "Gwarantowany zysk bez ryzyka, zarabiaj pewne 20% miesięcznie na naszej platformie"
+  - "Inwestowanie jest proste, każdy może zarabiać, nie potrzebujesz wiedzy ani doświadczenia"
+  - "Zacznij handlować z dźwignią i zarabiaj szybko, otwórz konto już dziś i odbierz bonus"
+  - "Nasze wyniki z ostatnich lat pokazują stały wysoki zysk, dołącz do zwycięzców rynku"
+  - "Pasywny dochód i finansowa wolność dzięki inwestycjom w kryptowaluty, ryzyko jest minimalne"

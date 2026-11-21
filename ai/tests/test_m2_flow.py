@@ -27,7 +27,9 @@ CONFIG = {
 
 
 def test_prompt_version() -> None:
-    assert load_prompt("m2-risk-info/system.md").version == "m2-v2"
+    prompt = load_prompt("m2-risk-info/system.md")
+    assert prompt.version == "m2-v3"
+    assert all(cid in prompt.text for cid in m2.CRITERION_WEIGHTS)  # prompt checklist matches rules/m2.yaml
 
 
 def test_quotes_drop_hallucination() -> None:
@@ -42,6 +44,50 @@ def test_routing() -> None:
     r = route_document("Oferuję doradztwo i zarządzam portfelem klientów.", "https://x.pl", None, [FIRM], 1)
     assert r.modules == [3]
     assert route_document("Ładna pogoda.", "https://x.pl", None, [FIRM], 1).modules == []
+
+
+def test_criteria_from_yaml() -> None:
+    assert len(m2.CRITERION_WEIGHTS) == 8
+    assert sum(m2.CRITERION_WEIGHTS.values()) == pytest.approx(1.0)
+    assert {"past_performance_disclaimer", "leverage_loss_warning"} <= set(m2.CRITERION_WEIGHTS)
+    with pytest.raises(ValueError):  # unknown criterion id is rejected by the LLM output schema
+        m2.CriterionResult(criterion="made_up", verdict="fail", quote="x", confidence=0.5)
+
+
+def test_rules_score() -> None:
+    assert m2.rules_score("Ładna pogoda.") == 0.0
+    assert m2.rules_score("Gwarantowany zysk, bez ryzyka!") == pytest.approx(0.7)
+    assert m2.rules_score("Gwarantowany zysk, bez ryzyka, 30% miesięcznie, zarabiaj, każdy może") == 1.0
+
+
+def test_new_criterion_validated_and_scored() -> None:
+    out = m2.M2Output(criteria=[
+        m2.CriterionResult(criterion="leverage_loss_warning", verdict="fail",
+                           quote="Handluj z dźwignią 1:500", confidence=1.0),
+        m2.CriterionResult(criterion="no_trivialization", verdict="fail",
+                           quote="Cytat, którego nie ma w tekście", confidence=1.0),
+    ])
+    text = "Handluj z dźwignią 1:500 już dziś."
+    reasons = validate_reasons(m2.llm_reasons(out.criteria, m2.CRITERION_WEIGHTS), text)  # rapidfuzz >= 90
+    assert [r.criterion for r in reasons] == ["leverage_loss_warning"]
+    assert m2.llm_score(out.criteria, {r.criterion for r in reasons}) == pytest.approx(
+        m2.CRITERION_WEIGHTS["leverage_loss_warning"])
+
+
+@pytest.mark.asyncio
+async def test_m2_emb_blends_when_vector_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert await m2.m2_emb(None, CONFIG) is None  # no vector -> w_emb dropped
+
+    async def fake(_v: list[float], module: int, _c: Any) -> float:
+        assert module == 2
+        return 1.0
+
+    monkeypatch.setattr(m2, "emb_score", fake)
+    assert await m2.m2_emb([1.0], CONFIG) == 1.0
+    res = m2.M2Result(reasons=[], outputs=[], rules=0.0, prompt_version="p", model="m")
+    w = {"llm": 0.6, "rules": 0.25, "emb": 0.15}
+    assert m2.score_m2(res, [], w, 1.0) == pytest.approx(0.15)
+    assert m2.score_m2(res, [], w, None) == 0.0
 
 
 def test_combine_renormalises_without_emb() -> None:
@@ -87,6 +133,11 @@ class FakePool:
 @pytest.fixture
 def patched(monkeypatch: pytest.MonkeyPatch) -> FakePool:
     pool = FakePool()
+
+    async def no_emb(_v: list[float], _m: int, _c: Any) -> float:
+        return 0.0
+
+    monkeypatch.setattr(m2, "emb_score", no_emb)  # no Ollama in unit tests
     saved: dict[str, Any] = {}
 
     async def fetch_document(_p: Any, i: int) -> dict[str, Any]:
@@ -134,7 +185,7 @@ async def test_m2_finding_with_valid_quote(patched: FakePool) -> None:
     res = await pipeline.analyze_document(patched, FakeLLM(_output("Gwarantowany zysk.")), CONFIG, 7)  # type: ignore[arg-type]
     assert res.status == "processed" and patched.status == "processed"
     (f,) = res.findings
-    assert f.module == 2 and f.prompt_version == "m2-v2" and f.firm_entity_id == 4
+    assert f.module == 2 and f.prompt_version == "m2-v3+m2-rules-v1" and f.firm_entity_id == 4
     assert {r.criterion for r in f.reasons} == {"no_guaranteed_returns", "risk_warning_present"}
     assert f.score > 0.3
 
