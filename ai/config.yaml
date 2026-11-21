@@ -1,0 +1,16 @@
+# Defaults for ai/. Runtime thresholds/weights live in DB table module_settings (api can override).
+ollama:
+  llm_model: "hf.co/speakleash/Bielik-11B-v2.3-Instruct-GGUF:Q4_K_M"
+  embed_model: "bge-m3"
+  timeout_s: 60
+
+modules:
+  1:
+    threshold: 0.6
+    weights: { llm: 0.6, rules: 0.25, emb: 0.15 }
+  2:
+    threshold: 0.6
+    weights: { llm: 0.6, rules: 0.25, emb: 0.15 }
+  3:
+    threshold: 0.6
+    weights: { llm: 0.6, rules: 0.25, emb: 0.15 }
