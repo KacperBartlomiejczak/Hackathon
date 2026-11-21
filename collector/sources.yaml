@@ -1,0 +1,7 @@
+# Upsertowane do tabeli `sources` przy starcie collectora.
+sources:
+  - kind: sample
+    name: UKNF sample data
+    module_hint: null
+    enabled: true
+    cron: null
