@@ -143,7 +143,7 @@ CREATE TABLE module_settings (
 | GET/PUT | `/settings/modules/:module` | próg i wagi |
 | GET | `/eval?module=&threshold=` | proxy do ai `/eval` → precision, recall, FP, FN, TP, TN |
 | POST | `/sources/:id/run` | ręczne odpalenie crawla (do demo) |
-| GET | `/export?format=csv\|json&...filtry` | raport dla modułów 1/2/3 |
+| GET | `/export?format=csv\|json&module=&risk=&status=&source=&from=&to=&q=` | raport dla modułów 1/2/3 (plik do pobrania) |
 | POST | `/internal/alerts` | tylko z ai/ (nagłówek `X-Internal-Token`) |
 | POST | `/internal/crawl-status` | tylko z collectora (nagłówek `X-Internal-Token`) → emit `crawl:status` |
 | GET | `/sources` | lista źródeł + ostatni `crawl_run` każdego |
@@ -250,6 +250,31 @@ api **nie** emituje `crawl:status` — robi to collector przez `/internal/crawl-
 ```json
 { "module": 2, "threshold": 0.7, "tp": 5, "fp": 1, "fn": 2, "tn": 10, "precision": 0.83, "recall": 0.71 }
 ```
+
+`GET /export?format=csv|json&module=&risk=&status=&source=&from=&to=&q=` — `format` **wymagany** (`csv|json`). Pozostałe filtry działają dokładnie jak w `GET /findings`: te same wartości i ta sama walidacja, bez `page`/`pageSize`. Błędna albo brakująca wartość → `400`. Sortowanie: `created_at` malejąco. Limit **10 000 wierszy**. Przy większej liczbie trafień eksport jest obcinany, odpowiedź ma nagłówek `X-Export-Truncated: true`, a w JSON `truncated: true`.
+
+Kolumny (nagłówki po polsku; klucz JSON w nawiasie):
+- `module=1`: Firma (`firm`) · Reklamujący (`advertiser`) · Treść (skrót) (`contentExcerpt`) · URL (`url`) · Data (`createdAt`) · Score (`score`) · Status (`status`)
+- `module=2`: Firma (`firm`) · Niespełnione kryteria (`failedCriteria`) · Cytaty (`quotes`) · URL · Data · Score
+- `module=3`: Podmiot (`entity`) · Frazy doradcze (`advisoryPhrases`) · Cytaty (`quotes`) · URL · Data · Score
+- bez `module` (zestaw wspólny): ID (`id`) · Moduł (`module`) · Firma (`firm`) · Reklamujący (`advertiser`) · Tytuł (`title`) · URL (`url`) · Źródło (`sourceKind`) · Data (`createdAt`) · Score (`score`) · Ryzyko (`riskLevel`) · Status (`status`) · Etykieta (`label`)
+
+Mapowanie: `firm` = `firm_entity.name`. `advertiser` = `advertiser_entity.name`, gdy brak: `documents.author_handle`. `entity` = `advertiser_entity.name` → `firm_entity.name` → `author_handle`. `contentExcerpt` = pierwsze 300 znaków `text_clean` (białe znaki zwinięte do spacji, `…` gdy ucięte), gdy brak tekstu: `title`. `failedCriteria` = `criterion` z `reasons`, gdzie `verdict = "fail"`. `advisoryPhrases` = `criterion` z `reasons`, gdzie `verdict ≠ "pass"`. `quotes` = `quote` z `reasons`, gdzie `verdict ≠ "pass"` (bez duplikatów). `createdAt` = `findings.created_at` w ISO 8601 (to samo pole co filtr `from`/`to`). Puste wartości: w CSV pusta komórka, w JSON `null`.
+
+**CSV:** `Content-Type: text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="findings.csv"`. Plik zaczyna się od BOM UTF-8 (`﻿`, polskie znaki w Excelu), separator `,`, linie `CRLF` (RFC 4180), pierwszy wiersz to nagłówki. Pole z `"`, `,`, `\r` albo `\n` trafia w cudzysłowy, a `"` jest podwajany. Listy w jednej komórce łączone są przez `; ` (kryteria, frazy) albo ` | ` (cytaty). `score` ma 2 miejsca po przecinku, z kropką. **Ochrona przed formula injection:** komórka tekstowa zaczynająca się od `=`, `+`, `-`, `@`, TAB albo CR dostaje prefiks `'` (np. `'@handle`).
+
+**JSON:** `Content-Type: application/json; charset=utf-8`, `Content-Disposition: attachment; filename="findings.json"`. `rows` zawiera tylko klucze z `columns`. Listy są tablicami, `score` to surowa liczba (bez zaokrąglenia):
+```json
+{
+  "module": 2, "generatedAt": "2026-11-22T00:30:00.000Z", "count": 1, "truncated": false,
+  "columns": [{ "key": "firm", "label": "Firma" }, { "key": "failedCriteria", "label": "Niespełnione kryteria" }, "…"],
+  "rows": [{
+    "firm": "…", "failedCriteria": ["risk_warning_present"], "quotes": ["Zarabiaj nawet 30% miesięcznie!"],
+    "url": "https://…", "createdAt": "2026-11-21T18:02:11.000Z", "score": 0.83
+  }]
+}
+```
+Top-level `module` = wartość filtra albo `null`.
 
 `POST /internal/alerts` — body (wysyła ai po zapisaniu findingu z `riskLevel = high`; `X-Internal-Token` wymagany, brak/zły → `401 {error:"unauthorized"}`, zły body → `400`, sukces → `202 {ok:true}`):
 ```json
