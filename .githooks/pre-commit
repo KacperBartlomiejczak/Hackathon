@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Blokuje commit na main/nieznanym branchu i commitowanie plików spoza katalogów właściciela.
+# Instalacja (raz, każdy u siebie):  git config core.hooksPath .githooks && chmod +x .githooks/pre-commit
+set -euo pipefail
+
+branch="$(git branch --show-current)"
+
+# Commit kończący `git merge origin/main` zawiera cudze pliki — to normalne, nie blokujemy go.
+if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+  case "$branch" in team/*) exit 0 ;; esac
+fi
+
+case "$branch" in
+  team/lead-collector) allowed='^(collector/|CLAUDE\.md$|\.claude/|\.githooks/|docs/team/|docs/ai-log/lead-collector\.md$)' ;;
+  team/ai-core)        allowed='^(ai/app/modules/|ai/prompts/|ai/rules/|ai/app/[^/]+\.py$|ai/tests/|ai/config\.yaml$|ai/pyproject\.toml$|ai/uv\.lock$|ai/Dockerfile$|ai/DEPENDENCIES\.md$|ai/SECURITY\.md$|docs/ai-log/ai-core\.md$)' ;;
+  team/ai-data)        allowed='^(ai/app/preprocess/|ai/app/embeddings\.py$|ai/app/eval\.py$|ai/eval/|ai/seed/|ai/tests/|docs/ai-log/ai-data\.md$)' ;;
+  team/api)            allowed='^(api/|docs/contracts\.md$|infra/db/|docs/ai-log/api\.md$)' ;;
+  team/web)            allowed='^(web/|docs/ai-log/web\.md$)' ;;
+  team/infra)          allowed='^(docker-compose\.yml$|infra/|README\.md$|\.env\.example$|\.gitignore$|presentation/|PLAN\.md$|docs/)' ;;
+  *)
+    echo "✋ Commit zablokowany: branch '$branch' nie należy do nikogo z zespołu (main jest tylko przez PR)." >&2
+    exit 1 ;;
+esac
+
+bad=""
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  # infra nie może ruszać plików api i plików ról
+  if [ "$branch" = "team/infra" ] && [[ "$f" =~ ^(infra/db/|docs/contracts\.md$|docs/team/|docs/ai-log/[^/]+\.md$) ]] && [[ "$f" != "docs/ai-log/infra.md" ]]; then
+    bad+="  $f"$'\n'; continue
+  fi
+  if [ "$branch" = "team/ai-core" ] && [[ "$f" =~ ^ai/app/(embeddings|eval)\.py$ ]]; then
+    bad+="  $f"$'\n'; continue
+  fi
+  if ! [[ "$f" =~ $allowed ]]; then
+    bad+="  $f"$'\n'
+  fi
+done < <(git diff --cached --name-only)
+
+if [ -n "$bad" ]; then
+  echo "✋ Commit zablokowany: te pliki nie należą do brancha '$branch':" >&2
+  printf '%s' "$bad" >&2
+  echo "Cofnij je: git restore --staged <plik> && git restore <plik>, a zmianę zgłoś właścicielowi (CLAUDE.md → Zespół i branche)." >&2
+  exit 1
+fi
+
+if git diff --cached -U0 | grep -E '^\+' | grep -qiE '(api_key|secret|password|token)\s*=\s*["'"'"']?[A-Za-z0-9_\-]{8,}'; then
+  echo "✋ Commit zablokowany: wygląda na sekret w diffie. Przenieś go do .env." >&2
+  exit 1
+fi
