@@ -5,6 +5,9 @@ import { config } from './config.js';
 import { createDb } from './db/client.js';
 import { logger } from './logger.js';
 import { createQueues, startWorkers } from './queue/index.js';
+import { closeBrowser } from './adapters/index.js';
+import { createPipeline } from './pipeline.js';
+import { createStorage } from './storage/s3.js';
 
 const sourcesSchema = z.object({
   sources: z.array(
@@ -21,29 +24,11 @@ const sourcesSchema = z.object({
 
 const { sources } = sourcesSchema.parse(parse(await readFile(config.SOURCES_FILE, 'utf8')));
 
-const { pool } = createDb(config.DATABASE_URL);
+const { db, pool } = createDb(config.DATABASE_URL);
 const queues = createQueues();
 
-// TODO(hack): real handlers in steps 12–14 (adapters, S3, documents, /analyze); sources upsert + scheduler still TODO
-const workers = startWorkers({
-  onSource: async (job) => {
-    logger.info(
-      { jobId: job.id, sourceId: job.data.sourceId, trigger: job.data.trigger },
-      'crawl-source received',
-    );
-  },
-  onItem: async (job) => {
-    logger.info(
-      {
-        jobId: job.id,
-        sourceId: job.data.sourceId,
-        crawlRunId: job.data.crawlRunId,
-        url: job.data.item.url,
-      },
-      'crawl-item received',
-    );
-  },
-});
+// TODO(hack): sources upsert (step 16) and scheduler (step 25) still TODO
+const workers = startWorkers(createPipeline({ db, storage: createStorage(), queues }));
 
 logger.info({ sources: sources.length }, 'collector started');
 
@@ -54,6 +39,7 @@ async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'collector shutting down');
   try {
     await workers.close();
+    await closeBrowser();
     await queues.close();
     await pool.end();
     process.exit(0);

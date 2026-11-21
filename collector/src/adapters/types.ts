@@ -1,9 +1,15 @@
 // Contract: "Format dokumentu z collectora" in docs/contracts.md.
+import type { Storage } from '../storage/s3.js';
+
 export type SourceKind = 'web' | 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'sample';
 
 export interface CrawlContext {
   sourceId: number;
   crawlRunId: number;
+  /** Row from `sources` that started this crawl. */
+  source: { name: string; startUrl: string | null };
+  /** Adapters write HTML/screenshots themselves and return the S3 keys in CollectedDocument. */
+  storage: Storage;
   nextUserAgent(): string;
   /** undefined = no proxy (PROXY_LIST empty). */
   nextProxy(): string | undefined;
