@@ -22,7 +22,6 @@ PROMPT_PATH = "m1-third-party/system.md"
 LABEL = "third_party_promotion"
 
 CRITERION_WEIGHTS: dict[str, float] = {"promotes_firm": 0.5, "profit_promises": 0.3, "impersonation": 0.2}
-_VERDICT_MAP = {"detected": "fail", "unverified": "unclear"}  # matcher vocabulary -> contracts.md verdicts
 
 
 class CriterionResult(BaseModel):
@@ -43,7 +42,7 @@ def best_candidate(candidates: list[M1Candidate]) -> M1Candidate:
 
 def _matcher_reasons(c: M1Candidate) -> list[Reason]:
     return [
-        Reason(criterion=r["criterion"], verdict=_VERDICT_MAP.get(r["verdict"], "unclear"),  # type: ignore[arg-type]
+        Reason(criterion=r["criterion"], verdict=r["verdict"],  # type: ignore[arg-type]
                quote=r["quote"], weight=r["weight"])
         for r in c.reasons if r.get("quote")
     ]

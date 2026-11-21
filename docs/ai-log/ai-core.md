@@ -61,3 +61,9 @@
 - **Result:** all 200 in 40–63 s each (Bielik 11B Q4 warm). Doc 1 legit XTB → M2 low 0.00; doc 2 scam → M1 high 0.848 (alert sent); doc 3 borderline → M1 medium 0.766 (no alert; calibrated weights push it to high); doc 4 shadow advisory → M3 high 0.914 (alert sent). Alerts reached the mock api with the right token. Env had only `OLLAMA_URL` (alias worked, no localhost fallback).
 - **Found:** each document gets one finding (router picks one module), not M1+M2+M3 at once. After ai-data PR #34 the test `test_ollama_base_url_alias` failed (it asserted `emb.OLLAMA_BASE_URL`); made it accept both names, so #38 needs no rebase. Merge #38 + #34 is textually clean, 69 passed on the merged tree.
 - **Not verified:** local `.env` (read was denied by permissions, values passed explicitly); the model name `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` is not pulled on this machine, used `hf.co/SpeakLeash/Bielik-11B-v2.3-Instruct-GGUF:Q4_K_M` (same size as `bielik:latest`).
+
+## 2026-11-21 — PR #38 review fixes (lead's comments)
+- **Task:** apply the lead's review of PR #38 after ai-data PR #34 landed on `main`.
+- **Result:** removed the `OLLAMA_BASE_URL` alias in `ai/app/__init__.py` and its test (`embeddings.py` reads `OLLAMA_URL` now); dropped `_VERDICT_MAP` in `ai/app/modules/m1.py`, matcher verdicts `fail`/`unclear` pass through unchanged. Merged `origin/main` first; ruff clean, 68 passed / 5 skipped.
+- **Not done (out of scope):** `/analyze-text` has no auth and `docker-compose.yml` publishes `8000:8000` (infra file) — left for the lead/infra owner.
+- **Human to verify:** a M1 finding shows `fail` (not `unclear`) in the UI/export.
