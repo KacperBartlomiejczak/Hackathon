@@ -1,0 +1,101 @@
+url,module,source
+https://antyweb.pl/knf-influencerzy-finansowi,1,crawl
+https://antyweb.pl/knf-uderza-20-milionow-zl-kary-to-jedna-z-najwiekszych-sankcji,1,crawl
+https://bezprawnik.pl/influencerzy-finansowi-porady/,1,crawl
+https://bossa.pl/synthetic/zimowa-promocja,1,collector/fixtures/sample/demo.jsonl (already there)
+https://freenance.io/produkty/rachunek-maklerski-mbank/,1,crawl
+https://freenance.io/produkty/xtb-recenzja-opinie-2026/,1,crawl
+https://historia-gieldy.example/gpw-1991,1,collector/fixtures/sample/demo.jsonl (already there)
+https://invezz.com/pl/recenzje/xtb/,1,crawl
+https://inwestomat.eu/jakie-konto-do-etf-ow-ranking-kont-maklerskich/,1,crawl
+https://inwestomat.eu/ranking-kont-maklerskich-do-inwestowania/,1,crawl
+https://inwestuj-z-marta.example/blog/jak-zaczac-z-cfd,1,collector/fixtures/sample/demo.jsonl (already there)
+https://jakdorobic.pl/freedom24-opinie/,1,crawl
+https://jakdorobic.pl/ranking-kont-maklerskich/,1,crawl
+https://jakdorobic.pl/trading-212-darmowa-akcja-styczen-2024/,1,crawl
+https://jakdorobic.pl/xtb-opinie/,1,crawl
+https://kasa-na-gieldzie.example/wpis/bossa-ranking,1,collector/fixtures/sample/demo.jsonl (already there)
+https://mlody-inwestor.example/2026/11/mbank-emakler,1,collector/fixtures/sample/demo.jsonl (already there)
+https://moneteo.com/analizy/etoro,1,crawl
+https://moneteo.com/analizy/konto-maklerskie-dm-bossa,1,crawl
+https://moneteo.com/analizy/konto-maklerskie-ike-ikze-bm-mbank,1,crawl
+https://moneteo.com/analizy/rachunek-forex-standard-xtb,1,crawl
+https://moneteo.com/analizy/rachunek-inwestycyjny-dom-maklerski-xtb,1,crawl
+https://noblesecurities.pl/synthetic/fundusz-plus,1,collector/fixtures/sample/demo.jsonl (already there)
+https://slownik-finansow.example/inflacja,1,collector/fixtures/sample/demo.jsonl (already there)
+https://takeprofitapp.com/pl/learn/bossa-recenzja-2026,1,crawl
+https://takeprofitapp.com/pl/learn/etoro-broker-recenzja-2026,1,crawl
+https://takeprofitapp.com/pl/learn/mbank-brokerage-recenzja-2026,1,crawl
+https://takeprofitapp.com/pl/learn/xtb-polski-broker-recenzja-2026,1,crawl
+https://trader-tomek.example/posty/noble-ike,1,collector/fixtures/sample/demo.jsonl (already there)
+https://tradingbeasts.com/pl/etoro-promo/,1,crawl
+https://tradingbeasts.com/pl/xtb-opinie/,1,crawl
+https://www.bankier.pl/smart/rachunek-maklerski-w-dm-xtb-opinie-analiza-recenzja-brokera-xtb,1,crawl
+https://www.eupersonalfinance.eu/pl/articles/etoro-bonus,1,crawl
+https://www.eupersonalfinance.eu/pl/articles/trading-212-promo-code,1,crawl
+https://www.financemagnates.com/forex/analysis/revolut-invest-crushes-34-polish-brokerages-but-cant-touch-xtbs-crown/,1,crawl
+"https://www.infor.pl/prawo/nowosci-prawne/5416174,KNF-ostrzega-przed-poradami-inwestycyjnymi-influenserow.html",1,crawl
+https://www.interactivecrypto.com/pl/broker/xtb,1,crawl
+https://www.matchmybroker.com/articles/kod-promocyjny-etoro-polska,1,crawl
+https://www.xtb.com/pl/synthetic/promocja-cfd,1,collector/fixtures/sample/demo.jsonl (already there)
+https://bossa.pl,2,crawl
+https://bossa.pl/synthetic/zimowa-promocja,2,collector/fixtures/sample/demo.jsonl (already there)
+https://capital.com/pl,2,crawl
+https://logos.xtb.com/press/Meet%20XTB_2025_pl.pdf,2,crawl
+https://noblesecurities.pl/synthetic/fundusz-plus,2,collector/fixtures/sample/demo.jsonl (already there)
+https://przykladowy-broker.example/m2-s01,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s02,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s03,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s04,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s05,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s06,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s07,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s08,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s09,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s10,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s11,2,ai/eval/synthetic_m2.jsonl
+https://przykladowy-broker.example/m2-s12,2,ai/eval/synthetic_m2.jsonl
+https://www.etoro.com/pl/,2,crawl
+https://www.xtb.com/pl/centrum-pomocy/oplaty-i-platnosci-3,2,crawl
+https://www.xtb.com/pl/centrum-pomocy/program-partnerski-7/program-partnerski,2,crawl
+https://www.xtb.com/pl/synthetic/promocja-cfd,2,collector/fixtures/sample/demo.jsonl (already there)
+https://www.xtb.com/ro/de-ce-sa-investim-in-criptomonede-cfd-kb,2,crawl
+https://comparic.pl/te-akcje-maja-ogromny-potencjal-analityk-wskazuje-swoje-typy-na-grudzien-2025-r/,3,crawl
+https://comparic.pl/te-akcje-maja-ogromny-potencjal-pazdziernikowe-typy-marcina-podlackiego/,3,crawl
+https://decodethefuture.org/czym-jest-etf-proste-wyjasnienie-dla-poczatkujacych/?amp=1,3,crawl
+https://direct.money.pl/artykuly/porady/inwestowanie-na-gieldzie,3,crawl
+https://direct.money.pl/artykuly/porady/jak-dziala-gielda,3,crawl
+https://historia-gieldy.example/gpw-1991,3,collector/fixtures/sample/demo.jsonl (already there)
+https://pl.tradingview.com/ideas/akcje/,3,crawl
+https://pl.tradingview.com/ideas/bitcoin/,3,crawl
+https://pl.tradingview.com/ideas/btcusdlong/,3,crawl
+https://pl.tradingview.com/ideas/cryptocurrency/,3,crawl
+https://pl.tradingview.com/ideas/dax/,3,crawl
+https://pl.tradingview.com/ideas/dax30long/,3,crawl
+https://pl.tradingview.com/ideas/eur-euro/,3,crawl
+https://pl.tradingview.com/ideas/eurusdlongsetup/,3,crawl
+https://pl.tradingview.com/ideas/forexfreesignal/,3,crawl
+https://pl.tradingview.com/ideas/gbpusd/,3,crawl
+https://pl.tradingview.com/ideas/ger30sell/,3,crawl
+https://pl.tradingview.com/ideas/gielda/,3,crawl
+https://pl.tradingview.com/ideas/gpw/,3,crawl
+https://pl.tradingview.com/ideas/ndx/,3,crawl
+https://pl.tradingview.com/ideas/pivotpoints/,3,crawl
+https://pl.tradingview.com/ideas/pkn/,3,crawl
+https://pl.tradingview.com/ideas/poland/,3,crawl
+https://pl.tradingview.com/ideas/satoshi/,3,crawl
+https://pl.tradingview.com/ideas/spx500/,3,crawl
+https://pl.tradingview.com/ideas/wig/,3,crawl
+https://pl.tradingview.com/ideas/wig20/,3,crawl
+https://pl.tradingview.com/ideas/xtradebroker/,3,crawl
+https://slownik-finansow.example/inflacja,3,collector/fixtures/sample/demo.jsonl (already there)
+https://strefainwestorow.pl/blog/podsumowanie-sesji/podsumowanie-tygodnia-wysyp-spolek-w-ciekawej-sytuacji-technicznej,3,crawl
+https://strefainwestorow.pl/rekomendacje/lista-rekomendacji,3,crawl
+https://strefainwestorow.pl/wydarzenia/260112/w-co-inwestowac-typy-inwestycyjne-najlepsze-spolki-2026,3,crawl
+https://sygnaly-vip.example/kanal,3,collector/fixtures/sample/demo.jsonl (already there)
+https://www.bankier.pl/smart/etf-co-to-jest-i-jak-dzialaja-fundusze-etf,3,crawl
+https://www.bankier.pl/wiadomosc/Wzrostowy-tydzien-na-GPW-Co-dalej-7510241.html,3,crawl
+https://www.biznesradar.pl/rekomendacje/,3,crawl
+https://www.erste.pl/inwestor/analizy-i-rekomendacje/tydzien-na-gpw,3,crawl
+https://www.money.pl/gielda/rekomendacje/,3,crawl
+https://zloty-portfel.example/oferta,3,collector/fixtures/sample/demo.jsonl (already there)
