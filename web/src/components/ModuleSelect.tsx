@@ -9,6 +9,7 @@ interface ModuleSelectProps {
 export function ModuleSelect({ value, onChange }: ModuleSelectProps) {
   return (
     <select
+      name="module"
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value ? (Number(e.target.value) as ModuleId) : undefined)}
       className="rounded-md border border-line bg-card px-2 py-1.5 text-sm"

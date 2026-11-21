@@ -20,6 +20,7 @@ export function StatusSelect({ value, disabled, onChange }: StatusSelectProps) {
     <label className="flex items-center gap-2 text-sm text-slate-600">
       Zmień status
       <select
+        name="status"
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value as FindingStatus)}
