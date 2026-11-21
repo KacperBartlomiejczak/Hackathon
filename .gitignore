@@ -1,0 +1,35 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Node.js / TypeScript
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+
+# UKNF pendrive / local raw data & volumes (never commit)
+data/
+infra/seed/raw/
+infra/seed/uknf/
+*.sqlite
+*.db
+
+# Logs & OS / IDE
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
