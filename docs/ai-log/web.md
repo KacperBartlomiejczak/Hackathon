@@ -49,3 +49,8 @@
 - Asked Claude to: review all of web/ against docs/team/5-web.md and docs/contracts.md, then fix the gaps it found. No new skill used.
 - Changes: calibration shows "Oznaczone flagą" (tp + fp from /eval) on the real api instead of a mock-only tile; unique React keys in ReasonsCard; 300 ms debounce on the search box (api rate limit); Polish labels for criteria, verdicts and source kinds (`lib/utils.ts`, unknown codes fall back to the raw value); `finding:updated` also refreshes summary and trend.
 - Human to verify: browser console clean on all screens, slider changes FP/FN and the flag count, fast typing in "Szukaj" sends one request, criteria labels match real ai output.
+
+## Base image bump in web/Dockerfile (CVE)
+- Asked Claude to: bump node and nginx base images in web/Dockerfile after the Docker Scout report, rebuild, check healthcheck and SPA routing, scan the new images and document the result. Skill: dependency-guard (images).
+- Changes: node 22.12-alpine -> 22.23.5-alpine (same Node as api and collector), nginx 1.27.5-alpine -> 1.30.7-alpine (stable branch, pinned). Scan with Trivy 0.76.2 because Docker Scout needs an account: CRITICAL/HIGH node 4/55 -> 0/10 (npm bundled deps, build stage only), nginx 3/67 -> 0/1 (libxml2 Alpine package). Results in web/SECURITY.md.
+- Human to verify: docker compose ps shows web healthy, browser console clean on the new image, someone with a Docker account repeats the scan with Docker Scout.
