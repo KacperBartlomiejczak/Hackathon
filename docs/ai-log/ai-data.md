@@ -27,3 +27,11 @@
 - Result: 11 tests pass: SQL `bit_count`, idempotent seed (2nd run = 0 inserted), duplicates never chosen as canonical, bge-m3 vector(1024) stored.
 - Extra dev dependency: pytest-asyncio (MIT). Run with `--asyncio-mode=auto` (ai-core: set `asyncio_mode = "auto"` in pyproject).
 - Human must verify: threshold 6 on real posts (an appended sentence gave 10, so it is not flagged).
+
+## 2026-11-21 — M1 `match_entities()`
+- Task: `ai/app/preprocess/entity_match.py` (+ `ai/tests/test_entity_match.py`, 8 tests). Plan approved first; skill risk-classifier. No new dependencies (re, difflib).
+- API: `match_entities(text, url, author_handle, entities, document_id=None) -> list[M1Candidate]` (pure), `load_entities(conn)`. One candidate per authorized firm; none when publisher host/handle is the firm's own (M2 territory).
+- Matching: name + aliases, Polish endings (up to 3 letters), fuzzy (ratio >= 0.88, alias >= 6 chars), short aliases (<= 4 chars: IG, XM, XTB, ING) need exact case and a promo anchor within 200 chars. Quote = sentence with the mention, exact substring of `text`, max 300 chars.
+- `rules_score`: mention 0.4 + anchor 0.3 + publisher 0.2 (identified and channels known) / 0.1 (identified, firm channels unknown) / 0. `reasons[].verdict` is `detected` or `unverified` (contracts.md only shows `fail`; ai-core maps it). `advertiser_entity_id` is always None, ai-core fills it.
+- Perf: ~0.17 s for 1000 words against 86 entities.
+- Human must verify: `social_handles` empty for ALL firms and ~23 have no domain, so posts by a firm's own account look third-party (shown as `official_channels_known=False`, `unverified`). Firms sharing an alias (XTB S.A. and XTB Ltd, 3x Trading 212) give one candidate each for the same mention. Thresholds (0.88, 200 chars, 3 letters, weights) untuned. Ambiguous short aliases like "IG" still hit when an anchor is near.
