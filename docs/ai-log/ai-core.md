@@ -50,3 +50,8 @@
 - **Bug found by tests:** M3 rule `Twoim portfelem` did not match (`twoj\w+`); fixed to `tw\w+`.
 - **Human to verify:** M1/M3 prompts and criteria, M3 phrase list, anchor phrases, `embedding.floor/ceil` (0.45/0.75, set from 3 samples), M1 keeps one finding per document (strongest candidate).
 - **Not verified / open:** real precision/recall (`ai/eval/gold.csv` is header only, ai-data); `docker compose up` of the whole stack (compose `.env` has empty `POSTGRES_PASSWORD`, `./infra/seed:/app/seed` mount still crashes `ai` with `ModuleNotFoundError: seed.seed_entities`, #16); default `OLLAMA_LLM_MODEL` tag (#19); `OLLAMA_BASE_URL` aliased in `app/__init__.py` as a workaround until ai-data switches `embeddings.py` to `OLLAMA_URL`; M2 has no embedding anchors, so `w_emb` is dropped for M2; `/analyze-text` is not in `contracts.md`.
+
+## 2026-11-21 — review of AI issues (#36, #19, #16)
+- **Task:** go through open issues touching `ai`, fix what is in ai-core scope, close only what is fixed on `main`.
+- **Result:** merged `origin/main` into `team/ai-core` (clean; ruff clean, 68 passed / 5 skipped), pushed. PR #38 is mergeable. #36: workaround (`OLLAMA_URL` → `OLLAMA_BASE_URL` alias in `ai/app/__init__.py`) is in PR #38, proper fix is in ai-data PR #34. #19 and #16 are infra files (`.env.example`, `pull-models.sh`, `docker-compose.yml`), patch from the lead is not in any PR yet. Not closed: nothing of this is on `main` yet.
+- **Human to verify:** after merging #34/#38 and the infra PR, `docker compose up --build` then `POST /analyze/1` → 200.
