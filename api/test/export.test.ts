@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { csvCell, toCsv } from "../src/routes/export.js";
-import type { ExportColumn } from "../src/types/export.js";
+import { MODULE_COLUMNS, type ExportColumn } from "../src/types/export.js";
 
 /** Minimal RFC 4180 reader for one line with ";" delimiter (enough for these assertions). */
 function parseCsvLine(line: string): string[] {
@@ -102,5 +102,17 @@ describe("toCsv", () => {
     assert.ok(csv.startsWith("﻿"));
     const lines = csv.slice(1).split("\r\n");
     assert.deepEqual(lines, ["Reklamujący;Cytaty;Score", "finfluencer;'=SUM(1) | ok;0,90", ""]);
+  });
+});
+
+describe("M1 periodic update columns (#55)", () => {
+  it("writes booleans as tak/nie in CSV", () => {
+    assert.equal(csvCell(true), "tak");
+    assert.equal(csvCell(false), "nie");
+  });
+
+  it("M1 report ends with last-seen date and active flag", () => {
+    const keys = MODULE_COLUMNS[1].map((c) => c.key);
+    assert.deepEqual(keys.slice(-2), ["lastSeenAt", "active"]);
   });
 });

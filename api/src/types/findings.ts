@@ -58,7 +58,15 @@ export type FindingListItem = {
   label: string;
   status: string;
   createdAt: Date;
-  document: { id: number; url: string; title: string | null; sourceKind: string };
+  document: {
+    id: number;
+    url: string;
+    title: string | null;
+    sourceKind: string;
+    firstSeenAt: Date;
+    lastSeenAt: Date;
+    isActive: boolean;
+  };
   firm: EntityRef;
   advertiser: EntityRef;
 };
