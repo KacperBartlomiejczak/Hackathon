@@ -41,7 +41,7 @@ export default function TrendsPage() {
         </div>
       )}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
+      <section className="rounded-lg border border-line bg-card p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-semibold uppercase text-slate-500">Incydenty w czasie</h2>
           <ModuleSelect value={module} onChange={setModule} />

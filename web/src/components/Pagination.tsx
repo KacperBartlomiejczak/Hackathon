@@ -5,7 +5,7 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
-const buttonClass = "rounded-md border border-slate-300 bg-white px-3 py-1.5 disabled:opacity-40";
+const buttonClass = "rounded-md border border-line bg-card px-3 py-1.5 disabled:opacity-40";
 
 export function Pagination({ page, totalPages, total, onPageChange }: PaginationProps) {
   return (

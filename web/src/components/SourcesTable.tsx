@@ -41,9 +41,9 @@ interface SourcesTableProps {
 
 export function SourcesTable({ sources, pendingId, onRun }: SourcesTableProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-lg border border-line bg-card">
       <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <thead className="bg-head text-xs uppercase text-slate-500">
           <tr>
             <th className="px-4 py-3">Źródło</th>
             <th className="px-4 py-3">Rodzaj</th>
@@ -55,7 +55,7 @@ export function SourcesTable({ sources, pendingId, onRun }: SourcesTableProps) {
             <th className="px-4 py-3" />
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-line-soft">
           {sources.map((s) => {
             const status = s.lastRun?.status;
             const busy = status === "running" || pendingId === s.id;
@@ -82,7 +82,7 @@ export function SourcesTable({ sources, pendingId, onRun }: SourcesTableProps) {
                     type="button"
                     disabled={busy}
                     onClick={() => onRun(s.id)}
-                    className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {busy ? "Trwa…" : "Uruchom crawl"}
                   </button>

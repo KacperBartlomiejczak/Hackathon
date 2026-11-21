@@ -19,3 +19,8 @@
 - Asked Claude to: replace ad-hoc "Ladowanie..." / error paragraphs with one component and make failures show up quickly.
 - Changes: `QueryState` (loading, error with "Spróbuj ponownie" retry) on findings, details, trends, calibration and sources; `QueryClient` retry 1 with 500 ms delay, no refetch on window focus.
 - Human to verify: with the api stopped the error appears after about 1 s and retry works once the api is back; in mock mode the console stays clean.
+
+## Institutional restyle
+- Asked Claude to: restyle the dashboard for a government-agency look (reference: knf.gov.pl), with mockups reviewed before any code; skill `anti-ui-slop` installed globally (not in repo).
+- Changes: theme tokens in `index.css` (navy header, lighter blue actions, grey page/card backgrounds, red only for alerts), sans-serif font with tabular numbers, new header/nav/footer in `Layout`, existing slate/white classes remapped to tokens, chart colours.
+- Human to verify: contrast and readability on the projector, all four screens in mock mode, console clean with the api running.

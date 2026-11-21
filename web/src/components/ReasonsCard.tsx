@@ -2,7 +2,7 @@ import type { FindingDetails } from "@/types";
 
 export function ReasonsCard({ finding }: { finding: FindingDetails }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
+    <section className="rounded-lg border border-line bg-card p-4">
       <h2 className="mb-3 text-sm font-semibold uppercase text-slate-500">Dlaczego oznaczono</h2>
       <ul className="space-y-3">
         {finding.reasons.map((r) => (
@@ -14,7 +14,7 @@ export function ReasonsCard({ finding }: { finding: FindingDetails }) {
           </li>
         ))}
       </ul>
-      <dl className="mt-4 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-sm">
+      <dl className="mt-4 grid grid-cols-2 gap-2 border-t border-line-soft pt-3 text-sm">
         <dt className="text-slate-500">Firma</dt>
         <dd>{finding.firm?.name ?? "—"}</dd>
         <dt className="text-slate-500">Reklamujący</dt>

@@ -17,7 +17,7 @@ export function RiskBadge({ level }: { level: RiskLevel }) {
 
 export function StatusBadge({ status }: { status: FindingStatus }) {
   return (
-    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+    <span className="rounded-full bg-head px-2.5 py-0.5 text-xs font-medium text-slate-700">
       {STATUS_LABEL[status]}
     </span>
   );

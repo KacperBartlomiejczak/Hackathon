@@ -68,7 +68,7 @@ export default function CalibrationPage() {
         <DemoBadge endpoints={["eval", "settings"]} />
       </div>
 
-      <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+      <section className="space-y-4 rounded-lg border border-line bg-card p-4">
         <ModuleTabs value={module} onChange={changeModule} />
 
         <QueryState isLoading={settings.isLoading} isError={settings.isError} errorMessage="Nie udało się pobrać ustawień modułu." loadingMessage="Ładowanie ustawień…" onRetry={() => void settings.refetch()} />
@@ -91,7 +91,7 @@ export default function CalibrationPage() {
         <QueryState isLoading={evalQuery.isLoading} isError={evalQuery.isError} errorMessage="Nie udało się pobrać wyników ewaluacji." loadingMessage="Ładowanie wyników ewaluacji…" onRetry={() => void evalQuery.refetch()} />
         {data && <EvalMetrics data={data} />}
         {isMocked("eval") && threshold !== null && (
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="rounded-lg border border-line bg-card p-4">
             <p className="text-xs uppercase text-slate-500">Wyników na liście przy tym progu</p>
             <p className="mt-1 text-3xl font-semibold tabular-nums">{resultsCount}</p>
             <p className="mt-1 text-xs text-slate-500">

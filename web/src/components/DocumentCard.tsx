@@ -28,7 +28,7 @@ interface DocumentCardProps {
 
 export function DocumentCard({ document, quotes }: DocumentCardProps) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+    <section className="rounded-lg border border-line bg-card p-4 text-sm">
       <h2 className="mb-3 text-sm font-semibold uppercase text-slate-500">Dokument</h2>
       <p>
         <a href={document.url} target="_blank" rel="noreferrer" className="break-all text-blue-700 hover:underline">

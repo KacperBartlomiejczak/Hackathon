@@ -5,9 +5,9 @@ import type { FindingListItem } from "@/types";
 
 export function FindingsTable({ items }: { items: FindingListItem[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-lg border border-line bg-card">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-500">
+        <thead className="border-b border-line bg-head text-xs uppercase text-slate-500">
           <tr>
             <th className="px-4 py-3">Data</th>
             <th className="px-4 py-3">Moduł</th>
@@ -20,7 +20,7 @@ export function FindingsTable({ items }: { items: FindingListItem[] }) {
         </thead>
         <tbody>
           {items.map((f) => (
-            <tr key={f.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+            <tr key={f.id} className="border-b border-line-soft last:border-0 hover:bg-head">
               <td className="px-4 py-3">
                 <Link to={`/findings/${f.id}`} className="text-blue-700 hover:underline">
                   {formatDate(f.createdAt)}

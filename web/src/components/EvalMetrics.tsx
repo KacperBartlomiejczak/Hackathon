@@ -10,7 +10,7 @@ function f1(precision: number, recall: number): number {
   return sum === 0 ? 0 : (2 * precision * recall) / sum;
 }
 
-const cell = "border border-slate-200 p-2";
+const cell = "border border-line p-2";
 
 export function EvalMetrics({ data }: { data: EvalResult }) {
   return (

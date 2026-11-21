@@ -14,7 +14,7 @@ export function QueryState({ isLoading, isError, errorMessage, loadingMessage = 
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-md border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+          className="rounded-md border border-red-300 bg-card px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
         >
           Spróbuj ponownie
         </button>

@@ -11,7 +11,7 @@ export function ModuleSelect({ value, onChange }: ModuleSelectProps) {
     <select
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value ? (Number(e.target.value) as ModuleId) : undefined)}
-      className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
+      className="rounded-md border border-line bg-card px-2 py-1.5 text-sm"
     >
       <option value="">Wszystkie moduły</option>
       {([1, 2, 3] as ModuleId[]).map((m) => (

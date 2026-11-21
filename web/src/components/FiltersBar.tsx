@@ -4,7 +4,7 @@ import { MODULE_LABEL, RISK_LABEL, STATUS_LABEL } from "@/lib/utils";
 import type { FindingStatus, ModuleId, RiskLevel, SourceKind } from "@/types";
 
 const SOURCES: SourceKind[] = ["web", "facebook", "instagram", "tiktok", "youtube", "sample"];
-const fieldClass = "rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm";
+const fieldClass = "rounded-md border border-line bg-card px-2 py-1.5 text-sm";
 
 export type FilterKey = "q" | "module" | "risk" | "status" | "source" | "from" | "to";
 
@@ -52,7 +52,7 @@ function SelectField({ label, value, options, onChange }: SelectFieldProps) {
 
 export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, exportDisabled, exportError, onExport }: FiltersBarProps) {
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3">
+    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-card p-3">
       <Field label="Szukaj">
         <input
           type="search"
@@ -93,7 +93,7 @@ export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, e
         <input type="date" value={values.to} onChange={(e) => onChange("to", e.target.value)} className={fieldClass} />
       </Field>
       {hasFilters && (
-        <button type="button" onClick={onClear} className="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
+        <button type="button" onClick={onClear} className="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-head">
           Wyczyść filtry
         </button>
       )}
@@ -104,7 +104,7 @@ export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, e
             type="button"
             disabled={exporting || exportDisabled}
             onClick={() => onExport(format)}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40"
+            className="rounded-md border border-line bg-card px-3 py-1.5 text-sm disabled:opacity-40"
           >
             {format === "csv" ? "Eksport CSV" : "Eksport JSON"}
           </button>

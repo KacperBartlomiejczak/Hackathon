@@ -23,7 +23,7 @@ export function StatusSelect({ value, disabled, onChange }: StatusSelectProps) {
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value as FindingStatus)}
-        className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
+        className="rounded-md border border-line bg-card px-2 py-1.5 text-sm"
       >
         {([value, ...NEXT_STATUSES[value]] as FindingStatus[]).map((s) => (
           <option key={s} value={s}>

@@ -3,7 +3,7 @@ import type { StatusHistoryEntry } from "@/types";
 
 export function StatusHistory({ history }: { history: StatusHistoryEntry[] }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+    <section className="rounded-lg border border-line bg-card p-4 text-sm">
       <h2 className="mb-3 text-sm font-semibold uppercase text-slate-500">Historia statusów</h2>
       {history.length === 0 ? (
         <p className="text-slate-400">Brak zmian.</p>

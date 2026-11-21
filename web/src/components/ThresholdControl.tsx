@@ -28,7 +28,7 @@ export function ThresholdControl({ threshold, saved, dirty, saving, saveSucceede
         step={0.05}
         value={threshold}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-slate-900"
+        className="w-full accent-brand"
       />
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <p className="text-slate-600">
@@ -45,7 +45,7 @@ export function ThresholdControl({ threshold, saved, dirty, saving, saveSucceede
           type="button"
           onClick={onSave}
           disabled={saving || !dirty}
-          className="rounded-md bg-slate-900 px-4 py-1.5 text-sm text-white disabled:opacity-50"
+          className="rounded-md bg-brand px-4 py-1.5 text-sm text-white disabled:opacity-50"
         >
           {saving ? "Zapisywanie…" : "Zapisz próg"}
         </button>
