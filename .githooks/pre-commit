@@ -14,7 +14,7 @@ case "$branch" in
   team/lead-collector) allowed='^(collector/|CLAUDE\.md$|\.claude/|\.githooks/|docs/team/|docs/ai-log/lead-collector\.md$)' ;;
   team/ai-core)        allowed='^(ai/app/modules/|ai/prompts/|ai/rules/|ai/app/[^/]+\.py$|ai/tests/|ai/config\.yaml$|ai/pyproject\.toml$|ai/uv\.lock$|ai/Dockerfile$|ai/DEPENDENCIES\.md$|ai/SECURITY\.md$|docs/ai-log/ai-core\.md$)' ;;
   team/ai-data)        allowed='^(ai/app/preprocess/|ai/app/embeddings\.py$|ai/app/eval\.py$|ai/eval/|ai/seed/|ai/tests/|docs/ai-log/ai-data\.md$)' ;;
-  team/api)            allowed='^(api/|docs/contracts\.md$|infra/db/|docs/ai-log/api\.md$)' ;;
+  team/api)            allowed='^(api/|web/|infra/|docker-compose\.yml$|README\.md$|\.env\.example$|\.gitignore$|presentation/|PLAN\.md$|docs/)' ;;
   team/web)            allowed='^(web/|docs/ai-log/web\.md$)' ;;
   team/infra)          allowed='^(docker-compose\.yml$|infra/|README\.md$|\.env\.example$|\.gitignore$|presentation/|PLAN\.md$|docs/)' ;;
   *)
@@ -30,6 +30,10 @@ while IFS= read -r f; do
   [ -z "$f" ] && continue
   # infra nie może ruszać plików api i plików ról
   if [ "$branch" = "team/infra" ] && [[ "$f" =~ ^(infra/db/|docs/contracts\.md$|docs/team/|docs/ai-log/[^/]+\.md$) ]] && [[ "$f" != "docs/ai-log/infra.md" ]]; then
+    bad+="  $f"$'\n'; continue
+  fi
+  # api (z dostępem do web i infra) nie może ruszać docs/team ani cudzych ai-logów
+  if [ "$branch" = "team/api" ] && [[ "$f" =~ ^(docs/team/|docs/ai-log/[^/]+\.md$) ]] && ! [[ "$f" =~ ^docs/ai-log/(api|web|infra)\.md$ ]]; then
     bad+="  $f"$'\n'; continue
   fi
   if [ "$branch" = "team/ai-core" ] && [[ "$f" =~ ^ai/app/(embeddings|eval)\.py$ ]]; then
