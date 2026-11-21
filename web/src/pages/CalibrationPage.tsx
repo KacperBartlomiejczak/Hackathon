@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchEval, fetchModuleSettings, saveModuleSettings } from "@/lib/api";
+import { USE_MOCKS, fetchEval, fetchModuleSettings, saveModuleSettings } from "@/lib/api";
 import { MODULE_LABEL } from "@/lib/utils";
 import { mockFindings } from "@/mocks";
 import type { ModuleId } from "@/types";
@@ -50,7 +50,7 @@ export default function CalibrationPage() {
   });
 
   const resultsCount = useMemo(() => {
-    if (threshold === null) return 0;
+    if (!USE_MOCKS || threshold === null) return 0;
     return mockFindings.filter((f) => f.module === module && f.score >= threshold).length;
   }, [module, threshold]);
 
@@ -186,7 +186,7 @@ export default function CalibrationPage() {
             </table>
           </>
         )}
-        {threshold !== null && (
+        {USE_MOCKS && threshold !== null && (
           <div className="rounded-lg border border-slate-200 bg-white p-4">
             <p className="text-xs uppercase text-slate-500">Wyników na liście przy tym progu</p>
             <p className="mt-1 text-3xl font-semibold tabular-nums">{resultsCount}</p>
