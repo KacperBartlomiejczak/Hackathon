@@ -8,6 +8,9 @@ import { buildLoggerOptions } from "./logger.js";
 import { findingsRoutes } from "./routes/findings.js";
 import { internalRoutes } from "./routes/internal.js";
 import { statsRoutes } from "./routes/stats.js";
+import { settingsRoutes } from "./routes/settings.js";
+import { sourcesRoutes } from "./routes/sources.js";
+import { createCrawlQueue } from "./queue/crawl.js";
 import { createSocketServer } from "./realtime/socket.js";
 import { createStorage } from "./storage/s3.js";
 
@@ -19,6 +22,10 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     await pool.end();
   });
   const storage = createStorage(config);
+  const crawlQueue = createCrawlQueue(config.VALKEY_URL, app.log);
+  app.addHook("onClose", async () => {
+    await crawlQueue.close();
+  });
 
   app.setErrorHandler((err, request, reply) => {
     if (err instanceof ZodError) {
@@ -44,6 +51,12 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(findingsRoutes, { db, storage, io });
   await app.register(statsRoutes, { db });
   await app.register(internalRoutes, { io, internalToken: config.INTERNAL_TOKEN });
+  await app.register(settingsRoutes, {
+    db,
+    aiUrl: config.AI_URL,
+    evalTimeoutMs: config.EVAL_TIMEOUT_MS,
+  });
+  await app.register(sourcesRoutes, { db, crawlQueue });
 
   return app;
 }

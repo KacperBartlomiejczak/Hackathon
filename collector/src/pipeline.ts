@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { adapters } from './adapters/index.js';
 import type { CrawlContext } from './adapters/types.js';
 import { postAnalyze } from './ai/client.js';
+import { postCrawlStatus } from './api/client.js';
 import { config } from './config.js';
 import type { Db } from './db/client.js';
 import { crawlRuns, documents, sources } from './db/schema.js';
@@ -44,12 +45,14 @@ export function createPipeline(deps: { db: Db; storage: Storage; queues: Queues 
     async onSource(job: Job<CrawlSourceJob>) {
       const { sourceId, trigger } = job.data;
       const source = await loadSource(sourceId);
-      if (!source || !source.enabled) {
+      // Manual run (POST /sources/:id/run) works for disabled sources too; only the scheduler respects `enabled`.
+      if (!source || (!source.enabled && trigger === 'schedule')) {
         logger.warn({ sourceId, trigger }, 'source missing or disabled, skipping');
         return;
       }
       const [run] = await db.insert(crawlRuns).values({ sourceId }).returning({ id: crawlRuns.id });
       if (!run) throw new Error('crawl_runs insert returned nothing');
+      await postCrawlStatus({ crawlRunId: run.id, sourceId, status: 'running', itemsFound: 0, error: null });
       const adapter = adapters[source.kind as keyof typeof adapters];
       let itemsFound = 0;
       try {
@@ -64,14 +67,17 @@ export function createPipeline(deps: { db: Db; storage: Storage; queues: Queues 
           .update(crawlRuns)
           .set({ status: 'ok', itemsFound, finishedAt: new Date() })
           .where(eq(crawlRuns.id, run.id));
+        await postCrawlStatus({ crawlRunId: run.id, sourceId, status: 'ok', itemsFound, error: null });
         logger.info({ sourceId, crawlRunId: run.id, trigger, itemsFound }, 'crawl-source queued items');
       } catch (err) {
         // Not rethrown: a retry would open a second crawl_run for the same trigger.
         const message = err instanceof Error ? err.message : String(err);
+        const status = itemsFound ? 'partial' : 'failed';
         await db
           .update(crawlRuns)
-          .set({ status: itemsFound ? 'partial' : 'failed', itemsFound, error: message, finishedAt: new Date() })
+          .set({ status, itemsFound, error: message, finishedAt: new Date() })
           .where(eq(crawlRuns.id, run.id));
+        await postCrawlStatus({ crawlRunId: run.id, sourceId, status, itemsFound, error: message });
         logger.error({ sourceId, crawlRunId: run.id, err }, 'crawl-source failed');
       }
     },
