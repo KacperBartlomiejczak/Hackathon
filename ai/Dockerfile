@@ -15,6 +15,8 @@ COPY app ./app
 COPY config.yaml ./
 COPY prompts ./prompts
 COPY rules ./rules
+COPY seed ./seed
+COPY eval ./eval
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 USER app
 EXPOSE 8000

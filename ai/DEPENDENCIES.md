@@ -16,6 +16,7 @@ Versions resolved with `exclude-newer = 2026-11-07` (releases older than ~2 week
 | pyyaml | 6.0.3 | MIT | config.yaml |
 | ruff (dev) | 0.17.4 | MIT | lint/format |
 | pytest (dev) | 9.2.0 | MIT | tests |
+| pytest-asyncio (dev) | 1.4.1.post1 | Apache-2.0 | async tests (ai-data conftest); 1.5.0 skipped by exclude-newer, OSV: 0 CVE |
 
 Transitive notes: certifi is MPL-2.0 (allowed).
 
