@@ -15,6 +15,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY sources.yaml ./
-RUN chown -R pwuser:pwuser /app
+# Seeds the empty collector_data volume on first creation (synthetic fixtures, not UKNF data).
+COPY fixtures/sample /data/sample
+RUN chown -R pwuser:pwuser /app /data
 USER pwuser
 CMD ["node", "dist/index.js"]

@@ -12,6 +12,11 @@ const schema = z.object({
   DATA_DIR: z.string().default('/data'),
   PROXY_LIST: z.string().default(''),
   SOURCES_FILE: z.string().default('sources.yaml'),
+  // Queue one crawl per enabled source at startup (demo trigger until POST /sources/:id/run exists).
+  CRAWL_ON_START: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
 });
 
 export const config = schema.parse(process.env);

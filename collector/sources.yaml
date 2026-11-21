@@ -9,5 +9,5 @@ sources:
     name: example.com (smoke test)
     start_url: https://example.com
     module_hint: null
-    enabled: true
+    enabled: false
     cron: null
