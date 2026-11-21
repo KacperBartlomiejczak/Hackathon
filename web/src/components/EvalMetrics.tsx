@@ -15,7 +15,8 @@ const cell = "border border-line p-2";
 export function EvalMetrics({ data }: { data: EvalResult }) {
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <Tile label="Oznaczone flagą" value={String(data.tp + data.fp)} hint="wyników przy tym progu" />
         <Tile label="Precyzja" value={percent(data.precision)} />
         <Tile label="Czułość" value={percent(data.recall)} />
         <Tile label="F1" value={percent(f1(data.precision, data.recall))} />

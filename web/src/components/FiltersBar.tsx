@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ExportFormat } from "@/lib/exportFormat";
-import { MODULE_LABEL, RISK_LABEL, STATUS_LABEL } from "@/lib/utils";
+import { MODULE_LABEL, RISK_LABEL, STATUS_LABEL, sourceLabel } from "@/lib/utils";
 import type { FindingStatus, ModuleId, RiskLevel, SourceKind } from "@/types";
 
 const SOURCES: SourceKind[] = ["web", "facebook", "instagram", "tiktok", "youtube", "sample"];
@@ -52,13 +52,27 @@ function SelectField({ label, value, options, onChange }: SelectFieldProps) {
 }
 
 export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, exportDisabled, exportError, exportTruncated, onExport }: FiltersBarProps) {
+  const [search, setSearch] = useState(values.q);
+
+  // Follow external changes (e.g. "Wyczyść filtry"), but never while the user is typing.
+  useEffect(() => {
+    setSearch(values.q);
+  }, [values.q]);
+
+  // Debounce: one request after a pause instead of one per keystroke (api rate limit).
+  useEffect(() => {
+    if (search === values.q) return;
+    const id = setTimeout(() => onChange("q", search), 300);
+    return () => clearTimeout(id);
+  }, [search, values.q, onChange]);
+
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-card p-3">
       <Field label="Szukaj">
         <input
           type="search"
-          value={values.q}
-          onChange={(e) => onChange("q", e.target.value)}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Treść, firma, URL…"
           className={`${fieldClass} w-52`}
         />
@@ -85,7 +99,7 @@ export function FiltersBar({ values, hasFilters, onChange, onClear, exporting, e
         label="Źródło"
         value={values.source}
         onChange={(v) => onChange("source", v)}
-        options={SOURCES.map((s) => ({ value: s, label: s }))}
+        options={SOURCES.map((s) => ({ value: s, label: sourceLabel(s) }))}
       />
       <Field label="Od">
         <input type="date" value={values.from} onChange={(e) => onChange("from", e.target.value)} className={fieldClass} />
