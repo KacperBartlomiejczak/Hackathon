@@ -1,6 +1,7 @@
 import { defaultExportFilename, findingsToCsv, findingsToJson, type ExportFormat } from "@/lib/exportFormat";
 import { mockFindingDetails, mockFindings, mockHistory } from "@/mocks";
 import { mockEval, mockModuleSettings } from "@/mocks/calibration";
+import { mockSources } from "@/mocks/sources";
 import type {
   EvalResult,
   ModuleSettings,
@@ -11,6 +12,7 @@ import type {
   FindingsFilters,
   ModuleId,
   Page,
+  Source,
   StatsSummary,
   TrendPoint,
 } from "@/types";
