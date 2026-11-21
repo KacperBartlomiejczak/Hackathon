@@ -52,3 +52,8 @@
 - Added: `ai/tests/test_dedup.py` (dedup() on an in-memory fake connection: SHA-256 exact, simhash near, different text, canonical original, short text), M1 test with real register data (official domain and subdomain not flagged, foreign domain flagged), hand-computed eval metrics test. Ruff `--fix` removed 11 needless `noqa: E402`.
 - Result: 32 tests pass (against pgvector PG16 and Ollama), `ruff check .` clean with default rules.
 - Not covered: official channel by social handle on real data, because `social_handles` is empty for every firm in `entities.csv`; handle logic is tested only with synthetic entities. `overrides.json` is not in the repo, so the test uses `entities.csv`. `ai/pyproject.toml` does not exist yet (ai-core), so `uv run pytest` and `uv run ruff check .` in `ai/` were run as `uv run --no-project --with ...`.
+
+## 2026-11-21 — merge origin/main, ruff with ai-core config
+- Task: merged `origin/main` (no conflicts; PR #3 was already merged), fixed 15 ruff errors under `ai/pyproject.toml` (line-length 110, E/F/I/B/UP/T20): 14 long lines wrapped, one lambda -> def, two duplicated `Entity(...)` comprehension lines wrapped. No behaviour change.
+- Result: `ruff check .` clean, 37 tests pass (mine + ai-core `test_app.py`) against pgvector PG16 and Ollama.
+- Still open (ai-core): tests need `pytest-asyncio` + `asyncio_mode = "auto"` (not in `ai/pyproject.toml`, so a plain `uv run pytest` fails at conftest; I ran `uv run --with pytest-asyncio pytest -p asyncio --asyncio-mode=auto`); `embed()` reads `OLLAMA_BASE_URL` while `main.py` and `.env.example` use `OLLAMA_URL`; Dockerfile does not copy `seed/` and `eval/`; `/analyze` and `/eval` are not wired.

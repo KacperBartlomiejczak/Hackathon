@@ -36,7 +36,9 @@ class FakeConn:
         )
 
 
-def stored(doc_id: int, text: str, duplicate_of: int | None = None) -> tuple[int, str, int | None, int | None]:
+def stored(
+    doc_id: int, text: str, duplicate_of: int | None = None
+) -> tuple[int, str, int | None, int | None]:
     return doc_id, content_hash(text), simhash64(text), duplicate_of
 
 

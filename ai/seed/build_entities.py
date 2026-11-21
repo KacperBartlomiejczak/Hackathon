@@ -14,10 +14,15 @@ log = logging.getLogger("build_entities")
 SEED = Path(__file__).parent
 RAW = SEED / "raw"
 OUT = SEED / "entities.csv"
-COLUMNS = ["name", "aliases", "type", "is_authorized", "register_ref", "nip", "official_domains", "social_handles"]
+COLUMNS = [
+    "name", "aliases", "type", "is_authorized", "register_ref", "nip", "official_domains", "social_handles",
+]
 TYPES = {"investment_firm", "foreign_firm", "advertiser", "finfluencer", "advisory_unlicensed", "unknown"}
 
-LEGAL = r"(?:S\.A\.|SP\. Z O\.O\.|Sp\. z o\.o\.|S\.A|Ltd\.?|LTD|GmbH|B\.V\.|UAB|AS|ASA|a\.s\.|AG|PLC|Plc|S\.L\.U\.|N\.V\.|S\.r\.l\.|SE)"
+LEGAL = (
+    r"(?:S\.A\.|SP\. Z O\.O\.|Sp\. z o\.o\.|S\.A|Ltd\.?|LTD|GmbH|B\.V\.|UAB|AS|ASA|a\.s\.|AG|PLC|Plc"
+    r"|S\.L\.U\.|N\.V\.|S\.r\.l\.|SE)"
+)
 SPLIT = re.compile(rf"({LEGAL})\s+(?=\S)")
 STRIP = re.compile(rf"[\s,]+{LEGAL}$")
 PREFIX = re.compile(r"^(DOM MAKLERSKI|Dom Maklerski|DOM INWESTYCYJNY|Dom Inwestycyjny)\s+", re.IGNORECASE)
@@ -79,7 +84,10 @@ def main() -> None:
     ov = json.loads((RAW / "overrides.json").read_text(encoding="utf-8"))
     rows: list[list[str]] = []
 
-    for fname, ref in [("knf_domy_maklerskie.json", "KNF:domy_maklerskie"), ("knf_banki.json", "KNF:banki_maklerskie")]:
+    for fname, ref in [
+        ("knf_domy_maklerskie.json", "KNF:domy_maklerskie"),
+        ("knf_banki.json", "KNF:banki_maklerskie"),
+    ]:
         for r in load(fname):
             raw = " ".join(r["names"])
             o = match(ov["domestic"], raw)

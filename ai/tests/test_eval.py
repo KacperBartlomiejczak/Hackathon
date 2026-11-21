@@ -56,7 +56,8 @@ async def test_evaluate_from_db(conn, tmp_path: Path) -> None:
         await conn.execute("INSERT INTO documents (url, url_hash) VALUES ($1,$1)", f"u{i}")
     for doc, score in [(1, 0.9), (1, 0.3), (2, 0.7)]:  # doc 1 has two findings: max counts
         await conn.execute(
-            "INSERT INTO findings (document_id, module, score, risk_level, label, reasons, model, prompt_version) "
+            "INSERT INTO findings (document_id, module, score, risk_level, label, reasons, model, "
+            "prompt_version) "
             "VALUES ($1, 2, $2, 'low', 'x', '[]', 'm', 'v')", doc, score,
         )
     r = await evaluate(conn, "M2", 0.6, f)

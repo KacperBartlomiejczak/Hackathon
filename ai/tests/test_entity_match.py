@@ -66,7 +66,10 @@ def test_unauthorized_and_no_mention() -> None:
 
 def test_real_seed_rows() -> None:
     ents = [
-        Entity(i, r["name"], tuple(r["aliases"]), r["is_authorized"], tuple(r["official_domains"]), tuple(r["social_handles"]))
+        Entity(
+            i, r["name"], tuple(r["aliases"]), r["is_authorized"],
+            tuple(r["official_domains"]), tuple(r["social_handles"]),
+        )
         for i, r in enumerate(load_rows(), 1)
     ]
     out = match_entities("Otwórz konto w X-Trade Brokers, polecam!", "https://blog.example.com", None, ents)
@@ -75,7 +78,10 @@ def test_real_seed_rows() -> None:
 
 def _seed_entities() -> list[Entity]:
     return [
-        Entity(i, r["name"], tuple(r["aliases"]), r["is_authorized"], tuple(r["official_domains"]), tuple(r["social_handles"]))
+        Entity(
+            i, r["name"], tuple(r["aliases"]), r["is_authorized"],
+            tuple(r["official_domains"]), tuple(r["social_handles"]),
+        )
         for i, r in enumerate(load_rows(), 1)
     ]
 
@@ -85,7 +91,9 @@ def test_official_channel_from_register_is_not_flagged() -> None:
     caspar = next(e for e in ents if e.name.startswith("Caspar") and e.official_domains)
     domain = caspar.official_domains[0]
     text = f"{caspar.aliases[0]} oferuje konto, zarejestruj się dziś."
-    names = lambda url: {c.firm_entity_id for c in match_entities(text, url, None, ents)}
+    def names(url: str) -> set[int]:
+        return {c.firm_entity_id for c in match_entities(text, url, None, ents)}
+
     assert caspar.id not in names(f"https://{domain}/oferta")
     assert caspar.id not in names(f"https://blog.{domain}/oferta")
     assert caspar.id in names("https://blog.example.com/recenzja")
