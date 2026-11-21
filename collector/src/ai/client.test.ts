@@ -65,6 +65,19 @@ test('closed port returns false without throwing', async () => {
   assert.equal(await postAnalyze(1, url, 5), false);
 });
 
+test('same document in flight is analysed once', async () => {
+  let hits = 0;
+  const server = createServer((_req, res) => {
+    hits++;
+    setTimeout(() => res.end(), 30);
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address() as AddressInfo;
+  await Promise.all([postAnalyze(7, `http://127.0.0.1:${port}`, 5), postAnalyze(7, `http://127.0.0.1:${port}`, 5)]);
+  assert.equal(hits, 1);
+  server.close();
+});
+
 test('analyses run one at a time (ANALYZE_CONCURRENCY=1)', async () => {
   let active = 0;
   let maxActive = 0;
