@@ -98,3 +98,11 @@
 - **Task:** extend M2 from 4 to 8 criteria; `ai/rules/m2.yaml` (criteria + weights + phrase rules) and `ai/rules/anchors_m2.yaml` (bge-m3 anchors, so `w_emb` is no longer dropped for M2); prompt `m2-v3`; `prompt_version` = `m2-v3+m2-rules-v1`. Quote validation unchanged (rapidfuzz >= 90).
 - **Skill:** risk-classifier.
 - **Human to verify:** the UKNF annex was not available (placeholder in the brief), so the criteria follow MiFID II art. 44 / Reg. 2017/565 (past performance, leverage/CFD, fair & clear, trivialization). Reconcile ids/wording in `rules/m2.yaml` + the prompt once the annex arrives; then re-tune weights on the gold set.
+
+## 2026-11-21 — kalibracja wag i progów (BLOKADA: brak gold setu)
+- **Task:** baseline → analiza FP/FN → strojenie wag/progów (`ai/config.yaml`, `module_settings`) → ewaluacja po zmianach → zestawienie przed/po.
+- **Stan zastany:** `ai/eval/gold.csv` ma tylko nagłówek (`document_id,module,label`) na `main`, `team/ai-data` i `team/ai-core`. `GET /eval?module=1..3&threshold=0.6` działa, ale zwraca `total=0` (tp/fp/fn/tn = 0). W bazie: 16 `documents`, 0 `findings`; `module_settings` = domyślne (próg 0.6, wagi llm 0.6 / rules 0.25 / emb 0.15).
+- **Decyzja:** nie wymyślamy etykiet ani metryk — wagi i progi bez gold setu byłyby zgadywaniem, a liczby na slajdzie nie do obrony. `config.yaml` i `module_settings` bez zmian.
+- **Baseline (obecne ustawienia):** M1/M2/M3 — brak danych (gold set pusty).
+- **Do zrobienia po dostarczeniu gold setu (ai-data):** (1) wypełnić `ai/eval/gold.csv` dla dokumentów istniejących w bazie; (2) `POST /reanalyze` dla M1–M3, żeby powstały `findings`; (3) `GET /eval` na progach 0.3–0.9 (krok 0.05) → baseline; (4) FP/FN → wagi w `config.yaml` + `UPDATE module_settings`; (5) ponowny `/eval` i tabela „przed vs po” tutaj. Cel: recall ≥ 0.9 dla `risk=high`, precision ≥ 0.8.
+- **Human to verify:** czy ai-data faktycznie wypchnął `gold.csv` (może leży lokalnie, niezcommitowany); gold set musi odnosić się do `document_id` z bazy.
