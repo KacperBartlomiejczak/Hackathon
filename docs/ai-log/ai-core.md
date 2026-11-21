@@ -134,3 +134,9 @@
 **Współbieżność:** moduły dla dokumentu działają równolegle (`asyncio`), wspólny budżet 240 s; moduł, który zawiedzie lub przekroczy budżet, jest pomijany i logowany — nigdy nie wstawiamy zmyślonego wyniku. `/reanalyze` przelicza partię w tle po zmianie progów.
 
 **Zabezpieczenia:** treść strony to dane, nie instrukcje (`<document>` + neutralizacja domknięcia znacznika, testy prompt injection PL/EN); token `X-Internal-Token` na endpointach wewnętrznych; `asyncpg` zamiast LGPL `psycopg`; wersje przypięte, `pip-audit`: 0 podatności; tylko modele open source (Apache-2.0 / MIT), nic nie wychodzi poza infrastrukturę.
+
+## 2026-11-21 ~20:30 — przegląd PR-ów i issues powiązanych z AI
+- **Zlecono:** przeanalizować wszystkie PR-y i issues, wskazać te z AI, naprawić i zamknąć, co się da.
+- **Wynik:** jedyny otwarty PR to #59 (docs, czysty, czeka na merge leada). Issues #42 (pusty gold set), #53 (brak załącznika UKNF) i #56 mają komentarze ze stanem. Nie da się ich zamknąć bez człowieka: etykiety i załącznik trzeba dostarczyć ręcznie.
+- **Dodano:** `ai/scripts/score_fixtures.py`, pomoc przy etykietowaniu gold setu. Wysyła fixtures do `/analyze-text` i zapisuje CSV ze score M1/M2/M3 oraz pustą kolumną `label`. Etykiet nie zgaduje.
+- **Do weryfikacji przez człowieka:** skrypt sprawdzony tylko na atrapie serwera, bo Ollamy nie ma na tym komputerze. Trzeba uruchomić go na maszynie z Ollamą: `python ai/scripts/score_fixtures.py --out scores.csv`.
