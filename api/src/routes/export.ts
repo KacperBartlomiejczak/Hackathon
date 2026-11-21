@@ -19,24 +19,30 @@ type Deps = { db: Db };
 
 const BOM = "﻿";
 const CRLF = "\r\n";
+// Polish Excel (regional list separator ";", decimal ",") splits columns only on ";".
+const DELIMITER = ";";
 
 /**
- * One CSV cell (RFC 4180). Scraped content is untrusted, so text starting with a formula
- * trigger (= + - @ TAB CR) gets a leading apostrophe and Excel/LibreOffice will not evaluate it.
+ * One CSV cell (RFC 4180 quoting, ";" delimiter, decimal comma). Scraped content is untrusted,
+ * so text starting with a formula trigger (= + - @ TAB CR) gets a leading apostrophe and
+ * Excel/LibreOffice will not evaluate it.
  */
 export function csvCell(value: ExportValue | undefined, col: Partial<ExportColumn> = {}): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "number") return col.decimals !== undefined ? value.toFixed(col.decimals) : String(value);
+  if (typeof value === "number") {
+    return col.decimals !== undefined ? value.toFixed(col.decimals).replace(".", ",") : String(value);
+  }
   let text = Array.isArray(value) ? value.join(col.join ?? ", ") : value;
   if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  // Commas are quoted too, so tools that guess the delimiter still parse the file.
+  return /[";,\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-/** Whole CSV document: BOM + header row + data rows, CRLF line endings. */
+/** Whole CSV document: BOM + header row + data rows, ";" delimiter, CRLF line endings. */
 export function toCsv(columns: readonly ExportColumn[], rows: readonly ExportRow[]): string {
-  const lines = [columns.map((c) => csvCell(c.label)).join(",")];
+  const lines = [columns.map((c) => csvCell(c.label)).join(DELIMITER)];
   for (const row of rows) {
-    lines.push(columns.map((c) => csvCell(row[c.key], c)).join(","));
+    lines.push(columns.map((c) => csvCell(row[c.key], c)).join(DELIMITER));
   }
   return BOM + lines.join(CRLF) + CRLF;
 }
