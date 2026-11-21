@@ -1,0 +1,23 @@
+flowchart LR
+  web["web<br/>React + Vite (:5173)"]
+  api["api<br/>Fastify + Drizzle + Socket.io (:3000)"]
+  collector["collector<br/>Playwright + BullMQ"]
+  ai["ai<br/>FastAPI (:8000)"]
+  pg[("postgres (pgvector)<br/>PostgreSQL 16 (:5432)")]
+  valkey[("valkey<br/>Valkey 8 (:6379)")]
+  s3[("seaweedfs (S3)<br/>SeaweedFS (:8333)")]
+  ollama["ollama<br/>Bielik 11B + bge-m3 (:11434)"]
+
+  web <-- "REST + Socket.io (alert:new, finding:updated, crawl:status)" --> api
+  api -- "kolejka crawl-source" --> valkey
+  api <--> pg
+  api -- "presigned URL screenshotow" --> s3
+  valkey -- "joby crawl-source" --> collector
+  collector -- "HTML + screenshoty" --> s3
+  collector -- "documents, crawl_runs" --> pg
+  collector -- "POST /internal/crawl-status (X-Internal-Token)" --> api
+  collector -- "POST /analyze/{document_id}" --> ai
+  ai -- "odczyt HTML" --> s3
+  ai <--> pg
+  ai -- "embeddingi bge-m3 + LLM M1/M2/M3" --> ollama
+  ai -- "POST /internal/alerts (riskLevel=high, X-Internal-Token)" --> api
