@@ -102,7 +102,10 @@ async def evaluate(
     if not gold:
         log.warning("eval module=%d: no gold rows, all metrics are zero", mod)
     elif result.missing_findings:
-        log.warning("eval module=%d: %d of %d gold documents have no finding", mod, result.missing_findings, result.total)
+        log.warning(
+            "eval module=%d: %d of %d gold documents have no finding",
+            mod, result.missing_findings, result.total,
+        )
     log.info(
         "eval module=%d threshold=%.2f tp=%d fp=%d fn=%d tn=%d precision=%.3f recall=%.3f",
         mod, threshold, result.tp, result.fp, result.fn, result.tn, result.precision, result.recall,

@@ -128,7 +128,7 @@ def _fuzzy_spans(alias: str, words: list[re.Match[str]]) -> list[tuple[int, int]
         if cand[:1] != target[:1] or abs(len(cand) - len(target)) > 2:
             continue
         sm = SequenceMatcher(None, cand, target)
-        if sm.real_quick_ratio() >= FUZZY_RATIO and sm.quick_ratio() >= FUZZY_RATIO and sm.ratio() >= FUZZY_RATIO:
+        if min(sm.real_quick_ratio(), sm.quick_ratio(), sm.ratio()) >= FUZZY_RATIO:
             spans.append((words[i].start(), words[i + n - 1].end()))
     return spans
 
@@ -213,7 +213,9 @@ def match_entities(
             {"criterion": "firm_mentioned", "verdict": "detected", "quote": text[s:e], "weight": 0.4},
         ]
         if anchors:
-            reasons.append({"criterion": "promo_anchor", "verdict": "detected", "quote": anchors[0], "weight": 0.3})
+            reasons.append(
+                {"criterion": "promo_anchor", "verdict": "detected", "quote": anchors[0], "weight": 0.3}
+            )
         reasons.append(
             {"criterion": "publisher_not_official", "verdict": "detected" if channels_known else "unverified",
              "quote": quote, "weight": publisher_part}
