@@ -11,6 +11,7 @@
 | zod | 4.6.7 | MIT | walidacja wejścia i env |
 | pino | 10.4.0 | MIT | logger |
 | bullmq | 6.7.8 | MIT | kolejka jobów collectora (Valkey) |
+| ioredis | 5.11.1 | MIT | sterownik Valkey wymagany przez bullmq 6 (opcjonalny peer) |
 | @aws-sdk/client-s3 | 3.1175.0 | Apache-2.0 | klient S3 (SeaweedFS) |
 | @aws-sdk/s3-request-presigner | 3.1175.0 | Apache-2.0 | presigned URL screenshotów |
 | typescript | 5.9.3 | Apache-2.0 | kompilacja (dev) |

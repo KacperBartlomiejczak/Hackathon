@@ -139,6 +139,8 @@ class EvalResult(CamelModel):
     tn: int
     precision: float = Field(ge=0, le=1)
     recall: float = Field(ge=0, le=1)
+    total: int
+    missing_findings: int
 
 
 class AnalyzeResult(CamelModel):

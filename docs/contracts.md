@@ -228,6 +228,28 @@ Top-level `module` = wartość filtra albo `null`. Punkt = jeden bucket czasu ×
 }
 ```
 `lastRun` = `null`, gdy źródło nie było jeszcze crawlowane.
+Odpowiedź `GET /sources` to tablica tych elementów, sortowana rosnąco po `id`. `lastRun` = najnowszy `crawl_run` po `started_at`.
+
+`POST /sources/:id/run` — bez body. Dodaje job do kolejki `crawl-source` (patrz „Kolejka BullMQ”) z payloadem `{ sourceId, trigger: "manual" }`; działa też dla `enabled = false` (ręczny trigger do demo). `id` nie-liczba → `400`, brak źródła → `404 {error:"not_found"}`, Valkey niedostępny → `503 {error:"queue_unavailable"}`. Sukces `202`:
+```json
+{ "ok": true, "jobId": "17", "sourceId": 3 }
+```
+api **nie** emituje `crawl:status` — robi to collector przez `/internal/crawl-status`, gdy założy `crawl_run`.
+
+`GET /settings/modules/:module` — `module` 1|2|3 (inaczej `400`), brak wiersza → `404 {error:"not_found"}`. Odpowiedź `200`:
+```json
+{ "module": 2, "threshold": 0.6, "weights": { "llm": 0.6, "rules": 0.25, "emb": 0.15 } }
+```
+`PUT /settings/modules/:module` — pełna zamiana (wszystkie pola wymagane), upsert do `module_settings`. Body w tym samym kształcie bez `module`:
+```json
+{ "threshold": 0.7, "weights": { "llm": 0.5, "rules": 0.3, "emb": 0.2 } }
+```
+`threshold` i każda waga 0–1, `weights` dokładnie `llm|rules|emb` (inne klucze → `400`), suma wag = 1 (±0.01), inaczej `400`. Odpowiedź `200` jak w GET. `weights.llm|rules|emb` odpowiadają `w_llm|w_rules|w_emb` z `ai/config.yaml`.
+
+`GET /eval?module=&threshold=` — `module` 1|2|3, `threshold` 0–1 (oba wymagane, inaczej `400`). api przekazuje zapytanie do `${AI_URL}/eval` i zwraca status i body z ai 1:1 (np. `501`, dopóki ai nie ma implementacji). ai nieosiągalne / timeout (`EVAL_TIMEOUT_MS`, domyślnie 30 s) → `502 {error:"ai_unavailable"}`. Odpowiedź `200` (= `EvalResult` z `ai/app/models.py`):
+```json
+{ "module": 2, "threshold": 0.7, "tp": 5, "fp": 1, "fn": 2, "tn": 10, "precision": 0.83, "recall": 0.71 }
+```
 
 `POST /internal/alerts` — body (wysyła ai po zapisaniu findingu z `riskLevel = high`; `X-Internal-Token` wymagany, brak/zły → `401 {error:"unauthorized"}`, zły body → `400`, sukces → `202 {ok:true}`):
 ```json
@@ -248,7 +270,7 @@ Top-level `module` = wartość filtra albo `null`. Punkt = jeden bucket czasu ×
 Zdarzenia Socket.io: `alert:new` (payload jak body `/internal/alerts`), `finding:updated` (payload wyżej), `crawl:status` (payload jak w `/internal/crawl-status`). CORS Socket.io = tylko `WEB_ORIGIN`.
 
 ## Kolejka BullMQ (collector, Valkey)
-Kolejka `crawl-source`, payload joba (do potwierdzenia z Kacprem):
+Kolejka `crawl-source` (Valkey z `VALKEY_URL`), nazwa joba `crawl:<sourceId>`, payload joba (do potwierdzenia z Kacprem):
 ```json
 { "sourceId": 3, "trigger": "manual" }
 ```
