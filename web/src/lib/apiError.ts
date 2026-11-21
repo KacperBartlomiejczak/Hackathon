@@ -26,11 +26,13 @@ const STATUS_MESSAGES: Record<string, string> = {
   ai_unavailable: "Moduł AI jest niedostępny. Spróbuj ponownie za chwilę.",
   queue_unavailable: "Kolejka zadań jest niedostępna. Crawl nie został uruchomiony.",
   not_found: "Nie znaleziono zasobu.",
+  unauthorized: "Brak uprawnień do zapisu. Skonfiguruj token administratora (VITE_ADMIN_TOKEN).",
 };
 
 export function apiErrorMessage(err: unknown, fallback: string): string {
   if (!(err instanceof ApiError)) return fallback;
   if (err.code && STATUS_MESSAGES[err.code]) return STATUS_MESSAGES[err.code];
+  if (err.status === 401 || err.status === 403) return STATUS_MESSAGES.unauthorized;
   if (err.status === 501) return "Ta funkcja nie jest jeszcze zaimplementowana po stronie serwera.";
   if (err.status === 404) return STATUS_MESSAGES.not_found;
   if (err.status === 409) return STATUS_MESSAGES.invalid_transition;

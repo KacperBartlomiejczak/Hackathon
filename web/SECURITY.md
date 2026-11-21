@@ -28,6 +28,7 @@ Wynik: 0 podatności (critical 0, high 0, moderate 0, low 0).
 
 - W `web/` nie ma sekretów.
 - Konfiguracja wyłącznie przez `VITE_API_URL` i `VITE_USE_MOCKS`. Są to wartości publiczne (trafiają do bundla), nie sekrety.
+- Opcjonalny `VITE_ADMIN_TOKEN` (issue #71) jest dołączany jako `Authorization: Bearer` do `PUT /settings`, `PATCH /findings/:id/status` i `POST /sources/:id/run`. Trafia do bundla, więc każdy, kto otworzy stronę, może go odczytać. To prosta blokada dla demo on-premise, a nie ochrona przed użytkownikiem panelu. Egzekwuje ją api, a przy 401/403 web pokazuje komunikat o braku uprawnień.
 - W Dockerfile nie ma `ENV`/`ARG` z sekretem.
 - Grep w `web/` (bez `node_modules` i `dist`, bez `package-lock.json`) na wzorce `api_key|secret|password|token=` (bez rozróżniania wielkości liter), 2026-11-21: wynik pusty (brak trafień).
 

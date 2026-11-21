@@ -48,6 +48,16 @@ type ApiFindingDetails = Omit<FindingDetails, "history" | "document"> & {
   statusHistory: FindingDetails["history"];
 };
 
+// Optional token for write endpoints (issue #71). Public by design: VITE_* values end up in the bundle.
+const ADMIN_TOKEN: string = (import.meta.env.VITE_ADMIN_TOKEN ?? "").trim();
+
+function writeInit(method: "PUT" | "PATCH" | "POST", body?: unknown): RequestInit {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (ADMIN_TOKEN) headers.Authorization = `Bearer ${ADMIN_TOKEN}`;
+  return { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, init);
   if (!res.ok) throw await toApiError(res);
@@ -200,11 +210,7 @@ export async function updateFindingStatus(id: number, status: FindingStatus): Pr
     f.status = status;
     return;
   }
-  await request<unknown>(`/findings/${id}/status`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status, changedBy: "analityk" }),
-  });
+  await request<unknown>(`/findings/${id}/status`, writeInit("PATCH", { status, changedBy: "analityk" }));
 }
 
 export async function fetchEval(module: ModuleId, threshold: number): Promise<EvalResult> {
@@ -225,11 +231,7 @@ export async function saveModuleSettings(module: ModuleId, input: ModuleSettings
     if (input.weights) current.weights = { ...input.weights };
     return { ...current, weights: { ...current.weights } };
   }
-  return request<ModuleSettings>(`/settings/modules/${module}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
+  return request<ModuleSettings>(`/settings/modules/${module}`, writeInit("PUT", input));
 }
 
 export async function fetchSources(): Promise<Source[]> {
@@ -254,5 +256,5 @@ export async function runSource(id: number): Promise<void> {
     }, 2000);
     return;
   }
-  await request<unknown>(`/sources/${id}/run`, { method: "POST" });
+  await request<unknown>(`/sources/${id}/run`, writeInit("POST"));
 }

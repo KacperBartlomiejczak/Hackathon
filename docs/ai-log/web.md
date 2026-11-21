@@ -54,3 +54,8 @@
 - Asked Claude to: bump node and nginx base images in web/Dockerfile after the Docker Scout report, rebuild, check healthcheck and SPA routing, scan the new images and document the result. Skill: dependency-guard (images).
 - Changes: node 22.12-alpine -> 22.23.5-alpine (same Node as api and collector), nginx 1.27.5-alpine -> 1.30.7-alpine (stable branch, pinned). Scan with Trivy 0.76.2 because Docker Scout needs an account: CRITICAL/HIGH node 4/55 -> 0/10 (npm bundled deps, build stage only), nginx 3/67 -> 0/1 (libxml2 Alpine package). Results in web/SECURITY.md.
 - Human to verify: docker compose ps shows web healthy, browser console clean on the new image, someone with a Docker account repeats the scan with Docker Scout.
+
+## Optional admin token for write requests (issue #71)
+- Asked Claude to: handle the write-endpoint auth from issue #71 on the web side only. No new skill.
+- Changes: `lib/api.ts` adds `Authorization: Bearer` from optional `VITE_ADMIN_TOKEN` to PUT /settings, PATCH /findings/:id/status and POST /sources/:id/run (`writeInit`); `lib/apiError.ts` maps 401/403 to a Polish "Brak uprawnień do zapisu" message; limits documented in `web/SECURITY.md` (token is public in the bundle).
+- Human to verify: with no token nothing changes; once team/api enforces `ADMIN_TOKEN` and team/infra passes `VITE_ADMIN_TOKEN` as a build arg, saving a threshold works and a wrong token shows the toast.
