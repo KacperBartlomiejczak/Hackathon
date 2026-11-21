@@ -70,7 +70,7 @@ def test_health_degraded_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_unconfigured_and_stubs() -> None:
     with TestClient(main.app) as client:
         assert client.post("/analyze/1").status_code == 503  # no DB / LLM configured
-        assert client.post("/reanalyze?module=2").status_code == 501
+        assert client.post("/reanalyze?module=2").status_code == 503  # no DB / LLM configured
         assert client.get("/eval?module=2&threshold=0.6").status_code == 503  # no DB
         assert client.get("/eval?module=9&threshold=0.6").status_code == 422
 
@@ -99,7 +99,7 @@ def test_internal_endpoints_reject_missing_or_wrong_token(token_auth: None, meth
 def test_valid_token_passes_guard(token_auth: None) -> None:
     with TestClient(main.app) as client:
         r = client.post("/reanalyze?module=2", headers={"X-Internal-Token": "secret-token"})
-    assert r.status_code == 501  # reached the handler
+    assert r.status_code == 503  # reached the handler (no DB / LLM in the test env)
 
 
 def test_health_stays_open_with_auth_enabled(token_auth: None, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -119,4 +119,4 @@ def test_auth_fails_closed_without_configured_token(monkeypatch: pytest.MonkeyPa
 def test_auth_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("AI_REQUIRE_TOKEN", raising=False)
     with TestClient(main.app) as client:
-        assert client.post("/reanalyze?module=2").status_code == 501
+        assert client.post("/reanalyze?module=2").status_code == 503

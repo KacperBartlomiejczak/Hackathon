@@ -77,14 +77,17 @@ async def _run_one(
 async def run_modules(
     llm: OllamaClient, config: dict[str, Any], settings: Settings, text: str, url: str,
     author_handle: str | None, entities: Sequence[Entity], document_id: int, doc_vector: list[float] | None,
+    only_module: int | None = None,
 ) -> tuple[Route, list[ModuleRun]]:
     """Run the routed modules concurrently, within `analysis.budget_s`.
 
     A module that fails or misses the budget is logged and left out of the result (never a made-up
     score); the others are kept. If nothing finished, the first failure is raised (LLMError), so the
-    document ends up `failed`.
+    document ends up `failed`. `only_module` restricts the run to one module (used by /reanalyze).
     """
     route = route_document(text, url, author_handle, entities, document_id)
+    if only_module is not None:
+        route.modules = [m for m in route.modules if m == only_module]
     logger.info("analyze document_id=%s route=%s", document_id, route.modules)
     budget_s = float(config.get("analysis", {}).get("budget_s", DEFAULT_BUDGET_S))
     tasks = {

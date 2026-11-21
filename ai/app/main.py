@@ -17,6 +17,7 @@ import httpx
 import yaml
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi import Path as PathParam
+from pydantic import Field
 
 from app import db, pipeline
 from app.analysis import default_settings, run_modules
@@ -91,6 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.warning("DATABASE_URL not set")
     app.state.llm = None
+    app.state.reanalyze_task = None
     try:
         llm_cfg = app.state.config.get("llm", {})
         app.state.llm = OllamaClient(timeout_s=float(llm_cfg.get("timeout_s", 60)),
@@ -103,6 +105,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         if warm is not None:
             warm.cancel()
+        if app.state.reanalyze_task is not None:
+            app.state.reanalyze_task.cancel()
         if app.state.llm is not None:
             await app.state.llm.aclose()
         await app.state.http.aclose()
@@ -239,12 +243,39 @@ async def analyze_text(req: AnalyzeTextRequest) -> AnalyzeTextResult:
 @app.post(
     "/reanalyze",
     response_model=ReanalyzeResult,
-    status_code=501,
+    status_code=202,
     dependencies=[Depends(require_internal_token)],
 )
-async def reanalyze(module: Annotated[int | None, Query(ge=1, le=3)] = None) -> ReanalyzeResult:
-    logger.info("reanalyze module=%s result=not_implemented", module)
-    raise HTTPException(status_code=501, detail="not implemented")
+async def reanalyze(
+    module: Annotated[int | None, Query(ge=1, le=3)] = None,
+    document_id: Annotated[list[Annotated[int, Field(ge=1)]] | None, Query(max_length=500)] = None,
+) -> ReanalyzeResult:
+    """Recompute findings (optionally one module / given documents) in the background.
+
+    Without `document_id` every `processed` document is queued. `queued` = number of documents accepted.
+    Findings are upserted and a `high` result sends the alert again. One batch at a time (409 otherwise).
+    """
+    if app.state.pool is None or app.state.llm is None:
+        raise HTTPException(status_code=503, detail="database or llm not configured")
+    task: asyncio.Task[Any] | None = app.state.reanalyze_task
+    if task is not None and not task.done():
+        raise HTTPException(status_code=409, detail="reanalyze already running")
+    ids = sorted(set(document_id)) if document_id else None
+    try:
+        found = await db.list_document_ids(app.state.pool, ids)
+    except db.DatabaseError as exc:
+        logger.error("reanalyze module=%s result=failed error=%s", module, exc)
+        raise HTTPException(status_code=500, detail="database error") from exc
+    if ids is not None and len(found) != len(ids):
+        missing = sorted(set(ids) - set(found))
+        logger.warning("reanalyze module=%s result=rejected missing=%s", module, missing)
+        raise HTTPException(status_code=404, detail=f"documents not found: {missing}")
+    if found:
+        app.state.reanalyze_task = asyncio.create_task(
+            pipeline.reanalyze_batch(app.state.pool, app.state.llm, app.state.config, found, module)
+        )
+    logger.info("reanalyze module=%s queued=%d", module, len(found))
+    return ReanalyzeResult(module=module, queued=len(found))  # type: ignore[arg-type]
 
 
 # contracts.md specifies GET /eval (the request asked for POST; contract wins).

@@ -80,3 +80,9 @@
 - **Why opt-in (`AI_REQUIRE_TOKEN=true`, default off):** the collector (`collector/src/ai/client.ts`) calls `/analyze/{id}` without the header; enforcing now would break the pipeline on `main`. Collector, contract and compose are other owners' files.
 - **Needs others:** lead-collector sends `X-Internal-Token`; api (#4) updates `docs/contracts.md` and any `/eval` caller; infra (#6) sets `AI_REQUIRE_TOKEN=true` and `OLLAMA_NUM_PARALLEL=2`. Only then enable.
 - **Human to verify:** full stack with `AI_REQUIRE_TOKEN=true` once the collector sends the header.
+
+## 2026-11-21 — POST /reanalyze implemented (was 501)
+- **Task:** `/reanalyze?module=&document_id=` recomputes findings without download/dedup: reuses `text_clean`, re-embeds, runs M1/M2/M3 (or only `module`), upserts findings (`ON CONFLICT (document_id, module)`) and sends the alert again when the result is `high`. Returns `202 {module, queued}` (contract shape) and works in the background, one batch at a time (`409` while one runs); no `document_id` = all `processed` documents; unknown id = `404`. `failed`/no-text documents go through the full `analyze_document`, duplicates are skipped; one failing document never stops the batch. Shared tail of `/analyze` extracted into `pipeline._run_and_store`; `run_modules` got `only_module`. 12 new tests in `tests/test_reanalyze.py`, 2 old 501 asserts updated. ruff clean, 95 passed / 5 skipped.
+- **Needs others:** `document_id` (repeatable query param) and the `202` status are additive to `docs/contracts.md` — api (#4) should add them to the AI table.
+- **Limits:** a finding that no longer qualifies after reanalysis (no valid quote) is left as it was, not deleted (review status would be lost). Not tested against real Ollama/Postgres.
+- **Human to verify:** `POST /reanalyze?module=2` on a stack with processed documents; findings' `prompt_version` / `created_at` change and a `high` one reaches the dashboard.
