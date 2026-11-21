@@ -9,3 +9,8 @@
 - Asked Claude to: replace the single `USE_MOCKS` flag with a per-endpoint switch so finished api endpoints run live and missing ones stay mocked.
 - Changes: `isMocked(endpoint)` in `lib/api.ts`, configured by `VITE_MOCKED_ENDPOINTS` (default: trend, summary, status, eval, settings, sources, export; `VITE_USE_MOCKS=true|false` still forces all/none); `DemoBadge` ("Dane demonstracyjne") on screens that still use mocks.
 - Human to verify: with `VITE_MOCKED_ENDPOINTS=` (empty) every screen hits the real api; as #4 ships an endpoint, remove its name from the list.
+
+## Live stats and status endpoints (from team/api)
+- Asked Claude to: read `origin/team/api` contract for `PATCH /findings/:id/status`, `/stats/trend`, `/stats/summary` and adapt web.
+- Changes: summary lists mapped to the `StatsSummary` records; trend points (day x module) summed per day; PATCH sends `changedBy`; `StatusSelect` offers only transitions the api accepts (new→in_review→confirmed|dismissed); `status`, `trend`, `summary` removed from the default mocked list.
+- Human to verify: after `team/api` is merged and the stack runs, status change, trend chart and tiles against real data.

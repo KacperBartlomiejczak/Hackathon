@@ -14,6 +14,7 @@ import type {
   ModuleId,
   Page,
   Source,
+  SourceKind,
   StatsSummary,
   TrendPoint,
 } from "@/types";
@@ -24,7 +25,7 @@ export type Endpoint = "findings" | "trend" | "summary" | "status" | "eval" | "s
 
 const ALL_ENDPOINTS: readonly Endpoint[] = ["findings", "trend", "summary", "status", "eval", "settings", "sources", "export"];
 // Endpoints that the api does not serve yet; remove a name from VITE_MOCKED_ENDPOINTS once it ships.
-const DEFAULT_MOCKED: readonly Endpoint[] = ["trend", "summary", "status", "eval", "settings", "sources", "export"];
+const DEFAULT_MOCKED: readonly Endpoint[] = ["eval", "settings", "sources", "export"];
 
 function resolveMocked(): ReadonlySet<Endpoint> {
   const all: string | undefined = import.meta.env.VITE_USE_MOCKS;
@@ -131,7 +132,15 @@ export async function fetchTrend(module?: ModuleId): Promise<TrendPoint[]> {
   }
   const params = new URLSearchParams({ bucket: "day" });
   if (module) params.set("module", String(module));
-  return request<TrendPoint[]>(`/stats/trend?${params.toString()}`);
+  const res = await request<{ points: { bucket: string; module: number; count: number }[] }>(
+    `/stats/trend?${params.toString()}`,
+  );
+  const perDay = new Map<string, number>();
+  for (const p of res.points) {
+    const day = p.bucket.slice(0, 10);
+    perDay.set(day, (perDay.get(day) ?? 0) + p.count);
+  }
+  return [...perDay.entries()].map(([date, count]) => ({ date, count })).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export async function fetchSummary(): Promise<StatsSummary> {
@@ -150,7 +159,17 @@ export async function fetchSummary(): Promise<StatsSummary> {
     }
     return summary;
   }
-  return request<StatsSummary>("/stats/summary");
+  const res = await request<{
+    total: number;
+    byModule: { key: number; count: number }[];
+    byRisk: { key: string; count: number }[];
+    bySourceKind: { key: string; count: number }[];
+  }>("/stats/summary");
+  const summary: StatsSummary = { total: res.total, byModule: { 1: 0, 2: 0, 3: 0 }, byRisk: { low: 0, medium: 0, high: 0 }, bySource: {} };
+  for (const { key, count } of res.byModule) if (key === 1 || key === 2 || key === 3) summary.byModule[key] = count;
+  for (const { key, count } of res.byRisk) if (key === "low" || key === "medium" || key === "high") summary.byRisk[key] = count;
+  for (const { key, count } of res.bySourceKind) summary.bySource[key as SourceKind] = count;
+  return summary;
 }
 
 export async function updateFindingStatus(id: number, status: FindingStatus): Promise<void> {
@@ -166,7 +185,7 @@ export async function updateFindingStatus(id: number, status: FindingStatus): Pr
   await request<unknown>(`/findings/${id}/status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, changedBy: "analityk" }),
   });
 }
 
