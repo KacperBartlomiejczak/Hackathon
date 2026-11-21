@@ -106,3 +106,31 @@
 - **Baseline (obecne ustawienia):** M1/M2/M3 — brak danych (gold set pusty).
 - **Do zrobienia po dostarczeniu gold setu (ai-data):** (1) wypełnić `ai/eval/gold.csv` dla dokumentów istniejących w bazie; (2) `POST /reanalyze` dla M1–M3, żeby powstały `findings`; (3) `GET /eval` na progach 0.3–0.9 (krok 0.05) → baseline; (4) FP/FN → wagi w `config.yaml` + `UPDATE module_settings`; (5) ponowny `/eval` i tabela „przed vs po” tutaj. Cel: recall ≥ 0.9 dla `risk=high`, precision ≥ 0.8.
 - **Human to verify:** czy ai-data faktycznie wypchnął `gold.csv` (może leży lokalnie, niezcommitowany); gold set musi odnosić się do `document_id` z bazy.
+
+## 2026-11-21 — dokumentacja końcowa i smoke test (ai-core)
+- **Zlecono:** pełny `pip-audit` → `ai/SECURITY.md`; dokładne tagi i licencje modeli oraz bibliotek → `ai/DEPENDENCIES.md`; treść slajdu „Jak działa AI”; smoke test stosu compose.
+- **Skille:** `dependency-guard` (audyt, licencje), `sca-audit` (pip-audit). Licencje modeli sprawdzone `ollama show --license` + karty HF (Bielik v2.3/v3.0 = Apache-2.0, gemma4 = Apache-2.0, bge-m3 = MIT); manifest Ollamy dla Bielika nie ma warstwy licencji, więc źródłem są karty HF.
+- **Wynik audytu:** 47 pakietów runtime (50 z dev), 0 znanych podatności. `tld` (tranzytywny) ma trójlicencję MPL/GPL/LGPL — używamy jako MPL-1.1.
+- **Smoke test (lokalny compose, działał od ~40 min):** wszystkie serwisy `healthy` poza `web` (nie nasz zakres); `ai:/health` → `ollama ok, postgres ok`; `/eval` odpowiada (puste, bo gold set pusty); `uv run pytest` 111 passed / 8 skipped / 1 xfailed; `ruff` czysty. W bazie 6 dokumentów `processed`, 9 `failed`: Ollama w Dockerze na Macu działa na CPU, Bielik 11B przekracza budżet 240 s / timeouty (`ai.analysis ... over budget`). To ograniczenie sprzętu, nie kodu — na demo Ollama z GPU (lub natywna Ollama na hoście, `OLLAMA_URL=http://host.docker.internal:11434`). **0 findings w bazie** — przed demo trzeba puścić `POST /reanalyze` na maszynie z GPU.
+- **`.env.example`:** brakuje tylko opcjonalnych `AI_REQUIRE_TOKEN` (domyślnie wyłączone) i `AI_CONFIG` (domyślna ścieżka `config.yaml`) — plik należy do `team/infra`, nie zmieniam. Reszta zmiennych używanych przez `ai/` (`DATABASE_URL`, `OLLAMA_*`, `S3_*`, `API_URL`, `INTERNAL_TOKEN`, `LOG_LEVEL`) jest.
+- **Do weryfikacji przez człowieka:** czy włączamy `AI_REQUIRE_TOKEN=1` na demo (collector musi wtedy wysyłać `X-Internal-Token`); czy przełączamy domyślny model na Bielik v3.0 (nieprzetestowany na gold secie).
+
+### Slajd: „Jak działa AI”
+**Trzy moduły, jeden pipeline** — dokument z collectora → czyszczenie (trafilatura) → deduplikacja (hash + simhash) → embedding **bge-m3** → routing → moduły → zapis `findings` → alert Socket.io dla wysokiego ryzyka.
+
+| Moduł | Pytanie | Sygnał |
+|---|---|---|
+| **M1 Finfluencerzy** | Czy ktoś spoza firmy reklamuje jej produkt? | wzmianka o podmiocie z rejestru + domena/handle ≠ `official_domains` |
+| **M2 Informacja o ryzyku** | Czy materiał firmy spełnia 8 wymogów informacji o ryzyku? | checklista spełniony/niespełniony + cytat, proporcja „zysk vs ryzyko” |
+| **M3 Shadow advisory** | Czy podmiot spoza rejestru KNF doradza lub zarządza portfelem? | słownik fraz + podobieństwo do fraz wzorcowych + ocena LLM |
+
+**Hybrydowy scoring:** `score = 0,6·LLM + 0,25·reguły + 0,15·embeddingi`
+- **LLM:** Bielik 11B (Ollama, on-premise, `temperature 0`, odpowiedź wymuszona schematem JSON).
+- **Reguły:** słowniki i wzorce w YAML, zawsze z cytatem.
+- **Embeddingi bge-m3:** cosine do fraz wzorcowych (anchors), skala 0,45 → 0 … 0,75 → 1.
+- **Walidacja cytatów (rapidfuzz):** cytat musi występować w tekście (`partial_ratio ≥ 90`), inaczej odpada. Bez cytatu nie ma flagi — zero halucynowanych dowodów.
+- **Progi i wagi** zmieniane na żywo w panelu kalibracji; `/eval` zwraca precision/recall/FP/FN.
+
+**Współbieżność:** moduły dla dokumentu działają równolegle (`asyncio`), wspólny budżet 240 s; moduł, który zawiedzie lub przekroczy budżet, jest pomijany i logowany — nigdy nie wstawiamy zmyślonego wyniku. `/reanalyze` przelicza partię w tle po zmianie progów.
+
+**Zabezpieczenia:** treść strony to dane, nie instrukcje (`<document>` + neutralizacja domknięcia znacznika, testy prompt injection PL/EN); token `X-Internal-Token` na endpointach wewnętrznych; `asyncpg` zamiast LGPL `psycopg`; wersje przypięte, `pip-audit`: 0 podatności; tylko modele open source (Apache-2.0 / MIT), nic nie wychodzi poza infrastrukturę.
