@@ -1,9 +1,27 @@
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app import main
 from app.models import FindingCreate, Reason, risk_level
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected", "ok"),
+    [
+        ("info", logging.INFO, True),
+        ("INFO", logging.INFO, True),
+        (" warn ", logging.WARNING, True),
+        ("debug", logging.DEBUG, True),
+        ("trace", logging.DEBUG, True),
+        (None, logging.INFO, True),
+        ("verbose", logging.INFO, False),
+    ],
+)
+def test_resolve_log_level(raw: str | None, expected: int, ok: bool) -> None:
+    assert main._resolve_log_level(raw) == (expected, ok)
 
 
 def test_risk_level() -> None:
@@ -49,9 +67,9 @@ def test_health_degraded_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert r.json() == {"status": "degraded", "ollama": "error", "postgres": "error"}
 
 
-def test_stubs_not_implemented() -> None:
+def test_unconfigured_and_stubs() -> None:
     with TestClient(main.app) as client:
-        assert client.post("/analyze/1").status_code == 501
+        assert client.post("/analyze/1").status_code == 503  # no DB / LLM configured
         assert client.post("/reanalyze?module=2").status_code == 501
-        assert client.get("/eval?module=2&threshold=0.6").status_code == 501
+        assert client.get("/eval?module=2&threshold=0.6").status_code == 503  # no DB
         assert client.get("/eval?module=9&threshold=0.6").status_code == 422
