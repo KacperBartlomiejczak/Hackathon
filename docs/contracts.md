@@ -22,7 +22,7 @@ CREATE TABLE crawl_runs (
   source_id     int REFERENCES sources(id),
   started_at    timestamptz NOT NULL DEFAULT now(),
   finished_at   timestamptz,
-  status        text NOT NULL DEFAULT 'running',   -- running|ok|partial|failed
+  status        text NOT NULL DEFAULT 'running' CHECK (status IN ('running','ok','partial','failed')),
   items_found   int DEFAULT 0,
   error         text
 );
@@ -54,10 +54,10 @@ CREATE TABLE documents (
   screenshot_key text,          -- klucz w S3 (SeaweedFS)
   text_clean     text,          -- uzupełnia ai/
   content_hash   text,          -- dedup dokładny
-  simhash        bigint,        -- dedup przybliżony
+  simhash        bigint,        -- dedup przybliżony; 64-bit ZE ZNAKIEM (patrz notka niżej)
   duplicate_of   bigint REFERENCES documents(id),
   embedding      vector(1024),  -- bge-m3
-  status         text NOT NULL DEFAULT 'fetched'  -- fetched|processed|duplicate|failed
+  status         text NOT NULL DEFAULT 'fetched' CHECK (status IN ('fetched','processed','duplicate','failed'))
 );
 
 CREATE TABLE findings (
@@ -73,22 +73,27 @@ CREATE TABLE findings (
   model                text NOT NULL,
   prompt_version       text NOT NULL,
   status               text NOT NULL DEFAULT 'new' CHECK (status IN ('new','in_review','confirmed','dismissed')),
-  created_at           timestamptz NOT NULL DEFAULT now()
+  created_at           timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (document_id, module)   -- jeden finding na dokument i moduł; /reanalyze robi upsert
 );
 
 CREATE TABLE finding_status_history (
   id          bigserial PRIMARY KEY,
-  finding_id  bigint REFERENCES findings(id),
+  finding_id  bigint NOT NULL REFERENCES findings(id),
   old_status  text, new_status text, changed_by text,
   changed_at  timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE module_settings (
-  module     smallint PRIMARY KEY,
-  threshold  real NOT NULL DEFAULT 0.6,
+  module     smallint PRIMARY KEY CHECK (module IN (1,2,3)),
+  threshold  real NOT NULL DEFAULT 0.6 CHECK (threshold >= 0 AND threshold <= 1),
   weights    jsonb NOT NULL DEFAULT '{"llm":0.6,"rules":0.25,"emb":0.15}'
 );
 ```
+
+**Notka `simhash`:** kolumna `bigint` to 64-bit liczba **ze znakiem** (−2^63 … 2^63−1). Python liczy simhash jako unsigned 64-bit, więc `ai/` musi rzutować: przy zapisie `v - 2**64 if v >= 2**63 else v`, przy odczycie `v + 2**64 if v < 0 else v` (albo `v & 0xFFFFFFFFFFFFFFFF`). Bez tego `INSERT` rzuca `bigint out of range`.
+
+**Notka `findings`:** `UNIQUE (document_id, module)` — zapis z `ai/` ma być upsertem (`INSERT … ON CONFLICT (document_id, module) DO UPDATE`), inaczej `/reanalyze` wywali się na duplikacie.
 
 ## Format dokumentu z collectora (wejście do bazy)
 ```json
@@ -140,8 +145,33 @@ CREATE TABLE module_settings (
 | POST | `/sources/:id/run` | ręczne odpalenie crawla (do demo) |
 | GET | `/export?format=csv\|json&...filtry` | raport dla modułów 1/2/3 |
 | POST | `/internal/alerts` | tylko z ai/ (nagłówek `X-Internal-Token`) |
+| POST | `/internal/crawl-status` | tylko z collectora (nagłówek `X-Internal-Token`) → emit `crawl:status` |
+| GET | `/sources` | lista źródeł + ostatni `crawl_run` każdego |
 
-Zdarzenia Socket.io: `alert:new` (finding high), `finding:updated`, `crawl:status`.
+`POST /internal/crawl-status` — payload:
+```json
+{ "crawlRunId": 12, "sourceId": 3, "status": "running", "itemsFound": 0, "error": null }
+```
+`status`: `running|ok|partial|failed`; `error` opcjonalne.
+
+`GET /sources` — element listy:
+```json
+{
+  "id": 3, "kind": "web", "name": "…", "startUrl": "https://…", "moduleHint": null,
+  "enabled": true, "cron": "0 */6 * * *",
+  "lastRun": { "id": 12, "status": "ok", "startedAt": "…", "finishedAt": "…", "itemsFound": 14, "error": null }
+}
+```
+`lastRun` = `null`, gdy źródło nie było jeszcze crawlowane.
+
+Zdarzenia Socket.io: `alert:new` (finding high), `finding:updated`, `crawl:status` (payload jak w `/internal/crawl-status`).
+
+## Kolejka BullMQ (collector, Valkey)
+Kolejka `crawl-source`, payload joba (do potwierdzenia z Kacprem):
+```json
+{ "sourceId": 3, "trigger": "manual" }
+```
+`trigger`: `manual` (`POST /sources/:id/run`) lub `schedule` (harmonogram z `sources.cron`).
 
 ## AI (ai/, port 8000)
 | Metoda | Ścieżka | Opis |
