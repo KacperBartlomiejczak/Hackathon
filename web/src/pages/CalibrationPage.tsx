@@ -5,6 +5,7 @@ import { ModuleTabs } from "@/components/ModuleTabs";
 import { ThresholdControl } from "@/components/ThresholdControl";
 import { DemoBadge } from "@/components/DemoBadge";
 import { QueryState } from "@/components/QueryState";
+import { apiErrorMessage } from "@/lib/apiError";
 import { isMocked, fetchEval, fetchModuleSettings, saveModuleSettings } from "@/lib/api";
 import { MODULE_LABEL } from "@/lib/utils";
 import { mockFindings } from "@/mocks";
@@ -88,7 +89,7 @@ export default function CalibrationPage() {
       </section>
 
       <section className="space-y-3">
-        <QueryState isLoading={evalQuery.isLoading} isError={evalQuery.isError} errorMessage="Nie udało się pobrać wyników ewaluacji." loadingMessage="Ładowanie wyników ewaluacji…" onRetry={() => void evalQuery.refetch()} />
+        <QueryState isLoading={evalQuery.isLoading} isError={evalQuery.isError} errorMessage={apiErrorMessage(evalQuery.error, "Nie udało się pobrać wyników ewaluacji.")} loadingMessage="Ładowanie wyników ewaluacji…" onRetry={() => void evalQuery.refetch()} />
         {data && <EvalMetrics data={data} />}
         {isMocked("eval") && threshold !== null && (
           <div className="rounded-lg border border-line bg-card p-4">

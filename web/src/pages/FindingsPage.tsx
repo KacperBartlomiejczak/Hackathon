@@ -38,13 +38,16 @@ export default function FindingsPage() {
 
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
+  const [exportTruncated, setExportTruncated] = useState(false);
 
   async function runExport(format: ExportFormat) {
     setExporting(true);
     setExportError(false);
+    setExportTruncated(false);
     try {
-      const { blob, filename } = await exportFindings(filters, format);
+      const { blob, filename, truncated } = await exportFindings(filters, format);
       downloadBlob(blob, filename);
+      setExportTruncated(truncated);
     } catch {
       setExportError(true);
     } finally {
@@ -80,6 +83,7 @@ export default function FindingsPage() {
         exporting={exporting}
         exportDisabled={!data || data.total === 0}
         exportError={exportError}
+        exportTruncated={exportTruncated}
         onExport={(format) => void runExport(format)}
       />
 
