@@ -1,0 +1,275 @@
+"""M1/M3 modules, alerts, weight overrides — no network (fake LLM, patched embeddings)."""
+
+from datetime import UTC, datetime
+from typing import Any
+
+import httpx
+import pytest
+
+from app import alerts
+from app.analysis import default_settings, run_modules
+from app.models import Finding, FindingCreate, Reason, risk_level
+from app.modules import common, m1, m3
+from app.preprocess.entity_match import Entity
+
+CONFIG = {
+    "weights": {"w_llm": 0.6, "w_rules": 0.25, "w_emb": 0.15},
+    "thresholds": {"m1": 0.6, "m2": 0.6, "m3": 0.6},
+    "risk": {"high": 0.8},
+    "embedding": {"floor": 0.45, "ceil": 0.75},
+}
+XTB = Entity(1, "XTB S.A.", ("XTB",), True, ("xtb.com",), ())
+SCAM = ("OFICJALNY partner XTB! Gwarantowany zysk 30% miesięcznie, zero ryzyka. "
+        "Otwórz konto z moim kodem polecającym, link w bio.")
+ADVICE = ("Zarządzam Twoim portfelem, przekaż mi kapitał. Kupuj akcje ABC, cena docelowa 50 zł. "
+          "Płatna grupa VIP 99 zł miesięcznie.")
+
+
+class FakeLLM:
+    model = "fake"
+
+    def __init__(self, out: Any) -> None:
+        self.out = out
+
+    async def generate(self, system: str, document: str, schema: Any) -> Any:
+        assert isinstance(self.out, schema)
+        return self.out
+
+
+def m1_out(quote: str = "Gwarantowany zysk 30% miesięcznie, zero ryzyka.", conf: float = 0.9) -> m1.M1Output:
+    return m1.M1Output(criteria=[
+        m1.CriterionResult(criterion="promotes_firm", verdict="fail", quote="OFICJALNY partner XTB!",
+                           confidence=conf),
+        m1.CriterionResult(criterion="profit_promises", verdict="fail", quote=quote, confidence=conf),
+        m1.CriterionResult(criterion="impersonation", verdict="fail", quote="OFICJALNY partner XTB!",
+                           confidence=conf),
+    ])
+
+
+@pytest.fixture(autouse=True)
+def fixed_emb(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake(_v: list[float], _m: int, _c: dict[str, Any]) -> float:
+        return 0.5
+
+    monkeypatch.setattr(m1, "emb_score", fake)
+    monkeypatch.setattr(m3, "emb_score", fake)
+
+
+def test_rescale() -> None:
+    assert common.rescale(0.45, 0.45, 0.75) == 0.0
+    assert common.rescale(0.60, 0.45, 0.75) == pytest.approx(0.5)
+    assert common.rescale(0.9, 0.45, 0.75) == 1.0
+
+
+def test_m3_rules_quote_is_verbatim_sentence() -> None:
+    score, reasons = m3.rules_hits(ADVICE)
+    assert score > 0.6
+    assert {"rule:portfolio_management", "rule:direct_recommendation", "rule:paid_service"} <= {
+        r.criterion for r in reasons}
+    assert all(r.quote in ADVICE for r in reasons)
+
+
+def test_m3_rules_quiet_text() -> None:
+    assert m3.rules_hits("Dziś ładna pogoda, idziemy na spacer.")[0] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_m1_scam_is_high_and_quotes_are_real() -> None:
+    cands = [c for c in __import__("app.preprocess.entity_match", fromlist=["x"]).match_entities(
+        SCAM, "https://www.instagram.com/p/1/", "@scam", [XTB], 1)]
+    run = await m1.run_m1(FakeLLM(m1_out()), CONFIG, SCAM, [0.1], cands, 1, 0.6,  # type: ignore[arg-type]
+                          {"llm": 0.6, "rules": 0.25, "emb": 0.15})
+    assert run.finding is not None and run.finding.module == 1 and run.finding.firm_entity_id == 1
+    assert run.finding.risk_level == "high" and run.score >= 0.8
+    assert all(r.quote in SCAM for r in run.finding.reasons)
+    got = {r.criterion for r in run.finding.reasons}
+    assert got >= {"firm_mentioned", "promotes_firm", "profit_promises"}
+
+
+@pytest.mark.asyncio
+async def test_m1_hallucinated_llm_quote_is_dropped_but_rule_reasons_stay() -> None:
+    run_modules_cands = __import__("app.preprocess.entity_match", fromlist=["x"]).match_entities(
+        SCAM, "https://www.instagram.com/p/1/", "@scam", [XTB], 1)
+    run = await m1.run_m1(FakeLLM(m1_out(quote="Lokata w złocie jest w 100% bezpieczna i zawsze rośnie")),
+                          CONFIG, SCAM, None, run_modules_cands, 1, 0.6,  # type: ignore[arg-type]
+                          {"llm": 0.6, "rules": 0.25, "emb": 0.15})
+    assert run.finding is not None
+    assert "profit_promises" not in {r.criterion for r in run.finding.reasons}
+    assert run.emb is None  # no document vector -> emb dropped, weights renormalised
+
+
+@pytest.mark.asyncio
+async def test_m3_shadow_advisory() -> None:
+    out = m3.M3Output(criteria=[
+        m3.CriterionResult(criterion="portfolio_management", verdict="fail",
+                           quote="Zarządzam Twoim portfelem, przekaż mi kapitał.", confidence=0.95),
+        m3.CriterionResult(criterion="individual_recommendations", verdict="fail",
+                           quote="Kupuj akcje ABC, cena docelowa 50 zł.", confidence=0.9),
+    ])
+    run = await m3.run_m3(FakeLLM(out), CONFIG, ADVICE, [0.1], 1, 0.6,  # type: ignore[arg-type]
+                          {"llm": 0.6, "rules": 0.25, "emb": 0.15})
+    assert run.finding is not None and run.finding.module == 3 and run.finding.label == "shadow_advisory"
+    assert run.finding.prompt_version.startswith("m3-v1")
+    assert run.score >= 0.6
+
+
+@pytest.mark.asyncio
+async def test_module_settings_weights_override_config_defaults() -> None:
+    """Calibration panel writes module_settings -> run_modules must use those weights, not 0.6/0.25/0.15."""
+    base = default_settings(CONFIG)
+    assert base[1][1] == {"llm": 0.6, "rules": 0.25, "emb": 0.15}
+    llm = FakeLLM(m1_out(conf=0.5))
+    args = (llm, CONFIG)
+    kw: dict[str, Any] = dict(text=SCAM, url="https://www.instagram.com/p/1/", author_handle="@scam",
+                              entities=[XTB], document_id=1, doc_vector=[0.1])
+    _, default_runs = await run_modules(*args, base, **kw)  # type: ignore[arg-type]
+    rules_heavy = {**base, 1: (0.6, {"llm": 0.1, "rules": 0.8, "emb": 0.1})}
+    _, tuned_runs = await run_modules(*args, rules_heavy, **kw)  # type: ignore[arg-type]
+    assert tuned_runs[0].weights == {"llm": 0.1, "rules": 0.8, "emb": 0.1}
+    assert tuned_runs[0].score > default_runs[0].score + 0.05
+
+
+def _patch_two_modules(monkeypatch: pytest.MonkeyPatch, m1_fn: Any, m3_fn: Any) -> None:
+    import app.analysis as analysis
+    from app.routing import Route
+
+    monkeypatch.setattr(analysis, "route_document", lambda *a, **k: Route(modules=[1, 3]))
+    monkeypatch.setattr(analysis, "run_m1", m1_fn)
+    monkeypatch.setattr(analysis, "run_m3", m3_fn)
+
+
+async def _run_two(config: dict[str, Any]) -> list[Any]:
+    _, runs = await run_modules(FakeLLM(None), config, default_settings(config),  # type: ignore[arg-type]
+                                SCAM, "https://x.pl/p", None, [], 1, None)
+    return runs
+
+
+@pytest.mark.asyncio
+async def test_modules_run_concurrently(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+    import time
+
+    async def slow(module: int, *a: Any, **k: Any) -> common.ModuleRun:
+        await asyncio.sleep(0.3)
+        return common.ModuleRun(module=module, finding=None)
+
+    _patch_two_modules(monkeypatch, lambda *a, **k: slow(1), lambda *a, **k: slow(3))
+    started = time.monotonic()
+    runs = await _run_two(CONFIG)
+    assert [r.module for r in runs] == [1, 3]
+    assert time.monotonic() - started < 0.55  # sequential would be >= 0.6
+
+
+@pytest.mark.asyncio
+async def test_failed_module_is_skipped_and_others_kept(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.llm import LLMUnavailable
+
+    async def bad(*a: Any, **k: Any) -> common.ModuleRun:
+        raise LLMUnavailable("ollama down")
+
+    async def good(*a: Any, **k: Any) -> common.ModuleRun:
+        return common.ModuleRun(module=3, finding=None, score=0.4)
+
+    _patch_two_modules(monkeypatch, bad, good)
+    runs = await _run_two(CONFIG)
+    assert [r.module for r in runs] == [3]
+
+
+@pytest.mark.asyncio
+async def test_all_modules_failed_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.llm import LLMUnavailable
+
+    async def bad(*a: Any, **k: Any) -> common.ModuleRun:
+        raise LLMUnavailable("ollama down")
+
+    _patch_two_modules(monkeypatch, bad, bad)
+    with pytest.raises(LLMUnavailable):
+        await _run_two(CONFIG)
+
+
+@pytest.mark.asyncio
+async def test_budget_returns_partial_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+
+    async def fast(*a: Any, **k: Any) -> common.ModuleRun:
+        return common.ModuleRun(module=1, finding=None, score=0.5)
+
+    async def hang(*a: Any, **k: Any) -> common.ModuleRun:
+        await asyncio.sleep(30)
+        raise AssertionError("must be cancelled by the budget")
+
+    _patch_two_modules(monkeypatch, fast, hang)
+    runs = await _run_two({**CONFIG, "analysis": {"budget_s": 0.2}})
+    assert [r.module for r in runs] == [1]
+
+
+@pytest.mark.asyncio
+async def test_budget_with_nothing_finished_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+
+    from app.llm import LLMUnavailable
+
+    async def hang(*a: Any, **k: Any) -> common.ModuleRun:
+        await asyncio.sleep(30)
+        raise AssertionError("must be cancelled by the budget")
+
+    _patch_two_modules(monkeypatch, hang, hang)
+    with pytest.raises(LLMUnavailable):
+        await _run_two({**CONFIG, "analysis": {"budget_s": 0.1}})
+
+
+def test_risk_level_uses_configured_high() -> None:
+    assert risk_level(0.75, 0.6, 0.7) == "high"
+    assert risk_level(0.75, 0.6) == "medium"
+
+
+# --- alerts ----------------------------------------------------------------------------------------
+
+def _finding() -> Finding:
+    create = FindingCreate(document_id=5, module=1, score=0.85, risk_level="high",
+                           label="third_party_promotion",
+                           reasons=[Reason(criterion="a", verdict="fail", quote="q", weight=0.5)],
+                           firm_entity_id=1, model="fake", prompt_version="m1-v1")
+    return Finding(**create.model_dump(), id=9, created_at=datetime(2026, 11, 21, 18, 0, tzinfo=UTC))
+
+
+def test_alert_payload_matches_contract() -> None:
+    p = alerts.build_payload(_finding(), {"url": "https://x.pl/a", "title": None}, "XTB S.A.")
+    assert p == {
+        "findingId": 9, "documentId": 5, "module": 1, "score": 0.85, "riskLevel": "high",
+        "label": "third_party_promotion", "title": None, "url": "https://x.pl/a",
+        "firm": {"id": 1, "name": "XTB S.A."}, "createdAt": "2026-11-21T18:00:00+00:00",
+    }
+
+
+@pytest.mark.asyncio
+async def test_alert_posts_to_internal_alerts_with_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("API_URL", "http://api:3000")
+    monkeypatch.setenv("INTERNAL_TOKEN", "secret")
+    seen: list[httpx.Request] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req)
+        return httpx.Response(202, json={"ok": True})
+
+    ok = await alerts.send_alert(_finding(), {"url": "https://x.pl/a", "title": "t"}, "XTB S.A.",
+                                 transport=httpx.MockTransport(handler))
+    assert ok and str(seen[0].url) == "http://api:3000/internal/alerts"
+    assert seen[0].headers["x-internal-token"] == "secret"
+
+
+@pytest.mark.asyncio
+async def test_alert_failure_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("API_URL", "http://api:3000")
+    monkeypatch.setenv("INTERNAL_TOKEN", "secret")
+    calls = 0
+
+    def boom(_req: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(503)
+
+    assert not await alerts.send_alert(_finding(), {"url": "u"}, None, transport=httpx.MockTransport(boom))
+    assert calls == 2  # one retry
+    monkeypatch.setenv("INTERNAL_TOKEN", "")
+    assert not await alerts.send_alert(_finding(), {"url": "u"}, None)

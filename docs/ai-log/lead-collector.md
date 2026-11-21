@@ -38,3 +38,25 @@
 - Zlecono: wybrać jeden issue → plan → weryfikacja niezacommitowanej poprawki #19 (plus #16/#17) i przekazanie jej osobie #6 jako patch, bo team/lead-collector nie commituje plików infra. Plan zaakceptowany przed zmianami.
 - Skille: brak nowych paczek. Manifest `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` w registry.ollama.ai: 200, nazwa bez namespace: 404.
 - Weryfikacja: `docker compose run --rm --no-deps ollama-init` ze zmyślonym modelem → exit 1, z prawdziwym → exit 0. Patch (4 pliki) sprawdzony `git apply --check -R`. Komentarze w #19, #16, #17.
+## 2026-11-21 — kroki 16–17: fixtures z firmami z rejestru + CLI crawl
+- Zlecono: `fixtures/sample/demo.jsonl` (11 syntetycznych rekordów, tytuły `[SYNTETYCZNE]`: 4× M1, 3× M2, 2× M3, 2 negatywy) z firmami z `entities.csv` (XTB, DM BOŚ, mBank, Noble), `src/cli.ts` + `npm run crawl -- --source <id>`. Plan zaakceptowany przed zmianami; `--limit` pominięty (zmiana payloadu `crawl-source` = kontrakt z api).
+- Skille: `scraper-adapter`; zero nowych paczek. 2 subagenty (Sonnet) równolegle: dry-run `route_document` na fixture'ach, test na żywo w compose.
+- Weryfikacja: `tsc`, `eslint`, 9 testów; routing 11/11 zgodny z oczekiwanym modułem (po zmianie „Gwarantujemy” → „Gwarantowany” reguły M2 łapią też Noble). Na żywo: CLI kolejkuje job, 16 dokumentów `processed`, 2 findingi M2 (high). M1/M3 = 0, bo w `ai/app/modules` jest tylko M2 (ai-core).
+- Blokery u innych: `ai/app/embeddings.py` czyta `OLLAMA_BASE_URL` zamiast `OLLAMA_URL` → każdy `/analyze` = 502 (ai-data); Bielik > 60 s na CPU powoduje timeout LLM.
+
+## 2026-11-21 — issues #30, #29, #25 (strona web): code-split, prawdziwy `/export`, escaping CSV (wyjątek od własności za zgodą leada)
+- Zlecono: plan #30 (subagenty Sonnet do analizy web i specyfikacji `/export` z `origin/team/api`), potem implementacja. `React.lazy` dla stron (recharts tylko w chunku Trends), `export` usunięty z `DEFAULT_MOCKED`, komunikat o `X-Export-Truncated`, typ `ExportJson`, prefiks `'` w `csvField` dla `= + - @ TAB CR`.
+- Zero nowych paczek. Weryfikacja: `npm run build` (tsc + vite) bez warningu o chunkach >500 kB, `npm audit` = 0. Web nie ma lintu ani testów. Nie zrobione: Dockerfile → nginx (wymaga zmiany healthchecka w compose, który należy do infra). Mock CSV przestawiony na separator `;` (jak api). Suspense w `Layout`, żeby nawigacja nie znikała.
+
+## 2026-11-21 — issue #8 (czysty start) + #15/#16/#17/#19/#37
+Zlecono: plan i wdrożenie poprawek infra (wyjątek od własności za zgodą leada). Subagenci (sonnet) prześledzili statycznie `docker compose up --build` i zweryfikowali README/SECURITY.md.
+Zrobione: usunięty profil `apps`, depends_on (ai→ollama-init/s3-init, collector→api/ai), `.env.example` z wartościami dev + `S3_PUBLIC_ENDPOINT` + `WEB_ORIGIN`, `.gitattributes` LF, poprawny tag Bielika, README, docs/SECURITY.md. Sprawdzone: `docker compose config`, `docker manifest inspect` wszystkich obrazów, manifest Bielika w rejestrze Ollamy (200), build api z HEAD. Pełnego `up` nie uruchamiano.
+
+## 2026-11-21 — issue #43 (analiza w collectorze: współbieżność, timeout, re-crawl)
+Zlecono: plan zaakceptowany przed zmianami. Znalezione przy okazji: `void postAnalyze` w `onItem` nie ogranicza równoległości (N dokumentów = N naraz do jednego Bielika), a upsert resetował `status` na `fetched` przy każdym re-crawlu.
+Zrobione: semafor `ANALYZE_CONCURRENCY` (domyślnie 1) w `ai/client.ts`, timeout z `AI_ANALYZE_TIMEOUT_MS` (300 s, poprawiony komentarz), upsert nie rusza `status`, `/analyze` tylko dla `fetched`. Test: 3 analizy naraz → max 1 aktywna.
+Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline'u na bazie (re-crawl) i budżet timeoutu — czeka na decyzję ai-core w #41. Kolejka w pamięci: restart collectora gubi oczekujące analizy (dokumenty zostają `fetched`).
+## 2026-11-21 — krok 19: rotacja User-Agentów i walidacja proxy
+- Zlecono: lista 23 realnych UA (Chrome/Edge/Firefox/Safari/Opera, Windows/macOS/Linux/Android/iOS) w `src/userAgents.ts`, losowy UA per item zamiast round-robin z 3; walidacja `PROXY_LIST` (każdy wpis to URL http/https/socks5, pusty = bez proxy). Jitter 1–3 s i limit 2/host już były w adapterze web. Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 12 testów `node:test` (nowe: ≥ 20 unikalnych UA, losowanie z listy); `PROXY_LIST=foo` → błąd zod przy starcie. Proxy nie testowane na żywo (brak proxy).
