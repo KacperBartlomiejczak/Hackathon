@@ -30,3 +30,7 @@
 - Zlecono: review PR-ów #11–#13 pod kątem podatności/wydajności (merge #13 i #11, #12 wstrzymany do #16), potem poprawka `postAnalyze`: timeout 60 s → 300 s, ponowienie tylko po błędzie połączenia i 503; timeout, 502 i inne kody kończą bez retry (inaczej LLM liczył ten sam dokument 2–3 razy). Plan zaakceptowany przed zmianami.
 - Skille: brak nowych paczek.
 - Weryfikacja: `tsc`, `eslint`, 7 testów `node:test` (nowe: 502 bez retry, timeout bez retry).
+## 2026-11-21 — issue #22: ręczny crawl wyłączonych źródeł + /internal/crawl-status
+- Zlecono: przegląd otwartych issues dla collectora → plan → poprawka #22. `onSource` pomija wyłączone źródło tylko przy `trigger === 'schedule'`; nowy `postCrawlStatus` (X-Internal-Token, timeout 5 s, nigdy nie rzuca) wysyła `running` po insercie `crawl_run` i `ok|partial|failed` po update. Plan zaakceptowany przed zmianami.
+- Skille: brak nowych paczek (globalny `fetch`).
+- Weryfikacja: `tsc`, `eslint`, 9 testów `node:test` (nowe: nagłówek + body, zamknięty port bez wyjątku). Bez testu na żywo z api.
