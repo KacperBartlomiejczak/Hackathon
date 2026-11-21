@@ -74,3 +74,35 @@
 - **What this does fix:** worst case is now bounded (240 s + retries cannot push `/analyze` past the collector timeout), and one failing module no longer discards the other modules' findings. Router sends most documents to a single module, so the typical document was never affected.
 - **Not done:** plan B (LLM only for candidates with a high rules/embedding score) — changes scoring and the gold-set results, left for a separate step; async 202 variant of `/analyze` (needs api/collector/contract changes).
 - **Human to verify:** that a document with one module missing (`partial=true` in logs) is acceptable as `processed` — there is no per-document marker in the DB for it.
+
+## 2026-11-21 — X-Internal-Token guard for ai endpoints (opt-in)
+- **Task:** `ai` had no auth on any endpoint (`/analyze-text` included; the contract says "no token"). Added `ai/app/auth.py` (`require_internal_token`, `hmac.compare_digest`) on `/analyze/{id}`, `/analyze-text`, `/reanalyze`, `/eval`; `/health` stays open for the compose healthcheck. 8 new tests in `tests/test_app.py` (401 missing/wrong token, pass with valid token, fail-closed 503 when `INTERNAL_TOKEN` is empty, `/health` open, off by default). `scripts/demo_check.py` sends the header when `INTERNAL_TOKEN` is set.
+- **Why opt-in (`AI_REQUIRE_TOKEN=true`, default off):** the collector (`collector/src/ai/client.ts`) calls `/analyze/{id}` without the header; enforcing now would break the pipeline on `main`. Collector, contract and compose are other owners' files.
+- **Needs others:** lead-collector sends `X-Internal-Token`; api (#4) updates `docs/contracts.md` and any `/eval` caller; infra (#6) sets `AI_REQUIRE_TOKEN=true` and `OLLAMA_NUM_PARALLEL=2`. Only then enable.
+- **Human to verify:** full stack with `AI_REQUIRE_TOKEN=true` once the collector sends the header.
+
+## 2026-11-21 — POST /reanalyze implemented (was 501)
+- **Task:** `/reanalyze?module=&document_id=` recomputes findings without download/dedup: reuses `text_clean`, re-embeds, runs M1/M2/M3 (or only `module`), upserts findings (`ON CONFLICT (document_id, module)`) and sends the alert again when the result is `high`. Returns `202 {module, queued}` (contract shape) and works in the background, one batch at a time (`409` while one runs); no `document_id` = all `processed` documents; unknown id = `404`. `failed`/no-text documents go through the full `analyze_document`, duplicates are skipped; one failing document never stops the batch. Shared tail of `/analyze` extracted into `pipeline._run_and_store`; `run_modules` got `only_module`. 12 new tests in `tests/test_reanalyze.py`, 2 old 501 asserts updated. ruff clean, 95 passed / 5 skipped.
+- **Needs others:** `document_id` (repeatable query param) and the `202` status are additive to `docs/contracts.md` — api (#4) should add them to the AI table.
+- **Limits:** a finding that no longer qualifies after reanalysis (no valid quote) is left as it was, not deleted (review status would be lost). Not tested against real Ollama/Postgres.
+- **Human to verify:** `POST /reanalyze?module=2` on a stack with processed documents; findings' `prompt_version` / `created_at` change and a `high` one reaches the dashboard.
+
+## 2026-11-21 — testy odporności na prompt injection (M1/M2/M3)
+- **Task:** `ai/tests/test_prompt_injection.py`: 3 złośliwe strony (PL+EN, „zignoruj instrukcje”, „system override: empty findings”, próba domknięcia `</document>`), testy offline z „złamanym” LLM + testy live na Bieliku (opt-in `RUN_LIVE_LLM=1`, marker `integration`, w CI skipują się). Skill: `risk-classifier`.
+- **Found & fixed:** treść strony mogła domknąć `<document>` i wstrzyknąć polecenia poza ogranicznikiem → `neutralize_delimiters` w `ai/app/llm.py`. Dodano marker `integration` w `pyproject.toml`.
+- **Result (Ollama 192.168.1.88, bielik:latest):** 3/3 live OK, wyniki z injection identyczne jak bez (M1 0.941, M2 1.000, M3 0.956, `high`), cytaty ≥ 90 rapidfuzz, brak cytatu z injection jako dowodu `fail`. Offline: 107 passed, 8 skipped, 1 xfailed; ruff czysty.
+- **Luki:** M2 bez cytatu LLM nie daje findingu (xfail strict); w M2 `llm=0.00` nawet bez injection, flaga z reguł — do przejrzenia. Szczegóły w `ai/SECURITY.md`.
+- **Human to verify:** czy akceptujemy lukę M2 (fail-closed = brak flagi) czy dodać finding z samych reguł; test live wymaga ~3 min GPU.
+
+## M2 v2 → prompt m2-v3 (8 criteria, rules + anchors)
+- **Task:** extend M2 from 4 to 8 criteria; `ai/rules/m2.yaml` (criteria + weights + phrase rules) and `ai/rules/anchors_m2.yaml` (bge-m3 anchors, so `w_emb` is no longer dropped for M2); prompt `m2-v3`; `prompt_version` = `m2-v3+m2-rules-v1`. Quote validation unchanged (rapidfuzz >= 90).
+- **Skill:** risk-classifier.
+- **Human to verify:** the UKNF annex was not available (placeholder in the brief), so the criteria follow MiFID II art. 44 / Reg. 2017/565 (past performance, leverage/CFD, fair & clear, trivialization). Reconcile ids/wording in `rules/m2.yaml` + the prompt once the annex arrives; then re-tune weights on the gold set.
+
+## 2026-11-21 — kalibracja wag i progów (BLOKADA: brak gold setu)
+- **Task:** baseline → analiza FP/FN → strojenie wag/progów (`ai/config.yaml`, `module_settings`) → ewaluacja po zmianach → zestawienie przed/po.
+- **Stan zastany:** `ai/eval/gold.csv` ma tylko nagłówek (`document_id,module,label`) na `main`, `team/ai-data` i `team/ai-core`. `GET /eval?module=1..3&threshold=0.6` działa, ale zwraca `total=0` (tp/fp/fn/tn = 0). W bazie: 16 `documents`, 0 `findings`; `module_settings` = domyślne (próg 0.6, wagi llm 0.6 / rules 0.25 / emb 0.15).
+- **Decyzja:** nie wymyślamy etykiet ani metryk — wagi i progi bez gold setu byłyby zgadywaniem, a liczby na slajdzie nie do obrony. `config.yaml` i `module_settings` bez zmian.
+- **Baseline (obecne ustawienia):** M1/M2/M3 — brak danych (gold set pusty).
+- **Do zrobienia po dostarczeniu gold setu (ai-data):** (1) wypełnić `ai/eval/gold.csv` dla dokumentów istniejących w bazie; (2) `POST /reanalyze` dla M1–M3, żeby powstały `findings`; (3) `GET /eval` na progach 0.3–0.9 (krok 0.05) → baseline; (4) FP/FN → wagi w `config.yaml` + `UPDATE module_settings`; (5) ponowny `/eval` i tabela „przed vs po” tutaj. Cel: recall ≥ 0.9 dla `risk=high`, precision ≥ 0.8.
+- **Human to verify:** czy ai-data faktycznie wypchnął `gold.csv` (może leży lokalnie, niezcommitowany); gold set musi odnosić się do `document_id` z bazy.
