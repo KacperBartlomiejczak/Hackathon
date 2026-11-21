@@ -103,16 +103,17 @@ export function createPipeline(deps: { db: Db; storage: Storage; queues: Queues 
         title: doc.title,
         htmlKey: doc.htmlKey,
         screenshotKey: doc.screenshotKey,
-        status: 'fetched',
       };
+      // status is not in `values`: new rows get the column default `fetched`, a re-crawl keeps the analysed state.
       const [row] = await db
         .insert(documents)
         .values({ ...values, urlHash: urlHash(doc.url) })
         .onConflictDoUpdate({ target: documents.urlHash, set: values })
-        .returning({ id: documents.id });
+        .returning({ id: documents.id, status: documents.status });
       if (!row) throw new Error('documents upsert returned nothing');
-      logger.info({ documentId: row.id, url: doc.url, kind: doc.sourceKind }, 'document stored');
-      void postAnalyze(row.id); // fire-and-forget, never throws; ai down = document stays `fetched`
+      logger.info({ documentId: row.id, url: doc.url, kind: doc.sourceKind, status: row.status }, 'document stored');
+      // Only unanalysed documents: a re-crawl must not run the LLM again. Fire-and-forget, never throws; ai down = stays `fetched`.
+      if (row.status === 'fetched') void postAnalyze(row.id);
     },
   };
 }

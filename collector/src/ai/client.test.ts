@@ -64,3 +64,22 @@ test('closed port returns false without throwing', async () => {
   s.close();
   assert.equal(await postAnalyze(1, url, 5), false);
 });
+
+test('analyses run one at a time (ANALYZE_CONCURRENCY=1)', async () => {
+  let active = 0;
+  let maxActive = 0;
+  const server = createServer((_req, res) => {
+    maxActive = Math.max(maxActive, ++active);
+    setTimeout(() => {
+      active--;
+      res.end();
+    }, 30);
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address() as AddressInfo;
+  const url = `http://127.0.0.1:${port}`;
+  const results = await Promise.all([1, 2, 3].map((id) => postAnalyze(id, url, 5)));
+  assert.deepEqual(results, [true, true, true]);
+  assert.equal(maxActive, 1);
+  server.close();
+});

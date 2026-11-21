@@ -26,12 +26,12 @@ test('sample adapter discovers and fetches fixtures', async () => {
 
   const items: DiscoveredItem[] = [];
   for await (const it of sampleAdapter.discover(ctx)) items.push(it);
-  assert.equal(items.length, 5); // blog.html + finfluencer.jsonl x3 + m2-ad.json
+  assert.equal(items.length, 16); // blog.html + demo.jsonl x11 + finfluencer.jsonl x3 + m2-ad.json
   JSON.parse(JSON.stringify(items));
 
   const docs = [];
   for (const it of items) docs.push(await sampleAdapter.fetch(it, ctx));
-  assert.equal(Object.keys(stored).length, 5);
+  assert.equal(Object.keys(stored).length, 16);
   for (const d of docs) {
     assert.equal(d.sourceKind, 'sample');
     assert.ok(d.htmlKey && d.htmlKey in stored);
