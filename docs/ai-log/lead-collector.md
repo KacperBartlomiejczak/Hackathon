@@ -76,3 +76,7 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 - Zlecono: test całości w compose, potem jedna linijka w `pipeline.ts`: `/analyze` także dla dokumentów `failed` (przy re-crawlu), żeby dokumenty z wcześniejszych błędów 502 dostały szansę na analizę. Akceptacja człowieka przed zmianą.
 - Skille: brak nowych paczek.
 - Weryfikacja na żywo: 8 źródeł, 6 harmonogramów, 7 crawl_runs `ok`, 96 dokumentów (16 sample, 36 web, 45 YouTube), pierwsze findingi M1/M2/M3. Zgłoszone do ai-core: `M1Output` odrzuca odpowiedź Bieliko (walidacja Pydantic), ~90 s na dokument na CPU. Po zmianie: `tsc`, `eslint`, 18 testów.
+## 2026-11-21 — issue #43: budżet czasu `/analyze`
+- Zlecono: przegląd issues dla lead-collector i plan; po akceptacji: domyślny `AI_ANALYZE_TIMEOUT_MS` 300 s → 600 s (M1+M2+M3 sekwencyjnie, LLM do 120 s na zimno), dedupe dokumentu w locie w `ai/client.ts` (overlapping re-crawl nie odpala drugiego `/analyze`), błąd analizy dopisywany do `crawl_runs.error` w `pipeline.ts`.
+- Skille: brak nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 8 testów klienta (nowy: ten sam dokument w locie = 1 wywołanie). Nie sprawdzone: pełny `docker compose up --build` (demo-check pkt 1–2).

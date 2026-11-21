@@ -1,5 +1,5 @@
 import type { Job } from 'bullmq';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { adapters } from './adapters/index.js';
 import type { CrawlContext } from './adapters/types.js';
 import { postAnalyze } from './ai/client.js';
@@ -107,7 +107,18 @@ export function createPipeline(deps: { db: Db; storage: Storage; queues: Queues 
       if (!row) throw new Error('documents upsert returned nothing');
       logger.info({ documentId: row.id, url: doc.url, kind: doc.sourceKind, status: row.status }, 'document stored');
       // Unanalysed or previously failed only: a re-crawl must not rerun the LLM on processed docs. Fire-and-forget, never throws.
-      if (row.status === 'fetched' || row.status === 'failed') void postAnalyze(row.id);
+      if (row.status === 'fetched' || row.status === 'failed') {
+        void postAnalyze(row.id).then(async (ok) => {
+          if (ok || !crawlRunId) return;
+          // Surface per-document failure in crawl_runs (the run itself is already closed as ok).
+          const msg = `analyze failed for document ${row.id}`;
+          await db
+            .update(crawlRuns)
+            .set({ error: sql`CASE WHEN ${crawlRuns.error} IS NULL THEN ${msg} ELSE ${crawlRuns.error} || '; ' || ${msg} END` })
+            .where(eq(crawlRuns.id, crawlRunId))
+            .catch((err: unknown) => logger.warn({ crawlRunId, err }, 'could not record analyze failure'));
+        });
+      }
     },
   };
 }
