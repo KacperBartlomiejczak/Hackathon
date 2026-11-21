@@ -35,3 +35,7 @@
 - `rules_score`: mention 0.4 + anchor 0.3 + publisher 0.2 (identified and channels known) / 0.1 (identified, firm channels unknown) / 0. `reasons[].verdict` is `detected` or `unverified` (contracts.md only shows `fail`; ai-core maps it). `advertiser_entity_id` is always None, ai-core fills it.
 - Perf: ~0.17 s for 1000 words against 86 entities.
 - Human must verify: `social_handles` empty for ALL firms and ~23 have no domain, so posts by a firm's own account look third-party (shown as `official_channels_known=False`, `unverified`). Firms sharing an alias (XTB S.A. and XTB Ltd, 3x Trading 212) give one candidate each for the same mention. Thresholds (0.88, 200 chars, 3 letters, weights) untuned. Ambiguous short aliases like "IG" still hit when an anchor is near.
+
+## 2026-11-21 — embed() env vars
+- Task: `embed()` reads `OLLAMA_BASE_URL` (default `http://localhost:11434`) and `OLLAMA_EMBED_MODEL` (default `bge-m3`); `OLLAMA_URL` removed. Considered switching to Bielik 4096-dim, rejected by the human: bge-m3 stays for embeddings, Bielik is the classification LLM only.
+- Human must verify: 11 unit tests pass, the 4 integration tests were skipped after this rename (Docker daemon was off), rerun them once Docker is up. In compose the ai service needs `OLLAMA_BASE_URL=http://ollama:11434` (default is localhost).
