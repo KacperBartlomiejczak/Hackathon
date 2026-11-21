@@ -8,7 +8,8 @@ import asyncpg
 
 log = logging.getLogger(__name__)
 
-HAMMING_THRESHOLD = 6  # max differing bits of 64 for near-duplicates; one changed word in a ~35-word post gives 5-6, unrelated texts ~32
+# Max differing bits of 64 for near-duplicates: one changed word in a ~35-word post gives 5-6, unrelated ~32.
+HAMMING_THRESHOLD = 6
 MIN_WORDS_FOR_SIMHASH = 20  # shorter texts give unstable simhash
 SHINGLE = 3
 
@@ -56,7 +57,8 @@ async def dedup(conn: asyncpg.Connection, document_id: int, text: str) -> DedupR
     digest = content_hash(text)
     sim = simhash64(text)
     dup = await conn.fetchval(
-        "SELECT id FROM documents WHERE content_hash = $1 AND id <> $2 AND duplicate_of IS NULL ORDER BY id LIMIT 1",
+        "SELECT id FROM documents WHERE content_hash = $1 AND id <> $2 AND duplicate_of IS NULL "
+        "ORDER BY id LIMIT 1",
         digest,
         document_id,
     )
