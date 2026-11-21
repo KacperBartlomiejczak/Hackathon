@@ -1,5 +1,4 @@
 {
-  "enabledMcpjsonServers": ["playwright"],
   "permissions": {
     "deny": [
       "Bash(git checkout:*)",
