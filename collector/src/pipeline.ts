@@ -106,8 +106,8 @@ export function createPipeline(deps: { db: Db; storage: Storage; queues: Queues 
         .returning({ id: documents.id, status: documents.status });
       if (!row) throw new Error('documents upsert returned nothing');
       logger.info({ documentId: row.id, url: doc.url, kind: doc.sourceKind, status: row.status }, 'document stored');
-      // Only unanalysed documents: a re-crawl must not run the LLM again. Fire-and-forget, never throws; ai down = stays `fetched`.
-      if (row.status === 'fetched') void postAnalyze(row.id);
+      // Unanalysed or previously failed only: a re-crawl must not rerun the LLM on processed docs. Fire-and-forget, never throws.
+      if (row.status === 'fetched' || row.status === 'failed') void postAnalyze(row.id);
     },
   };
 }

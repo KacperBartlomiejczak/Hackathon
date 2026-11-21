@@ -6,6 +6,7 @@ import { logger } from './logger.js';
 import { createQueues, startWorkers } from './queue/index.js';
 import { closeBrowser } from './adapters/index.js';
 import { createPipeline } from './pipeline.js';
+import { syncSchedulers } from './scheduler.js';
 import { sourcesFileSchema, syncSources } from './sources.js';
 import { createStorage } from './storage/s3.js';
 
@@ -14,10 +15,10 @@ const { sources } = sourcesFileSchema.parse(parse(await readFile(config.SOURCES_
 const { db, pool } = createDb(config.DATABASE_URL);
 const queues = createQueues();
 
-// TODO(hack): scheduler from sources.cron (step 25) still TODO
 const workers = startWorkers(createPipeline({ db, storage: createStorage(), queues }));
 
 const synced = await syncSources(db, sources);
+await syncSchedulers(queues.crawlSource, synced);
 if (config.CRAWL_ON_START) {
   const startedAt = Date.now();
   for (const s of synced.filter((x) => x.enabled)) {

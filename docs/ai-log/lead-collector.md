@@ -60,3 +60,19 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 - Zlecono: lista 23 realnych UA (Chrome/Edge/Firefox/Safari/Opera, Windows/macOS/Linux/Android/iOS) w `src/userAgents.ts`, losowy UA per item zamiast round-robin z 3; walidacja `PROXY_LIST` (każdy wpis to URL http/https/socks5, pusty = bez proxy). Jitter 1–3 s i limit 2/host już były w adapterze web. Plan zaakceptowany przed zmianami.
 - Skille: `scraper-adapter`; zero nowych paczek.
 - Weryfikacja: `tsc`, `eslint`, 12 testów `node:test` (nowe: ≥ 20 unikalnych UA, losowanie z listy); `PROXY_LIST=foo` → błąd zod przy starcie. Proxy nie testowane na żywo (brak proxy).
+## 2026-11-21 — krok 20: discovery linków w adapterze web + 3 blogi live
+- Zlecono: `src/adapters/discovery.ts` (`extractLinks`: linki z tego samego hosta, bez plików, duplikatów i `www.`, filtr słów kluczowych po URL-u i tekście odnośnika bez polskich znaków, max 20), `web.discover` = start_url + linki z głębokości 1 (zwykły `fetch`, timeout 15 s; błąd = tylko start_url), w `sources.yaml` 3 blogi (jakoszczedzacpieniadze.pl, marciniwuc.com, subiektywnieofinansach.pl). Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 14 testów (nowe: filtr hosta, deduplikacja, zły `%`-escape, limit); discovery na żywo: 3 / 7 / 20 linków. Pełny crawl z Playwrightem w compose nie był powtarzany (ścieżka `fetch` bez zmian).
+## 2026-11-21 — krok 22: adapter YouTube (publiczny RSS kanału)
+- Zlecono: `src/adapters/youtube.ts`: `channel_id` z URL-a `/channel/UC…` albo ze strony `@handle` (cookie zgody `SOCS`), RSS `feeds/videos.xml` → 1 dokument na film (tytuł, kanał, data, opis; HTML z escapowaniem, bez screenshotu). Kanały wybrał agent i sprawdził je na żywo: Strefa Inwestorów, Inwestomat (finfluencerzy), XTB Polska (oficjalny). Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek (fetch + regex, bez parsera XML, bez klucza API).
+- Weryfikacja: `tsc`, `eslint`, 17 testów (nowe: parser RSS z encjami i złym videoId, escaping HTML, channelId bez sieci); discover na żywo: 3 × 15 filmów z opisami. Bez pełnego crawla w compose.
+## 2026-11-21 — krok 25: harmonogram z `sources.cron`
+- Zlecono: `src/scheduler.ts` (`syncSchedulers`: dla każdego włączonego źródła z cronem BullMQ `upsertJobScheduler('source-<id>', { pattern, tz: 'Europe/Warsaw' })` z payloadem `{ sourceId, trigger: 'schedule' }`; zły cron = log error tylko dla tego źródła; nieaktualne `source-*` usuwane), wywołanie przy starcie w `index.ts`, `syncSources` zwraca też `cron`, blogi i YouTube co 6 h w `sources.yaml`. Plan zaakceptowany przed zmianami.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 18 testów (nowy: dodanie, pominięcie wyłączonego i bez crona, zły cron, usunięcie nieaktualnego); na żywo w Valkey na osobnej kolejce testowej: harmonogram zapisany z tz, zły cron odrzucony przez BullMQ, nieaktualny usunięty, zaplanowany job ma `trigger: 'schedule'`; kolejka testowa skasowana.
+## 2026-11-21 — test kroków 19–25 w compose + ponowna analiza `failed`
+- Zlecono: test całości w compose, potem jedna linijka w `pipeline.ts`: `/analyze` także dla dokumentów `failed` (przy re-crawlu), żeby dokumenty z wcześniejszych błędów 502 dostały szansę na analizę. Akceptacja człowieka przed zmianą.
+- Skille: brak nowych paczek.
+- Weryfikacja na żywo: 8 źródeł, 6 harmonogramów, 7 crawl_runs `ok`, 96 dokumentów (16 sample, 36 web, 45 YouTube), pierwsze findingi M1/M2/M3. Zgłoszone do ai-core: `M1Output` odrzuca odpowiedź Bieliko (walidacja Pydantic), ~90 s na dokument na CPU. Po zmianie: `tsc`, `eslint`, 18 testów.
