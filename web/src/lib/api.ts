@@ -1,24 +1,46 @@
-import { mockFindingDetails, mockFindings } from "@/mocks";
-import type { Finding, FindingDetails, FindingsFilters, Page } from "@/types";
+import { mockFindingDetails, mockFindings, mockHistory } from "@/mocks";
+import type { Finding, FindingDetails, FindingStatus, FindingsFilters, Page } from "@/types";
 
 const API_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 const USE_MOCKS: boolean = import.meta.env.VITE_USE_MOCKS !== "false";
+export const PAGE_SIZE = 10;
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`);
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, init);
   if (!res.ok) throw new Error(`API ${res.status}`);
   return (await res.json()) as T;
 }
 
+function matches(f: Finding, filters: FindingsFilters): boolean {
+  if (filters.module && f.module !== filters.module) return false;
+  if (filters.risk && f.riskLevel !== filters.risk) return false;
+  if (filters.status && f.status !== filters.status) return false;
+  if (filters.source && f.document.sourceKind !== filters.source) return false;
+  if (filters.from && f.createdAt.slice(0, 10) < filters.from) return false;
+  if (filters.to && f.createdAt.slice(0, 10) > filters.to) return false;
+  if (filters.q) {
+    const q = filters.q.toLowerCase();
+    const haystack = [f.document.textClean, f.document.url, f.firm?.name, f.advertiser?.name, f.label]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (!haystack.includes(q)) return false;
+  }
+  return true;
+}
+
 export async function fetchFindings(filters: FindingsFilters): Promise<Page<Finding>> {
+  const page = filters.page ?? 1;
   if (USE_MOCKS) {
-    return { items: mockFindings, total: mockFindings.length, page: 1, pageSize: 20 };
+    const all = mockFindings.filter((f) => matches(f, filters));
+    const start = (page - 1) * PAGE_SIZE;
+    return { items: all.slice(start, start + PAGE_SIZE), total: all.length, page, pageSize: PAGE_SIZE };
   }
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== "") params.set(key, String(value));
   }
-  return get<Page<Finding>>(`/findings?${params.toString()}`);
+  return request<Page<Finding>>(`/findings?${params.toString()}`);
 }
 
 export async function fetchFinding(id: number): Promise<FindingDetails> {
@@ -27,5 +49,22 @@ export async function fetchFinding(id: number): Promise<FindingDetails> {
     if (!found) throw new Error("Nie znaleziono");
     return found;
   }
-  return get<FindingDetails>(`/findings/${id}`);
+  return request<FindingDetails>(`/findings/${id}`);
+}
+
+export async function updateFindingStatus(id: number, status: FindingStatus): Promise<void> {
+  if (USE_MOCKS) {
+    const f = mockFindings.find((x) => x.id === id);
+    if (!f) throw new Error("Nie znaleziono");
+    const history = mockHistory.get(id) ?? [];
+    history.unshift({ oldStatus: f.status, newStatus: status, changedBy: "analityk", changedAt: new Date().toISOString() });
+    mockHistory.set(id, history);
+    f.status = status;
+    return;
+  }
+  await request<unknown>(`/findings/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
 }
