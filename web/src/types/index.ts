@@ -73,6 +73,18 @@ export interface Page<T> {
   pageSize: number;
 }
 
+export interface TrendPoint {
+  date: string;
+  count: number;
+}
+
+export interface StatsSummary {
+  total: number;
+  byModule: Record<ModuleId, number>;
+  byRisk: Record<RiskLevel, number>;
+  bySource: Partial<Record<SourceKind, number>>;
+}
+
 export interface FindingsFilters {
   module?: ModuleId;
   risk?: RiskLevel;

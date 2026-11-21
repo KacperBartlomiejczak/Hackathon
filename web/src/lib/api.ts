@@ -1,5 +1,14 @@
 import { mockFindingDetails, mockFindings, mockHistory } from "@/mocks";
-import type { Finding, FindingDetails, FindingStatus, FindingsFilters, Page } from "@/types";
+import type {
+  Finding,
+  FindingDetails,
+  FindingStatus,
+  FindingsFilters,
+  ModuleId,
+  Page,
+  StatsSummary,
+  TrendPoint,
+} from "@/types";
 
 const API_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 const USE_MOCKS: boolean = import.meta.env.VITE_USE_MOCKS !== "false";
@@ -50,6 +59,40 @@ export async function fetchFinding(id: number): Promise<FindingDetails> {
     return found;
   }
   return request<FindingDetails>(`/findings/${id}`);
+}
+
+export async function fetchTrend(module?: ModuleId): Promise<TrendPoint[]> {
+  if (USE_MOCKS) {
+    const counts = new Map<string, number>();
+    for (const f of mockFindings) {
+      if (module && f.module !== module) continue;
+      const day = f.createdAt.slice(0, 10);
+      counts.set(day, (counts.get(day) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([date, count]) => ({ date, count })).sort((a, b) => a.date.localeCompare(b.date));
+  }
+  const params = new URLSearchParams({ bucket: "day" });
+  if (module) params.set("module", String(module));
+  return request<TrendPoint[]>(`/stats/trend?${params.toString()}`);
+}
+
+export async function fetchSummary(): Promise<StatsSummary> {
+  if (USE_MOCKS) {
+    const summary: StatsSummary = {
+      total: mockFindings.length,
+      byModule: { 1: 0, 2: 0, 3: 0 },
+      byRisk: { low: 0, medium: 0, high: 0 },
+      bySource: {},
+    };
+    for (const f of mockFindings) {
+      summary.byModule[f.module] += 1;
+      summary.byRisk[f.riskLevel] += 1;
+      const kind = f.document.sourceKind;
+      summary.bySource[kind] = (summary.bySource[kind] ?? 0) + 1;
+    }
+    return summary;
+  }
+  return request<StatsSummary>("/stats/summary");
 }
 
 export async function updateFindingStatus(id: number, status: FindingStatus): Promise<void> {
