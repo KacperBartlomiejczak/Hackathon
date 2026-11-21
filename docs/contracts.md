@@ -315,4 +315,40 @@ Kolejka `crawl-source` (Valkey z `VALKEY_URL`), nazwa joba `crawl:<sourceId>`, p
 | POST | `/analyze/{document_id}` | preprocessing → dedup → embedding → moduły → findings |
 | POST | `/reanalyze?module=` | ponowna analiza (po zmianie promptu) |
 | GET | `/eval?module=&threshold=` | metryki na `gold.csv` |
+| POST | `/analyze-text` | **tylko demo, wewnętrzny**: analiza surowego tekstu, nic nie zapisuje, bez alertów |
 | GET | `/health` | status + czy Ollama odpowiada |
+
+`POST /analyze-text` — ten sam przebieg co `/analyze/{document_id}` (embedding → routing → M1/M2/M3 → scoring), ale na tekście z body. Nic nie zapisuje w bazie i nie woła `/internal/alerts`. Nie ma tokena: wywołuje się go z hosta (`localhost:8000`) przy pokazie, np. `ai/scripts/demo_check.py`. **api go nie proxy'uje i web go nie używa.** Jeśli web będzie go potrzebował, najpierw zmiana kontraktu (proxy w api z rate limitem).
+
+Body (`AnalyzeTextRequest`):
+```json
+{
+  "text": "OFICJALNY partner XTB! Gwarantowany zysk 30% miesięcznie…",
+  "url": "https://www.instagram.com/p/C0scam123/",
+  "authorHandle": "@pewny_zysk_pl",
+  "weights": { "llm": 0.2, "rules": 0.6, "emb": 0.2 },
+  "threshold": 0.6
+}
+```
+`text` 20–50 000 znaków, wymagane. Reszta opcjonalna: `url` (domyślnie `https://demo.invalid/post`; domena wpływa na routing, M2 tylko dla domeny oficjalnej firmy), `authorHandle`, `weights` (dokładnie klucze `llm`, `rules`, `emb`), `threshold` 0–1. `weights` i `threshold` nadpisują `module_settings` dla wszystkich modułów tylko w tym wywołaniu.
+
+Odpowiedź `200` (`AnalyzeTextResult`):
+```json
+{
+  "modules": [1],
+  "runs": [{
+    "module": 1, "score": 0.848, "riskLevel": "high", "threshold": 0.6,
+    "weights": { "llm": 0.6, "rules": 0.25, "emb": 0.15 },
+    "llm": 0.9, "rules": 0.8, "emb": 0.72, "ms": { "llm": 37000 },
+    "finding": {
+      "documentId": 0, "module": 1, "score": 0.848, "riskLevel": "high", "label": "third_party_promotion",
+      "reasons": [{ "criterion": "…", "verdict": "fail", "quote": "Gwarantowany zysk 30% miesięcznie", "weight": 0.4 }],
+      "firmEntityId": 12, "advertiserEntityId": null, "model": "…", "promptVersion": "m1-v1"
+    }
+  }],
+  "timingsMs": { "embed": 400, "modules": 41000, "total": 41500 }
+}
+```
+`modules` = moduły wybrane przez routing (może być puste). W `runs[]`: `finding` jak w sekcji „Finding”, ale z `documentId: 0`; `finding` i `riskLevel` są `null`, gdy żaden cytat nie przeszedł walidacji (bez cytatu nie ma flagi). `emb` jest `null` dla M2 (brak fraz wzorcowych). `ms` = czasy etapów modułu w ms. Czas odpowiedzi na Bieliku 11B Q4: ok. 35–55 s.
+
+Błędy w formacie FastAPI `{ "detail": … }` (nie w formacie api): `422` zła walidacja body albo `weights` z innymi kluczami, `503` LLM nieskonfigurowany, `502` błąd Ollamy lub analizy.
