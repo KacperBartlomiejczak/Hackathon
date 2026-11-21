@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { IncidentChart } from "@/components/IncidentChart";
 import { ModuleSelect } from "@/components/ModuleSelect";
 import { Tile } from "@/components/Tile";
+import { DemoBadge } from "@/components/DemoBadge";
 import { fetchSummary, fetchTrend } from "@/lib/api";
 import { MODULE_LABEL, RISK_LABEL } from "@/lib/utils";
 import type { ModuleId, RiskLevel } from "@/types";
@@ -17,7 +18,10 @@ export default function TrendsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Trendy</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl font-semibold">Trendy</h1>
+        <DemoBadge endpoints={["summary","trend"]} />
+      </div>
 
       {summary.isLoading && <p className="text-sm text-slate-500">Ładowanie…</p>}
       {summary.isError && <p className="text-sm text-red-600">Nie udało się pobrać statystyk.</p>}

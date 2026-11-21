@@ -4,6 +4,7 @@ import { RiskBadge, StatusBadge } from "@/components/Badges";
 import { DocumentCard } from "@/components/DocumentCard";
 import { ReasonsCard } from "@/components/ReasonsCard";
 import { StatusHistory } from "@/components/StatusHistory";
+import { DemoBadge } from "@/components/DemoBadge";
 import { StatusSelect } from "@/components/StatusSelect";
 import { fetchFinding, updateFindingStatus } from "@/lib/api";
 import { MODULE_LABEL } from "@/lib/utils";
@@ -45,7 +46,10 @@ export default function FindingDetailsPage() {
           <StatusBadge status={data.status} />
           <span className="text-sm text-slate-500">score {data.score.toFixed(2)}</span>
         </div>
-        <StatusSelect value={data.status} disabled={mutation.isPending} onChange={(s) => mutation.mutate(s)} />
+        <div className="flex items-center gap-3">
+          <DemoBadge endpoints={["status"]} />
+          <StatusSelect value={data.status} disabled={mutation.isPending} onChange={(s) => mutation.mutate(s)} />
+        </div>
       </div>
       {mutation.isError && <p className="text-sm text-red-600">Nie udało się zmienić statusu.</p>}
 

@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { FiltersBar, type FilterKey } from "@/components/FiltersBar";
 import { FindingsTable } from "@/components/FindingsTable";
 import { Pagination } from "@/components/Pagination";
+import { DemoBadge } from "@/components/DemoBadge";
 import { exportFindings, fetchFindings } from "@/lib/api";
 import { downloadBlob } from "@/lib/download";
 import type { ExportFormat } from "@/lib/exportFormat";
@@ -65,7 +66,10 @@ export default function FindingsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Findingi</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl font-semibold">Findingi</h1>
+        <DemoBadge endpoints={["export"]} />
+      </div>
 
       <FiltersBar
         values={values}

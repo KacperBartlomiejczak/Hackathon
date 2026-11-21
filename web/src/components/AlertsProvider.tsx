@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { Toaster, toast } from "sonner";
-import { API_URL, USE_MOCKS } from "@/lib/api";
+import { API_URL, isMocked } from "@/lib/api";
 import { mockFindings } from "@/mocks";
 import { MODULE_LABEL } from "@/lib/utils";
 import type { AlertPayload } from "@/types";
@@ -46,7 +46,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (USE_MOCKS) return;
+    if (isMocked("findings")) return;
     const socket = io(API_URL, { transports: ["websocket"] });
     socket.on("alert:new", handleAlert);
     socket.on("finding:updated", (payload: { id?: number }) => {
@@ -65,7 +65,7 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
     () => ({
       newCount,
       resetCount: () => setNewCount(0),
-      mockMode: USE_MOCKS,
+      mockMode: isMocked("findings"),
       simulateAlert: () => {
         const high = mockFindings.filter((f) => f.riskLevel === "high");
         const f = high[Math.floor(Math.random() * high.length)];

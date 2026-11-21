@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { SourcesTable } from "@/components/SourcesTable";
+import { DemoBadge } from "@/components/DemoBadge";
 import { fetchSources, runSource } from "@/lib/api";
 
 export default function SourcesPage() {
@@ -23,7 +24,10 @@ export default function SourcesPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Źródła</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl font-semibold">Źródła</h1>
+        <DemoBadge endpoints={["sources"]} />
+      </div>
 
       {sources.isLoading && <p className="text-sm text-slate-500">Ładowanie…</p>}
       {sources.isError && <p className="text-sm text-red-600">Nie udało się pobrać źródeł.</p>}

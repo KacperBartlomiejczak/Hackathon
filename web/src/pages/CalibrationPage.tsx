@@ -3,7 +3,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { EvalMetrics } from "@/components/EvalMetrics";
 import { ModuleTabs } from "@/components/ModuleTabs";
 import { ThresholdControl } from "@/components/ThresholdControl";
-import { USE_MOCKS, fetchEval, fetchModuleSettings, saveModuleSettings } from "@/lib/api";
+import { DemoBadge } from "@/components/DemoBadge";
+import { isMocked, fetchEval, fetchModuleSettings, saveModuleSettings } from "@/lib/api";
 import { MODULE_LABEL } from "@/lib/utils";
 import { mockFindings } from "@/mocks";
 import type { ModuleId } from "@/types";
@@ -32,7 +33,7 @@ export default function CalibrationPage() {
   });
 
   const resultsCount = useMemo(() => {
-    if (!USE_MOCKS || threshold === null) return 0;
+    if (!isMocked("eval") || threshold === null) return 0;
     return mockFindings.filter((f) => f.module === module && f.score >= threshold).length;
   }, [module, threshold]);
 
@@ -61,7 +62,10 @@ export default function CalibrationPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold">Kalibracja</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl font-semibold">Kalibracja</h1>
+        <DemoBadge endpoints={["eval", "settings"]} />
+      </div>
 
       <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
         <ModuleTabs value={module} onChange={changeModule} />
@@ -87,7 +91,7 @@ export default function CalibrationPage() {
         {evalQuery.isLoading && <p className="text-sm text-slate-500">Ładowanie wyników ewaluacji…</p>}
         {evalQuery.isError && <p className="text-sm text-red-600">Nie udało się pobrać wyników ewaluacji.</p>}
         {data && <EvalMetrics data={data} />}
-        {USE_MOCKS && threshold !== null && (
+        {isMocked("eval") && threshold !== null && (
           <div className="rounded-lg border border-slate-200 bg-white p-4">
             <p className="text-xs uppercase text-slate-500">Wyników na liście przy tym progu</p>
             <p className="mt-1 text-3xl font-semibold tabular-nums">{resultsCount}</p>

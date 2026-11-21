@@ -19,7 +19,25 @@ import type {
 } from "@/types";
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
-export const USE_MOCKS: boolean = import.meta.env.VITE_USE_MOCKS !== "false";
+
+export type Endpoint = "findings" | "trend" | "summary" | "status" | "eval" | "settings" | "sources" | "export";
+
+const ALL_ENDPOINTS: readonly Endpoint[] = ["findings", "trend", "summary", "status", "eval", "settings", "sources", "export"];
+// Endpoints that the api does not serve yet; remove a name from VITE_MOCKED_ENDPOINTS once it ships.
+const DEFAULT_MOCKED: readonly Endpoint[] = ["trend", "summary", "status", "eval", "settings", "sources", "export"];
+
+function resolveMocked(): ReadonlySet<Endpoint> {
+  const all: string | undefined = import.meta.env.VITE_USE_MOCKS;
+  if (all === "true") return new Set(ALL_ENDPOINTS);
+  if (all === "false") return new Set();
+  const raw: string | undefined = import.meta.env.VITE_MOCKED_ENDPOINTS;
+  if (raw === undefined) return new Set(DEFAULT_MOCKED);
+  const names = raw.split(",").map((x) => x.trim());
+  return new Set(ALL_ENDPOINTS.filter((e) => names.includes(e)));
+}
+
+const MOCKED = resolveMocked();
+export const isMocked = (endpoint: Endpoint): boolean => MOCKED.has(endpoint);
 export const PAGE_SIZE = 10;
 
 type ApiFindingDetails = Omit<FindingDetails, "history" | "document"> & {
@@ -56,7 +74,7 @@ export async function exportFindings(
   filters: FindingsFilters,
   format: ExportFormat,
 ): Promise<{ blob: Blob; filename: string }> {
-  if (USE_MOCKS) {
+  if (isMocked("export")) {
     const all = mockFindings.filter((f) => matches(f, filters));
     const blob =
       format === "csv"
@@ -79,7 +97,7 @@ export async function exportFindings(
 
 export async function fetchFindings(filters: FindingsFilters): Promise<Page<FindingListItem>> {
   const page = filters.page ?? 1;
-  if (USE_MOCKS) {
+  if (isMocked("findings")) {
     const all = mockFindings.filter((f) => matches(f, filters));
     const start = (page - 1) * PAGE_SIZE;
     return { items: all.slice(start, start + PAGE_SIZE), total: all.length, page, pageSize: PAGE_SIZE };
@@ -92,7 +110,7 @@ export async function fetchFindings(filters: FindingsFilters): Promise<Page<Find
 }
 
 export async function fetchFinding(id: number): Promise<FindingDetails> {
-  if (USE_MOCKS) {
+  if (isMocked("findings")) {
     const found = mockFindingDetails(id);
     if (!found) throw new Error("Nie znaleziono");
     return found;
@@ -102,7 +120,7 @@ export async function fetchFinding(id: number): Promise<FindingDetails> {
 }
 
 export async function fetchTrend(module?: ModuleId): Promise<TrendPoint[]> {
-  if (USE_MOCKS) {
+  if (isMocked("trend")) {
     const counts = new Map<string, number>();
     for (const f of mockFindings) {
       if (module && f.module !== module) continue;
@@ -117,7 +135,7 @@ export async function fetchTrend(module?: ModuleId): Promise<TrendPoint[]> {
 }
 
 export async function fetchSummary(): Promise<StatsSummary> {
-  if (USE_MOCKS) {
+  if (isMocked("summary")) {
     const summary: StatsSummary = {
       total: mockFindings.length,
       byModule: { 1: 0, 2: 0, 3: 0 },
@@ -136,7 +154,7 @@ export async function fetchSummary(): Promise<StatsSummary> {
 }
 
 export async function updateFindingStatus(id: number, status: FindingStatus): Promise<void> {
-  if (USE_MOCKS) {
+  if (isMocked("status")) {
     const f = mockFindings.find((x) => x.id === id);
     if (!f) throw new Error("Nie znaleziono");
     const history = mockHistory.get(id) ?? [];
@@ -153,18 +171,18 @@ export async function updateFindingStatus(id: number, status: FindingStatus): Pr
 }
 
 export async function fetchEval(module: ModuleId, threshold: number): Promise<EvalResult> {
-  if (USE_MOCKS) return mockEval(module, threshold);
+  if (isMocked("eval")) return mockEval(module, threshold);
   const params = new URLSearchParams({ module: String(module), threshold: String(threshold) });
   return request<EvalResult>(`/eval?${params.toString()}`);
 }
 
 export async function fetchModuleSettings(module: ModuleId): Promise<ModuleSettings> {
-  if (USE_MOCKS) return { ...mockModuleSettings[module], weights: { ...mockModuleSettings[module].weights } };
+  if (isMocked("settings")) return { ...mockModuleSettings[module], weights: { ...mockModuleSettings[module].weights } };
   return request<ModuleSettings>(`/settings/modules/${module}`);
 }
 
 export async function saveModuleSettings(module: ModuleId, input: ModuleSettingsInput): Promise<ModuleSettings> {
-  if (USE_MOCKS) {
+  if (isMocked("settings")) {
     const current = mockModuleSettings[module];
     current.threshold = input.threshold;
     if (input.weights) current.weights = { ...input.weights };
@@ -178,12 +196,12 @@ export async function saveModuleSettings(module: ModuleId, input: ModuleSettings
 }
 
 export async function fetchSources(): Promise<Source[]> {
-  if (USE_MOCKS) return mockSources.map((s) => ({ ...s, lastRun: s.lastRun ? { ...s.lastRun } : null }));
+  if (isMocked("sources")) return mockSources.map((s) => ({ ...s, lastRun: s.lastRun ? { ...s.lastRun } : null }));
   return request<Source[]>("/sources");
 }
 
 export async function runSource(id: number): Promise<void> {
-  if (USE_MOCKS) {
+  if (isMocked("sources")) {
     const source = mockSources.find((s) => s.id === id);
     if (!source) throw new Error("Nie znaleziono");
     if (source.lastRun?.status === "running") return;
