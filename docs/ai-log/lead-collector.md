@@ -43,6 +43,11 @@
 - Skille: `scraper-adapter`; zero nowych paczek. 2 subagenty (Sonnet) równolegle: dry-run `route_document` na fixture'ach, test na żywo w compose.
 - Weryfikacja: `tsc`, `eslint`, 9 testów; routing 11/11 zgodny z oczekiwanym modułem (po zmianie „Gwarantujemy” → „Gwarantowany” reguły M2 łapią też Noble). Na żywo: CLI kolejkuje job, 16 dokumentów `processed`, 2 findingi M2 (high). M1/M3 = 0, bo w `ai/app/modules` jest tylko M2 (ai-core).
 - Blokery u innych: `ai/app/embeddings.py` czyta `OLLAMA_BASE_URL` zamiast `OLLAMA_URL` → każdy `/analyze` = 502 (ai-data); Bielik > 60 s na CPU powoduje timeout LLM.
+
 ## 2026-11-21 — issues #30, #29, #25 (strona web): code-split, prawdziwy `/export`, escaping CSV (wyjątek od własności za zgodą leada)
 - Zlecono: plan #30 (subagenty Sonnet do analizy web i specyfikacji `/export` z `origin/team/api`), potem implementacja. `React.lazy` dla stron (recharts tylko w chunku Trends), `export` usunięty z `DEFAULT_MOCKED`, komunikat o `X-Export-Truncated`, typ `ExportJson`, prefiks `'` w `csvField` dla `= + - @ TAB CR`.
 - Zero nowych paczek. Weryfikacja: `npm run build` (tsc + vite) bez warningu o chunkach >500 kB, `npm audit` = 0. Web nie ma lintu ani testów. Nie zrobione: Dockerfile → nginx (wymaga zmiany healthchecka w compose, który należy do infra). Mock CSV przestawiony na separator `;` (jak api). Suspense w `Layout`, żeby nawigacja nie znikała.
+
+## 2026-11-21 — issue #8 (czysty start) + #15/#16/#17/#19/#37
+Zlecono: plan i wdrożenie poprawek infra (wyjątek od własności za zgodą leada). Subagenci (sonnet) prześledzili statycznie `docker compose up --build` i zweryfikowali README/SECURITY.md.
+Zrobione: usunięty profil `apps`, depends_on (ai→ollama-init/s3-init, collector→api/ai), `.env.example` z wartościami dev + `S3_PUBLIC_ENDPOINT` + `WEB_ORIGIN`, `.gitattributes` LF, poprawny tag Bielika, README, docs/SECURITY.md. Sprawdzone: `docker compose config`, `docker manifest inspect` wszystkich obrazów, manifest Bielika w rejestrze Ollamy (200), build api z HEAD. Pełnego `up` nie uruchamiano.
