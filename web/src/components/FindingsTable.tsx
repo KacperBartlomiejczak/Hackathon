@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { RiskBadge, StatusBadge } from "@/components/Badges";
-import { formatDate, MODULE_LABEL } from "@/lib/utils";
+import { formatDate, MODULE_LABEL, sourceLabel } from "@/lib/utils";
 import type { FindingListItem } from "@/types";
 
 export function FindingsTable({ items }: { items: FindingListItem[] }) {
@@ -30,7 +30,7 @@ export function FindingsTable({ items }: { items: FindingListItem[] }) {
               <td className="px-4 py-3">
                 <RiskBadge level={f.riskLevel} />
               </td>
-              <td className="px-4 py-3">{f.document.sourceKind}</td>
+              <td className="px-4 py-3">{sourceLabel(f.document.sourceKind)}</td>
               <td className="px-4 py-3">{f.firm?.name ?? "—"}</td>
               <td className="px-4 py-3">{f.advertiser?.name ?? "—"}</td>
               <td className="px-4 py-3">

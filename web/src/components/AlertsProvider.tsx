@@ -51,6 +51,8 @@ export function AlertsProvider({ children }: { children: ReactNode }) {
     socket.on("alert:new", handleAlert);
     socket.on("finding:updated", (payload: { id?: number }) => {
       void queryClient.invalidateQueries({ queryKey: ["findings"] });
+      void queryClient.invalidateQueries({ queryKey: ["summary"] });
+      void queryClient.invalidateQueries({ queryKey: ["trend"] });
       if (payload?.id) void queryClient.invalidateQueries({ queryKey: ["finding", payload.id] });
     });
     socket.on("crawl:status", () => {

@@ -44,3 +44,8 @@
 - Asked Claude to: test every dashboard flow against the running stack and fix what breaks.
 - Changes: "Zapisz próg" sent only `{ threshold }`, but `PUT /settings/modules/:n` is a full replace and returns 400 without `weights`; the save now sends the weights from the fetched settings. Found with a real api, mocks hid it.
 - Human to verify: save a threshold per module and confirm `GET /settings/modules/:n` returns it; hard-reload the page first, index.html has no cache headers and a stale bundle still sends the old body.
+
+## Review against the task and polish (calibration, details, search)
+- Asked Claude to: review all of web/ against docs/team/5-web.md and docs/contracts.md, then fix the gaps it found. No new skill used.
+- Changes: calibration shows "Oznaczone flagą" (tp + fp from /eval) on the real api instead of a mock-only tile; unique React keys in ReasonsCard; 300 ms debounce on the search box (api rate limit); Polish labels for criteria, verdicts and source kinds (`lib/utils.ts`, unknown codes fall back to the raw value); `finding:updated` also refreshes summary and trend.
+- Human to verify: browser console clean on all screens, slider changes FP/FN and the flag count, fast typing in "Szukaj" sends one request, criteria labels match real ai output.
