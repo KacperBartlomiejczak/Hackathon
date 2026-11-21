@@ -85,6 +85,32 @@ export interface StatsSummary {
   bySource: Partial<Record<SourceKind, number>>;
 }
 
+export interface EvalResult {
+  precision: number;
+  recall: number;
+  fp: number;
+  fn: number;
+  tp: number;
+  tn: number;
+}
+
+export interface ModuleWeights {
+  llm: number;
+  rules: number;
+  emb: number;
+}
+
+export interface ModuleSettings {
+  module: ModuleId;
+  threshold: number;
+  weights: ModuleWeights;
+}
+
+export interface ModuleSettingsInput {
+  threshold: number;
+  weights?: ModuleWeights;
+}
+
 export interface FindingsFilters {
   module?: ModuleId;
   risk?: RiskLevel;
@@ -94,4 +120,25 @@ export interface FindingsFilters {
   to?: string;
   q?: string;
   page?: number;
+}
+
+export type CrawlStatus = "running" | "ok" | "partial" | "failed";
+
+export interface CrawlRunInfo {
+  status: CrawlStatus;
+  startedAt: string;
+  finishedAt: string | null;
+  itemsFound: number | null;
+  error: string | null;
+}
+
+export interface Source {
+  id: number;
+  kind: SourceKind;
+  name: string;
+  startUrl: string;
+  moduleHint: ModuleId | null;
+  enabled: boolean;
+  cron: string | null;
+  lastRun: CrawlRunInfo | null;
 }

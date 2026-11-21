@@ -1,5 +1,10 @@
+import { defaultExportFilename, findingsToCsv, findingsToJson, type ExportFormat } from "@/lib/exportFormat";
 import { mockFindingDetails, mockFindings, mockHistory } from "@/mocks";
+import { mockEval, mockModuleSettings } from "@/mocks/calibration";
 import type {
+  EvalResult,
+  ModuleSettings,
+  ModuleSettingsInput,
   Finding,
   FindingDetails,
   FindingStatus,
@@ -36,6 +41,31 @@ function matches(f: Finding, filters: FindingsFilters): boolean {
     if (!haystack.includes(q)) return false;
   }
   return true;
+}
+
+export async function exportFindings(
+  filters: FindingsFilters,
+  format: ExportFormat,
+): Promise<{ blob: Blob; filename: string }> {
+  if (USE_MOCKS) {
+    const all = mockFindings.filter((f) => matches(f, filters));
+    const blob =
+      format === "csv"
+        ? new Blob([findingsToCsv(all)], { type: "text/csv;charset=utf-8" })
+        : new Blob([findingsToJson(all)], { type: "application/json" });
+    return { blob, filename: defaultExportFilename(format) };
+  }
+  const params = new URLSearchParams({ format });
+  for (const [key, value] of Object.entries(filters)) {
+    if (key === "page") continue;
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  }
+  const res = await fetch(`${API_URL}/export?${params.toString()}`);
+  if (!res.ok) throw new Error(`API ${res.status}`);
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const filename = match ? decodeURIComponent(match[1]) : defaultExportFilename(format);
+  return { blob: await res.blob(), filename };
 }
 
 export async function fetchFindings(filters: FindingsFilters): Promise<Page<Finding>> {
@@ -110,4 +140,54 @@ export async function updateFindingStatus(id: number, status: FindingStatus): Pr
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),
   });
+}
+
+export async function fetchEval(module: ModuleId, threshold: number): Promise<EvalResult> {
+  if (USE_MOCKS) return mockEval(module, threshold);
+  const params = new URLSearchParams({ module: String(module), threshold: String(threshold) });
+  return request<EvalResult>(`/eval?${params.toString()}`);
+}
+
+export async function fetchModuleSettings(module: ModuleId): Promise<ModuleSettings> {
+  if (USE_MOCKS) return { ...mockModuleSettings[module], weights: { ...mockModuleSettings[module].weights } };
+  return request<ModuleSettings>(`/settings/modules/${module}`);
+}
+
+export async function saveModuleSettings(module: ModuleId, input: ModuleSettingsInput): Promise<ModuleSettings> {
+  if (USE_MOCKS) {
+    const current = mockModuleSettings[module];
+    current.threshold = input.threshold;
+    if (input.weights) current.weights = { ...input.weights };
+    return { ...current, weights: { ...current.weights } };
+  }
+  return request<ModuleSettings>(`/settings/modules/${module}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchSources(): Promise<Source[]> {
+  if (USE_MOCKS) return mockSources.map((s) => ({ ...s, lastRun: s.lastRun ? { ...s.lastRun } : null }));
+  return request<Source[]>("/sources");
+}
+
+export async function runSource(id: number): Promise<void> {
+  if (USE_MOCKS) {
+    const source = mockSources.find((s) => s.id === id);
+    if (!source) throw new Error("Nie znaleziono");
+    if (source.lastRun?.status === "running") return;
+    source.lastRun = { status: "running", startedAt: new Date().toISOString(), finishedAt: null, itemsFound: null, error: null };
+    setTimeout(() => {
+      source.lastRun = {
+        status: "ok",
+        startedAt: source.lastRun?.startedAt ?? new Date().toISOString(),
+        finishedAt: new Date().toISOString(),
+        itemsFound: 20 + Math.floor(Math.random() * 180),
+        error: null,
+      };
+    }, 2000);
+    return;
+  }
+  await request<unknown>(`/sources/${id}/run`, { method: "POST" });
 }

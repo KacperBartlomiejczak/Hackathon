@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { RiskBadge, StatusBadge } from "@/components/Badges";
-import { fetchFindings, PAGE_SIZE } from "@/lib/api";
+import { useState } from "react";
+import { exportFindings, fetchFindings, PAGE_SIZE } from "@/lib/api";
+import { downloadBlob } from "@/lib/download";
+import type { ExportFormat } from "@/lib/exportFormat";
 import { formatDate, MODULE_LABEL, RISK_LABEL, STATUS_LABEL } from "@/lib/utils";
 import type { FindingStatus, FindingsFilters, ModuleId, RiskLevel, SourceKind } from "@/types";
 
@@ -30,6 +33,22 @@ export default function FindingsPage() {
     queryKey: ["findings", filters],
     queryFn: () => fetchFindings(filters),
   });
+
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
+
+  async function runExport(format: ExportFormat) {
+    setExporting(true);
+    setExportError(false);
+    try {
+      const { blob, filename } = await exportFindings(filters, format);
+      downloadBlob(blob, filename);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   function setFilter(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -119,6 +138,20 @@ export default function FindingsPage() {
             Wyczyść filtry
           </button>
         )}
+        <div className="ml-auto flex items-center gap-2">
+          {(["csv", "json"] as ExportFormat[]).map((format) => (
+            <button
+              key={format}
+              type="button"
+              disabled={exporting || !data || data.total === 0}
+              onClick={() => void runExport(format)}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm disabled:opacity-40"
+            >
+              {format === "csv" ? "Eksport CSV" : "Eksport JSON"}
+            </button>
+          ))}
+        </div>
+        {exportError && <p className="w-full text-sm text-red-600">Nie udało się wyeksportować danych.</p>}
       </div>
 
       {isLoading && <p className="text-sm text-slate-500">Ładowanie…</p>}
