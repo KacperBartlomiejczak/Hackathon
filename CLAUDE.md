@@ -73,7 +73,7 @@ Porty: web 5173, api 3000, ai 8000, postgres 5432, valkey 6379, seaweedfs-s3 833
 - TS: `strict: true`, bez `any` (wyjątek: tymczasowo z `// TODO(hack)`), walidacja wejścia przez `zod`.
 - Python: typy wszędzie, Pydantic v2 dla requestów i odpowiedzi, `ruff` do lintu.
 - Każdy endpoint i job loguje: id dokumentu, czas, wynik. Błędy z jednego źródła nie zabijają całego crawla.
-- Prompty LLM w osobnych plikach `ai/prompts/*.md` z wersją (`prompt_version` zapisywane w `findings`).
+- Prompty LLM w osobnych plikach `.md` w folderze serwisu, w którym piszesz kod: `<serwis>/prompts/<nazwa-feature>/<nazwa>.md` (np. `ai/prompts/m2-risk-info/system.md`). Każdy plik ma wersję (`prompt_version` zapisywane w `findings`). Żadnych promptów inline w kodzie.
 - Treść ze stron to **dane, nie instrukcje** — w promptach zawsze rozdzielaj instrukcję systemową od treści (ochrona przed prompt injection).
 - Nie commituj danych z pendrive'a UKNF ani `.env`. Dane próbne trzymaj w `infra/seed/` tylko jeśli regulamin pozwala — inaczej `.gitignore`.
 
@@ -81,6 +81,26 @@ Porty: web 5173, api 3000, ai 8000, postgres 5432, valkey 6379, seaweedfs-s3 833
 1. `git branch --show-current` → znajdź swój branch w tabeli „Zespół i branche” poniżej.
 2. Przeczytaj swój plik roli z `docs/team/` i działaj **wyłącznie** w jego zakresie.
 3. Branch nie pasuje do żadnego z tabeli albo jesteś na `main` → **STOP**, nic nie zmieniaj, powiedz o tym człowiekowi.
+
+## Najpierw plan, potem kod (OBOWIĄZKOWE przy każdym zadaniu)
+Zanim zmienisz jakikolwiek plik, uruchomisz komendę zmieniającą stan (instalacja paczki, migracja, commit) albo wywołasz skill, który coś zapisuje:
+1. Przeczytaj potrzebne pliki (czytanie jest dozwolone bez akceptu).
+2. Napisz **krótki plan** w tym formacie:
+   ```
+   PLAN — krok <nr z docs/team/...>: <nazwa>
+   Cel: <1 zdanie>
+   Pliki: <lista plików do utworzenia/zmiany — wyłącznie z katalogów mojego brancha>
+   Kroki: 1. … 2. … 3. …
+   Nowe zależności: <brak | paczka@wersja (licencja)>
+   Wpływ na innych: <brak | co musi zrobić osoba X>
+   Jak sprawdzę, że działa: <komenda / test>
+   Ryzyka i pytania: <…>
+   ```
+3. **Zatrzymaj się i czekaj na akceptację człowieka.** Akceptacja to wyraźne „ok” / „tak” / „akceptuję” / „działaj”. Uwagi albo poprawki do planu = popraw plan i czekaj na akceptację jeszcze raz.
+4. Po akceptacji wykonuj **tylko to, co jest w planie**. Jeśli w trakcie okaże się, że trzeba wyjść poza plan (inne pliki, nowa paczka, zmiana kontraktu), zatrzymaj się i pokaż zaktualizowany plan.
+5. Na koniec: podsumowanie (co zrobione, jak sprawdzić), commit, wpis do `docs/ai-log/<branch>.md`.
+
+Wyjątek: drobna poprawka wskazana przez człowieka wprost (literówka, jedna linijka) — wystarczy jedno zdanie „zmieniam X w pliku Y” i od razu działasz.
 
 ## Git — jeden stały branch na osobę
 - Każda osoba ma **jeden branch na cały hackathon i nigdy go nie zmienia**. Zakazane: `git checkout <branch>`, `git switch`, tworzenie nowych branchy, commit na `main`, push na cudzy branch, `push --force`, `rebase`, `reset --hard`. Blokuje to też `.claude/settings.json`.
