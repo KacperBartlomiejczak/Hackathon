@@ -60,3 +60,7 @@
 
 ## 2026-11-21 — embed() back to `OLLAMA_URL`
 - `embed()` reads `OLLAMA_URL` (default `http://localhost:11434`, for local runs) and `OLLAMA_EMBED_MODEL` (default `bge-m3`), matching `main.py`, `.env.example` and the request in `docs/ai-log/ai-core.md`. `OLLAMA_BASE_URL` is gone; this supersedes the earlier rename note.
+
+## 2026-11-21 — issue #26: M1 verdicts match `Verdict`
+- `entity_match.py` reasons now use `fail` (signal found: firm mentioned, promo anchor, publisher not official) and `unclear` (firm's official channels unknown) instead of `detected`/`unverified`, so `Reason` / `FindingCreate` (`Verdict = pass|fail|unclear`) accept them. No contract change.
+- Added `test_reasons_validate_against_contract_model` (validates every M1 reason with `app.models.Reason`). 33 tests pass, 5 integration skipped (no containers); ruff clean.

@@ -60,7 +60,7 @@ class M1Candidate:
     url: str
     rules_score: float  # 0..1, rules part only
     official_channels_known: bool
-    reasons: list[dict[str, Any]] = field(default_factory=list)  # contracts.md shape
+    reasons: list[dict[str, Any]] = field(default_factory=list)  # contracts.md shape, verdict fail|unclear
 
 
 async def load_entities(conn: asyncpg.Connection) -> list[Entity]:
@@ -210,14 +210,14 @@ def match_entities(
         publisher_part = 0.2 if advertiser and channels_known else 0.1 if advertiser else 0.0
         score = 0.4 + (0.3 if anchors else 0.0) + publisher_part
         reasons: list[dict[str, Any]] = [
-            {"criterion": "firm_mentioned", "verdict": "detected", "quote": text[s:e], "weight": 0.4},
+            {"criterion": "firm_mentioned", "verdict": "fail", "quote": text[s:e], "weight": 0.4},
         ]
         if anchors:
             reasons.append(
-                {"criterion": "promo_anchor", "verdict": "detected", "quote": anchors[0], "weight": 0.3}
+                {"criterion": "promo_anchor", "verdict": "fail", "quote": anchors[0], "weight": 0.3}
             )
         reasons.append(
-            {"criterion": "publisher_not_official", "verdict": "detected" if channels_known else "unverified",
+            {"criterion": "publisher_not_official", "verdict": "fail" if channels_known else "unclear",
              "quote": quote, "weight": publisher_part}
         )
         candidates.append(
