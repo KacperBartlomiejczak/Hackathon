@@ -14,6 +14,8 @@ export type ExportQuery = z.infer<typeof exportQuerySchema>;
 export const EXPORT_MAX_ROWS = 10_000;
 /** Length of the M1 content excerpt (characters of `documents.text_clean`). */
 export const EXCERPT_LENGTH = 300;
+/** Per-IP limit for GET /export (each call builds up to EXPORT_MAX_ROWS in memory). */
+export const EXPORT_RATE_LIMIT_PER_MINUTE = 10;
 
 export type ExportKey =
   | "id"
@@ -40,8 +42,16 @@ export type ExportRow = Partial<Record<ExportKey, ExportValue>>;
 /**
  * `join` = separator used when an array value is written to a single CSV cell.
  * `decimals` = fixed decimals for a numeric CSV cell (JSON keeps the raw number).
+ * `handle` = column may hold a social handle; CSV drops its leading "@" so Excel shows
+ *   `lukasz_inwestuje` instead of `'@lukasz_inwestuje` (JSON keeps the "@").
  */
-export type ExportColumn = { key: ExportKey; label: string; join?: string; decimals?: number };
+export type ExportColumn = {
+  key: ExportKey;
+  label: string;
+  join?: string;
+  decimals?: number;
+  handle?: boolean;
+};
 
 const CRITERIA_SEP = "; ";
 const QUOTES_SEP = " | ";
@@ -51,7 +61,7 @@ export const UNIVERSAL_COLUMNS: readonly ExportColumn[] = [
   { key: "id", label: "ID" },
   { key: "module", label: "Moduł" },
   { key: "firm", label: "Firma" },
-  { key: "advertiser", label: "Reklamujący" },
+  { key: "advertiser", label: "Reklamujący", handle: true },
   { key: "title", label: "Tytuł" },
   { key: "url", label: "URL" },
   { key: "sourceKind", label: "Źródło" },
@@ -65,7 +75,7 @@ export const UNIVERSAL_COLUMNS: readonly ExportColumn[] = [
 export const MODULE_COLUMNS: Record<1 | 2 | 3, readonly ExportColumn[]> = {
   1: [
     { key: "firm", label: "Firma" },
-    { key: "advertiser", label: "Reklamujący" },
+    { key: "advertiser", label: "Reklamujący", handle: true },
     { key: "contentExcerpt", label: "Treść (skrót)" },
     { key: "url", label: "URL" },
     { key: "createdAt", label: "Data" },
@@ -81,7 +91,7 @@ export const MODULE_COLUMNS: Record<1 | 2 | 3, readonly ExportColumn[]> = {
     { key: "score", label: "Score", decimals: 2 },
   ],
   3: [
-    { key: "entity", label: "Podmiot" },
+    { key: "entity", label: "Podmiot", handle: true },
     { key: "advisoryPhrases", label: "Frazy doradcze", join: CRITERIA_SEP },
     { key: "quotes", label: "Cytaty", join: QUOTES_SEP },
     { key: "url", label: "URL" },
