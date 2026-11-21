@@ -99,3 +99,4 @@ https://www.biznesradar.pl/rekomendacje/,3,crawl
 https://www.erste.pl/inwestor/analizy-i-rekomendacje/tydzien-na-gpw,3,crawl
 https://www.money.pl/gielda/rekomendacje/,3,crawl
 https://zloty-portfel.example/oferta,3,collector/fixtures/sample/demo.jsonl (already there)
+https://www.tms.pl,2,crawl

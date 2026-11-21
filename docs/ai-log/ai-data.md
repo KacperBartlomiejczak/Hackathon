@@ -84,3 +84,5 @@
 ## 2026-11-22 — gold labels for the 11 demo fixtures
 - At the human's explicit request the agent proposed labels for the 11 `collector/fixtures/sample/demo.jsonl` documents (M1 9 rows, M2 3, M3 4) using `ai/eval/rubric.md`, appended to `label_sheet.csv` (notes say "zaproponowana przez agenta"), rebuilt `gold.csv`: M1 39, M2 22, M3 39 rows. Human must review these 16 rows before relying on the metrics.
 - Added `ai/eval/gold_urls_to_load.csv` (url, module, source) for collector: URLs gold rows need in `documents`.
+
+- M2 row 27 (`tms.pl`, was POMIN) labelled 0 by the agent at the human's request after reading the live page; borderline (risk warning only in footer, rule 6). Review it. gold.csv: M1 39, M2 23, M3 39.
