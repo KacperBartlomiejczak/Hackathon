@@ -75,3 +75,8 @@
 
 ## 2026-11-22 — gold set tooling
 - Added `ai/eval/build_gold.py` (+ `ai/tests/test_build_gold.py`): maps labelled sheet rows (0/1, POMIN skipped) to `document_id` by URL using a `documents` export, writes `ai/eval/gold.csv`. Labels were set by the human (obvious cases pre-labelled by the agent at the human's request, then reviewed). Synthetic M2 fixtures are in `ai/eval/synthetic_m2.jsonl`.
+
+## 2026-11-22 — issues #42 / #63: gold set keyed by url
+- `gold.csv` is now `url,module,label`. `evaluate()` joins gold URLs to `documents.url_hash = sha256(url)` (same key the collector upserts on), so labels survive `down -v` and a different seed order. `build_gold.py` no longer needs a `documents` export; it maps the labelled sheet straight to `gold.csv`. `EvalResult` and the `/eval` contract are unchanged.
+- Generated `gold.csv` from `ai/eval/label_sheet.csv` (human labels): M1 30, M2 19, M3 35 rows. Below the 40 per module target; M2 synthetic fixtures (`synthetic_m2.jsonl`) still have no labels. Added tests: url-key loading, `url_hash` join in DB test, committed gold has both classes and a threshold moves FP/FN. 60 passed, 5 skipped (no containers; the DB join test is among them, not run here); ruff clean.
+- #63 is a closed duplicate of #42. #42 stays open until: (human) labels reach 40 per module, (collector) fixtures contain every URL from the sheet and the synthetic file, (ai-core) findings exist for those documents, otherwise `/eval` counts them as score 0. Optional (api): document the `gold.csv` format in `docs/contracts.md`.
