@@ -4,6 +4,8 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1),
   VALKEY_URL: z.string().default('redis://valkey:6379'),
   AI_URL: z.string().default('http://ai:8000'),
+  API_URL: z.string().default('http://api:3000'),
+  INTERNAL_TOKEN: z.string().default(''),
   S3_ENDPOINT: z.string().default('http://seaweedfs:8333'),
   S3_BUCKET: z.string().default('investwatch'),
   S3_REGION: z.string().default('eu-central-1'),

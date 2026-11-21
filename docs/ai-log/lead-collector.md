@@ -21,3 +21,16 @@
 - Skille: brak nowych paczek.
 - Weryfikacja: `tsc`, `eslint`, 5 testów; compose na main + PR #12 (+ poprawki z issues #16/#17/#18 i `OLLAMA_BASE_URL` w .env): 2 wiersze w `sources`, 1 `crawl_run` ok (5 items), 5 dokumentów, `/analyze` 200 dla wszystkich. 0 findingów, bo fixtures mają fikcyjne firmy spoza rejestru (M1 candidates=0).
 - Do zrobienia: fixtures z firmami z rejestru (np. XTB) i ≥ 10 dokumentów (DoD 19:00); `POST /sources/:id/run` po stronie api.
+## 2026-11-21 — fix blokerów demo (lead override: infra + ai-core)
+- Zlecono: przegląd otwartych issues → plan → poprawki #16 (wolumen seed w `ai`), #17 (`.gitattributes`, LF dla .sh/.sql), #18 (`LOG_LEVEL.upper()`), #19 (`SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M`, `pull-models.sh` kończy się błędem przy `"error"`), #8 (dev wartości w `.env.example`: Postgres, `INTERNAL_TOKEN`, klucze S3). Plan zaakceptowany przed zmianami.
+- Skille: brak nowych paczek. Nazwa modelu sprawdzona w rejestrze Ollamy (200).
+- Weryfikacja: `cp .env.example .env && docker compose --profile apps up` (bez `web`): wszystkie serwisy healthy, init-y exit 0, Bielik 6.7 GB + bge-m3 pobrane, `/health` ai i api 200. Człowiek zaakceptował plan i nadpisanie `.env`; agent sam cofnął błędny `sed` w compose.
+- Do zrobienia (poza zakresem): profil `apps` w compose (samo `up` nie startuje aplikacji), README/SECURITY.md (#8).
+## 2026-11-21 — fix po review PR #11: postAnalyze bez zdublowanych analiz
+- Zlecono: review PR-ów #11–#13 pod kątem podatności/wydajności (merge #13 i #11, #12 wstrzymany do #16), potem poprawka `postAnalyze`: timeout 60 s → 300 s, ponowienie tylko po błędzie połączenia i 503; timeout, 502 i inne kody kończą bez retry (inaczej LLM liczył ten sam dokument 2–3 razy). Plan zaakceptowany przed zmianami.
+- Skille: brak nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 7 testów `node:test` (nowe: 502 bez retry, timeout bez retry).
+## 2026-11-21 — issue #22: ręczny crawl wyłączonych źródeł + /internal/crawl-status
+- Zlecono: przegląd otwartych issues dla collectora → plan → poprawka #22. `onSource` pomija wyłączone źródło tylko przy `trigger === 'schedule'`; nowy `postCrawlStatus` (X-Internal-Token, timeout 5 s, nigdy nie rzuca) wysyła `running` po insercie `crawl_run` i `ok|partial|failed` po update. Plan zaakceptowany przed zmianami.
+- Skille: brak nowych paczek (globalny `fetch`).
+- Weryfikacja: `tsc`, `eslint`, 9 testów `node:test` (nowe: nagłówek + body, zamknięty port bez wyjątku). Bez testu na żywo z api.
