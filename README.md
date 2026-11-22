@@ -105,7 +105,7 @@ docker compose exec -T postgres sh -c 'psql -U "${POSTGRES_USER:-investwatch}" -
 | `collector` | Node 22 + TypeScript + Playwright + BullMQ | — | Harmonogram i wykonywanie crawli, zapis HTML/screenshotów do S3 |
 | `postgres` | `pgvector/pgvector:0.8.7-pg16` | `127.0.0.1:5432` | Dane relacyjne i wektory `vector(1024)` (init z `infra/db/`) |
 | `valkey` | `valkey/valkey:8.1.12-alpine` | `127.0.0.1:6379` | Broker kolejek BullMQ (`crawl-source`) |
-| `seaweedfs` | `chrislusf/seaweedfs:3.96` | `127.0.0.1:8333` | Object storage kompatybilny z S3, z kluczami (bucket inicjowany przez `s3-init`) |
+| `seaweedfs` | `chrislusf/seaweedfs:4.52` | `127.0.0.1:8333` | Object storage kompatybilny z S3, z kluczami (bucket inicjowany przez `s3-init`) |
 | `ollama` | `ollama/ollama:0.40.17` | `127.0.0.1:11434` | Lokalna inferencja LLM i embeddingów (modele pobiera `ollama-init`) |
 
 ## Konfiguracja i dokumentacja

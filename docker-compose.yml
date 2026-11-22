@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
   seaweedfs:
-    image: chrislusf/seaweedfs:3.96
+    image: chrislusf/seaweedfs:4.52
     env_file:
       - .env
     entrypoint: ["sh", "/seaweedfs-entrypoint.sh"]
