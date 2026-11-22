@@ -151,7 +151,7 @@ Najważniejsze zmienne: `OLLAMA_LLM_MODEL`, `OLLAMA_EMBED_MODEL`, `OLLAMA_NUM_PA
 
 **CI.** Workflow GitHub Actions (`infra/ci/ci.yml`, docelowo `.github/workflows/ci.yml`) na PR do `main` buduje i testuje `api`, `collector`, `web`, uruchamia `ruff` i `pytest` w `ai`, audyty `npm audit` i `pip-audit` oraz `docker compose config -q`.
 
-- Kontrakt schematu DB i API: [docs/contracts.md](docs/contracts.md)
+- Kontrakt schematu DB i API: [docs/contracts.md](docs/contracts.md) (diagram ER: [presentation/database.mmd](presentation/database.mmd))
 - Bezpieczeństwo i skany obrazów/paczek: [docs/SECURITY.md](docs/SECURITY.md)
 - Wykaz bibliotek, narzędzi i licencji: [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)
 - Standaryzowany proces pracy z AI: [docs/AI_PROCESS.md](docs/AI_PROCESS.md)

@@ -40,6 +40,109 @@ flowchart LR
 ---
 
 <!-- Slajd 3 -->
+## Schemat bazy danych (PostgreSQL 16 + pgvector + pg_trgm)
+
+> Źródło diagramu: `presentation/database.mmd` (osadzony jako wektorowy SVG w `InvestWatch.pdf`; źródło prawdy: `docs/contracts.md`, `infra/db/001–004`)
+
+```mermaid
+erDiagram
+  sources |o--o{ crawl_runs : "source_id"
+  sources |o--o{ documents : "source_id"
+  crawl_runs |o--o{ documents : "crawl_run_id"
+  documents |o--o{ documents : "duplicate_of"
+  documents ||--o{ findings : "document_id, max 1 na moduł"
+  entities |o--o{ findings : "firm_entity_id"
+  entities |o--o{ findings : "advertiser_entity_id"
+  findings ||--o{ finding_status_history : "finding_id"
+  module_settings ||..o{ findings : "module, bez FK"
+
+  sources {
+    serial id PK
+    text kind "web, social, sample"
+    text name
+    text start_url
+    text cron "np. co 6 h"
+    boolean enabled
+  }
+  crawl_runs {
+    serial id PK
+    int source_id FK
+    text status "running, ok, partial, failed"
+    int items_found
+    timestamptz started_at
+    timestamptz finished_at
+  }
+  documents {
+    bigserial id PK
+    text url
+    text url_hash UK
+    int source_id FK
+    int crawl_run_id FK
+    text source_kind
+    text title "GIN trgm"
+    text text_clean "GIN trgm"
+    text html_key "S3"
+    text screenshot_key "S3"
+    text content_hash "dedup"
+    bigint simhash "dedup"
+    bigint duplicate_of FK
+    vector embedding "bge-m3, 1024"
+    text status "fetched, processed, duplicate, failed"
+    timestamptz first_seen_at "trigger"
+    timestamptz last_seen_at "trigger"
+  }
+  findings {
+    bigserial id PK
+    bigint document_id FK "UNIQUE z module"
+    smallint module "1, 2, 3"
+    real score "0-1"
+    text risk_level "low, medium, high"
+    text label
+    jsonb reasons "kryterium, werdykt, cytat, waga"
+    int firm_entity_id FK
+    int advertiser_entity_id FK
+    text model
+    text prompt_version
+    text status "new, in_review, confirmed, dismissed"
+    timestamptz created_at
+  }
+  entities {
+    serial id PK
+    text name
+    text_array aliases
+    text type "firma, finfluencer, ..."
+    boolean is_authorized "rejestr KNF"
+    text register_ref
+    text nip
+    text_array official_domains
+    text_array social_handles
+  }
+  finding_status_history {
+    bigserial id PK
+    bigint finding_id FK
+    text old_status
+    text new_status
+    text changed_by
+    timestamptz changed_at
+  }
+  module_settings {
+    smallint module PK "1, 2, 3"
+    real threshold "domyślnie 0.6"
+    jsonb weights "llm, rules, emb"
+  }
+```
+
+**Kluczowe decyzje:**
+- Max 1 finding na dokument i moduł: `UNIQUE (document_id, module)` — `ai` wykonuje upsert.
+- Każda flaga ma dowód: `reasons[]` = kryterium, werdykt, cytat, waga.
+- Filtry dashboardu: indeks `(module, risk_level, status, created_at)`, wyszukiwarka `q`: `pg_trgm` (GIN) na `title` i `text_clean`.
+- Deduplikacja i podobieństwo: `url_hash` UNIQUE, `content_hash`, `simhash`; `pgvector` z embeddingiem `bge-m3` (`vector(1024)`).
+- Okresowa aktualizacja M1: trigger `documents_track_seen` ustawia `first_seen_at` / `last_seen_at`.
+- `module_settings` (próg i wagi) łączy się z `findings.module` logicznie, bez FK.
+
+---
+
+<!-- Slajd 4 -->
 ## Moduł 1/3: `collector` i `api` — zbieranie danych i agregacja wyników
 
 - **`collector` (Node 22 + Playwright + BullMQ):**
@@ -53,7 +156,7 @@ flowchart LR
 
 ---
 
-<!-- Slajd 4 -->
+<!-- Slajd 5 -->
 ## Moduł 2/3: `ai` — tokenizacja, embeddingi oraz M1/M2/M3
 
 - **Preprocessing:** ekstrakcja tekstu (`trafilatura`) → deduplikacja dokładna (SHA-256) i przybliżona (`simhash` na 3-gramach słów, próg Hamminga `6`) → **tokenizacja i embeddingi** (tokenizacja leksykalno-fleksyjna z granicami słów dla aliasów KNF + wektory `bge-m3` `vector(1024)` w `pgvector`).
@@ -67,7 +170,7 @@ flowchart LR
 
 ---
 
-<!-- Slajd 5 -->
+<!-- Slajd 6 -->
 ## Moduł 3/3: `web` — dashboard analityka UKNF
 
 - **Widoki robocze (React 19 + Vite + Tailwind + Recharts, styl instytucjonalny `knf.gov.pl`):**
@@ -79,7 +182,7 @@ flowchart LR
 
 ---
 
-<!-- Slajd 6 -->
+<!-- Slajd 7 -->
 ## Kalibracja, wiarygodność i odporność na prompt injection
 
 - **Hybrydowy scoring:**
@@ -94,7 +197,7 @@ flowchart LR
 
 ---
 
-<!-- Slajd 7 -->
+<!-- Slajd 8 -->
 ## Bezpieczeństwo i czystość licencyjna
 
 - **Izolacja sieci, portów i kontenerów (#72):** wszystkie usługi w sieci bridge Docker Compose; porty pomocnicze (`postgres`, `valkey`, `seaweedfs`, `ollama`, `ai`) zbindowane wyłącznie do **`127.0.0.1`**, na zewnątrz tylko `web` (`5173`) i `api` (`3000`); `web` bez `env_file` (sekrety niedostępne w kontenerze); kontenery `api` (`USER node`), `collector` (`USER pwuser`) i `ai` (`USER app`, `uid=10001`) non-root; przypięte wersje obrazów.
@@ -104,7 +207,7 @@ flowchart LR
 
 ---
 
-<!-- Slajd 8 -->
+<!-- Slajd 9 -->
 ## Standaryzowany proces pracy z AI (20% oceny — `docs/AI_PROCESS.md`)
 
 - **Kontrakt w `CLAUDE.md` + 5 skilli (`.claude/skills/`):** obowiązek *plan-first* (najpierw plan i akceptacja człowieka, potem kod), zakaz `console.log`/`print`, skille `scraper-adapter`, `risk-classifier`, `data-contract`, `dependency-guard`, `demo-check`.
@@ -116,7 +219,7 @@ flowchart LR
 
 ---
 
-<!-- Slajd 9 -->
+<!-- Slajd 10 -->
 ## Demo na żywo — kluczowy przepływ
 
 1. **Start stosu:** `docker compose up --build` → czyste środowisko z gotowym buckietem S3, bazą `pgvector` i modelami w Ollamie.
@@ -129,7 +232,7 @@ flowchart LR
 
 ---
 
-<!-- Slajd 10 -->
+<!-- Slajd 11 -->
 ## Dalszy rozwój i skalowanie
 
 - **Analiza 5 reguł układu graficznego M2 (reguły UKNF 4, 5, 7, 8, 13):** weryfikacja rozmiaru czcionki, kontrastu, dostępu jednym kliknięciem, responsywności oraz dominacji wyników historycznych na wyrenderowanym DOM i screenshotach S3 (VLM / Playwright CSS metrics).
