@@ -33,7 +33,7 @@ function makeFinding(quote: string, label = "Test"): Finding {
 
 // Fixtures here contain no embedded separators, so a plain split is enough.
 function dataRow(csv: string): string[] {
-  return csv.replace(/^﻿/, "").split("\r\n")[1].split(";");
+  return csv.replace(/^\uFEFF/, "").split("\r\n")[1].split(";");
 }
 
 describe("findingsToCsv", () => {
@@ -54,7 +54,7 @@ describe("findingsToCsv", () => {
 
   it("starts with a BOM and ends with CRLF", () => {
     const csv = findingsToCsv([makeFinding("x")]);
-    expect(csv.startsWith("﻿")).toBe(true);
+    expect(csv.startsWith("\uFEFF")).toBe(true);
     expect(csv.endsWith("\r\n")).toBe(true);
   });
 
