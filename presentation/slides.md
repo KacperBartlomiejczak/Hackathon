@@ -148,11 +148,11 @@ erDiagram
 - **`collector` (Node 22 + Playwright + BullMQ):**
   - **Zakres źródeł (MVP):** aktywne adaptery `sample` (dane offline + syntetyki gold set), `web` (Chromium, discovery z głębokości 1, rotacja 23 User-Agentów i `PROXY_LIST`, limit 2/host, jitter), `youtube` (publiczny RSS kanałów) oraz `tiktok` (pojedyncze filmy przez oEmbed + fallback JSON, #51) + harmonogram `sources.cron`. Adaptery FB/IG pozostają poza obecnym MVP (gotowy interfejs adaptera; filtr w UI dynamicznie ukrywa nieaktywne typy z `GET /sources`).
   - **Ochrona przed SSRF (`collector/src/adapters/ssrf.ts`, #74):** `isBlockedUrl` (DNS + `net.BlockList`) i `context.route('**/*')` blokują żądania i przekierowania na loopback, sieci prywatne, link-local i usługi Compose.
-  - **Odporność i zapis dowodów:** HTML + screenshot PNG w SeaweedFS S3, `upsert` po `url_hash`, triggery `first_seen_at` / `last_seen_at` oraz status `partial` przy błędzie analizy (#90).
+  - **Odporność i zapis dowodów:** HTML + screenshot PNG w SeaweedFS S3, `upsert` po `url_hash`, triggery `first_seen_at` / `last_seen_at`, status `partial` przy błędzie analizy oraz jednorazowy retry po HTTP 502 (`AI_RETRY_DELAY_MS`, #90).
 - **`api` (Fastify + Drizzle + Socket.io):**
   - **Agregator M1/M2/M3 (`GET /documents`, `GET /documents/:id`):** składa wyniki modułów w jeden rekord dokumentu (`modules` `"1"/"2"/"3"` + podsumowanie `overall`: `maxScore`, `riskLevel`, `flaggedModules`).
   - **Śledzenie widoczności reklam M1:** `first_seen_at`, `last_seen_at` oraz wyliczane `isActive` (karencja 1 h po późniejszym pełnym przebiegu `ok`).
-  - REST API + Socket.io (`alert:new`, `finding:updated`, `crawl:status`), indeksy GIN `pg_trgm`, dynamiczne przeliczanie poziomu ryzyka wg progu (`risk.ts`, #84), presigned URL (15 min), eksport CSV/JSON i opcjonalny `ADMIN_TOKEN`.
+  - REST API + Socket.io (`alert:new`, `finding:updated`, `crawl:status`), indeksy GIN `pg_trgm`, zapis progu (`PUT /settings/modules/:module`) wywołujący `POST /recompute-risk?module=` w `ai` (#84), presigned URL (15 min), eksport CSV/JSON i opcjonalny `ADMIN_TOKEN`.
 
 ---
 
@@ -161,9 +161,9 @@ erDiagram
 
 - **Preprocessing:** ekstrakcja tekstu (`trafilatura`) → deduplikacja dokładna (SHA-256) i przybliżona (`simhash` na 3-gramach słów, próg Hamminga `6`) → **tokenizacja i embeddingi** (tokenizacja leksykalno-fleksyjna z granicami słów dla aliasów KNF + wektory `bge-m3` `vector(1024)` w `pgvector`).
 - **3 moduły analityczne (na `main`):**
-  1. **M1 (Finfluencerzy):** wzmianka o firmie z rejestru KNF (86 podmiotów w `entities.csv`) spoza jej `official_domains` / `social_handles`.
-  2. **M2 (Informacja o ryzyku):** ewolucja `m2-v1` (4 kryteria) → `m2-v3` (8 kryteriów wg MiFID II art. 44 / rozporządzenia 2017/565) → **`m2-v4` (PR #76 na `main`: 16 kryteriów tekstowych** zmapowanych na reguły tekstowe 1, 2, 3, 6, 9–12b, 14–18 załącznika UKNF; 5 reguł układu graficznego 4, 5, 7, 8, 13 wymaga HTML/screenshotu i jest poza zakresem tekstowym).
-  3. **M3 (Shadow advisory):** nielicencjonowane doradztwo i zarządzanie portfelem wg **art. 76** ustawy o obrocie instrumentami finansowymi (`m3-v3`, `rules/m3.yaml` + embeddingi `bge-m3` + ocena LLM).
+  1. **M1 (Finfluencerzy):** wzmianka o firmie z rejestru KNF (86 podmiotów w `entities.csv`) spoza jej `official_domains` / `social_handles`; prompt `m1-v3` (wagi `0.7/0.2/0.1` na promocję, linki partnerskie i oznaczenia sponsorowane) + automatyczna encja reklamującego `advertiser_entity_id` (`resolve_advertiser`, #83).
+  2. **M2 (Informacja o ryzyku):** ewolucja `m2-v1` (4 kryteria) → `m2-v3` (8 kryteriów wg MiFID II art. 44 / rozporządzenia 2017/565) → **`m2-v5` (16 kryteriów tekstowych** zmapowanych na reguły 1, 2, 3, 6, 9–12b, 14–18 załącznika UKNF + wymuszenie odpowiedzi dla wszystkich kryteriów przez `minItems`/`maxItems`; 5 reguł układu graficznego 4, 5, 7, 8, 13 wymaga HTML/screenshotu i jest poza zakresem tekstowym).
+  3. **M3 (Shadow advisory):** nielicencjonowane doradztwo i zarządzanie portfelem wg **art. 76** ustawy o obrocie instrumentami finansowymi (**`m3-v5` + `m3-rules-v4`**, #95) z filtrowaniem klauzul disclaimerów (`strip_disclaimers()` po `ale/jednak/natomiast/lecz`, `;`, `–` — zastrzeżenie nie jest dowodem, ale porada obok niego zostaje wykryta).
 - **Dlaczego `Bielik-11B-v2.3-Instruct` i `bge-m3` zamiast `Gemma` / `BERT`?**
   - **Bielik 11B (Apache-2.0):** natywny polski tokenizer i korpus → precyzyjna polska fleksja, terminologia UKNF i strukturalny JSON. Pomiar na GPU RTX 3060 12 GB: **3,4–5,8 s** (M1/M3), **9–10,5 s** (M2), **< 0,15 s** bez modułu.
   - **`bge-m3` (MIT):** okno 8192 tokenów (16× więcej niż klasyczny BERT) i wielojęzyczne wektory 1024-dim w tej samej Ollamie.
@@ -177,7 +177,7 @@ erDiagram
   - **Findingi:** tabela incydentów z filtrami (moduł, ryzyko, status, dynamiczne źródło z `GET /sources`, zakres dat w czasie lokalnym `Europe/Warsaw` #88, wyszukiwarka pełnotekstowa `q` z debounce 300 ms) oraz paginacją.
   - **Szczegóły findingu:** pełna treść po czyszczeniu, lista `reasons[]` z etykietami per moduł (M1/M3: „wykryto” / „nie wykryto”; M2: checklista), **dosłownym cytatem**, podglądem PNG z S3 i historią statusów.
   - **Trendy i raportowanie:** kafelki podsumowania (`/stats/summary`), wykres incydentów w czasie grupowany po dniu lokalnym (`bucket=hour`), eksport CSV/JSON dla polskiego Excela (`;`, przecinek dziesiętny, BOM UTF-8, neutralizacja formula injection `= + - @`).
-  - **Kalibracja, alerty i źródła:** toasty `alert:new` przez Socket.io, licznik **„Oznaczone flagą”** (`tp + fp`), zapis progu i wag (opcjonalny `VITE_ADMIN_TOKEN`, #71) oraz przycisk **„Uruchom crawl”**.
+  - **Kalibracja, alerty i źródła:** toasty `alert:new` przez Socket.io, licznik **„Oznaczone flagą”** (`tp + fp`), zapis progu i wag (opcjonalny `VITE_ADMIN_TOKEN`, #71) z automatycznym odświeżeniem list i kafelków (#84) oraz przycisk **„Uruchom crawl”**.
 - **Lekki i bezpieczny obraz produkcyjny (`vitest`: 100 testów):** code-splitting (`React.lazy`, główny chunk 346 kB) serwowany przez **`nginx:1.30.7-alpine` + `apk upgrade libxml2`** (**Trivy: 0 CRITICAL / 0 HIGH**), bez `env_file`.
 
 ---
@@ -188,12 +188,12 @@ erDiagram
 - **Hybrydowy scoring:**
   `score = w_llm * llm + w_rules * rules + w_emb * emb` (domyślnie `0.60 / 0.25 / 0.15`, edytowalne w `module_settings`).
 - **Zasada „bez cytatu nie ma flagi” i walidacja wielozdaniowa:**
-  - `CriterionResult.quote` jest wymagane w schemacie JSON (Pydantic `format`, `temperature: 0`).
+  - `CriterionResult.quote` i komplet kryteriów (`minItems`/`maxItems`) wymagane w schemacie JSON (Pydantic `format`, `temperature: 0`).
   - `quotes.py` weryfikuje dopasowanie cytatu do dokumentu (`rapidfuzz.partial_ratio >= 90`; dla cytatu wielozdaniowego każde zdanie osobno). Przy awarii LLM dokument otrzymuje `failed` — zero zmyślonych wyników.
 - **Odporność na prompt injection (`ai/tests/test_prompt_injection.py`):**
   - Treść strony izolowana w `<document>...</document>` (`neutralize_delimiters` w `llm.py`): **12 testów offline + 3/3 testy live na Bieliku 11B** (wyniki z atakiem identyczne z bazowymi: M1 `0.941`, M2 `1.000`, M3 `0.956`, zero cytatów z payloadu ataku).
 - **Progi i panel kalibracji (`GET /eval` + `gold.csv` + `rubric.md`):**
-  - `high >= 0.8` (alert Socket.io), `medium >= próg`, `low < próg`; suwak progu na żywo przelicza `precision`, `recall`, `TP`, `FP`, `FN`, `TN` na **120-wierszowym `gold.csv` (40/40/40 po kluczu URL)** oznaczonym wg `ai/eval/rubric.md`.
+  - `high >= max(0.8, próg)` (alert Socket.io), `medium >= próg`, `low < próg` — spójna reguła `#84` w `ai` (`/recompute-risk` po zapisie progu); suwak na żywo wylicza `precision`, `recall`, `TP`, `FP`, `FN`, `TN`, `total` i `missingFindings` (#112) na **120-wierszowym `gold.csv` (40/40/40 po kluczu URL)** z narzędziami `load_gold.py`, `analyze_gold.py`, `calibration_table.py` i `METHODOLOGY.md`.
 
 ---
 
@@ -237,5 +237,5 @@ erDiagram
 
 - **Analiza 5 reguł układu graficznego M2 (reguły UKNF 4, 5, 7, 8, 13):** weryfikacja rozmiaru czcionki, kontrastu, dostępu jednym kliknięciem, responsywności oraz dominacji wyników historycznych na wyrenderowanym DOM i screenshotach S3 (VLM / Playwright CSS metrics).
 - **Pełne adaptery Facebook / Instagram i rozbudowa rejestru KNF (`entities.csv`):** wdrożenie kolektorów FB/IG oraz listingu profili TikTok (interfejs `Adapter` gotowy w `collector/`) oraz uzupełnienie `official_domains` i `social_handles` dla wszystkich podmiotów KNF.
-- **Analiza wideo (OCR / ASR) i pełne uwierzytelnienie AI:** transkrypcja rolek (YouTube Shorts, TikTok, Reels) oraz włączenie `AI_REQUIRE_TOKEN=true` po zmergowaniu nagłówka `X-Internal-Token` w `collector/src/ai/client.ts` (#70, PR #105).
+- **Analiza wideo (OCR / ASR) i pełny hardening HTTP/TLS:** lokalna transkrypcja rolek (YouTube Shorts, TikTok, Reels), odczyt drobnego druku z kreacji oraz wystawienie wyłącznie portów `web` i `api` za reverse proxy z TLS (`AI_REQUIRE_TOKEN=true` działa już domyślnie w `.env.example`, #70/#105).
 - **Ciągłe strojenie jakości i skalowanie GPU:** rozbudowa zbioru `gold.csv` wg `ai/eval/rubric.md`, okresowa re-ewaluacja przez `POST /reanalyze` oraz skalowanie `OLLAMA_NUM_PARALLEL > 1` na wielu GPU.
