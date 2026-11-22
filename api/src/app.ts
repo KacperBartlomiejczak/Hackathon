@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { ZodError } from "zod";
+import { adminAuthHook } from "./auth.js";
 import type { Config } from "./config.js";
 import { createDb } from "./db/client.js";
 import { buildLoggerOptions } from "./logger.js";
@@ -76,6 +77,9 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     exposedHeaders: ["Content-Disposition", "X-Export-Truncated"],
   });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  // After the rate limit, so guessing the admin token is rate limited too.
+  app.addHook("onRequest", adminAuthHook(config.ADMIN_TOKEN));
+  if (!config.ADMIN_TOKEN) app.log.warn("ADMIN_TOKEN not set: write endpoints accept requests without a token");
 
   app.get("/health", { config: { rateLimit: false } }, async () => ({ status: "ok" }));
   const io = createSocketServer(app, config);
@@ -87,6 +91,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   await app.register(settingsRoutes, {
     db,
     aiUrl: config.AI_URL,
+    internalToken: config.INTERNAL_TOKEN,
     evalTimeoutMs: config.EVAL_TIMEOUT_MS,
   });
   await app.register(sourcesRoutes, { db, crawlQueue });
