@@ -129,6 +129,7 @@ export async function fetchFindings(filters: FindingsFilters): Promise<Page<Find
   const page = filters.page ?? 1;
   if (isMocked("findings")) {
     const all = mockFindings.filter((f) => matches(f, filters));
+    if (page < 1) return { items: [], total: all.length, page, pageSize: PAGE_SIZE };
     const start = (page - 1) * PAGE_SIZE;
     return { items: all.slice(start, start + PAGE_SIZE), total: all.length, page, pageSize: PAGE_SIZE };
   }

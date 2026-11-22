@@ -50,8 +50,7 @@ describe("apiErrorMessage", () => {
     expect(apiErrorMessage("401", FALLBACK)).toBe(FALLBACK);
   });
 
-  // KNOWN BUG: STATUS_MESSAGES is a plain object, so "constructor" resolves to Object.
-  it.fails("does not treat inherited keys as known codes", () => {
+  it("does not treat inherited keys as known codes", () => {
     expect(apiErrorMessage(new ApiError(500, "constructor"), FALLBACK)).toBe(FALLBACK);
   });
 });

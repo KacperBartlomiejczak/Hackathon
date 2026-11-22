@@ -20,8 +20,7 @@ describe("label helpers", () => {
     expect(verdictLabel("")).toBe("");
   });
 
-  // KNOWN BUG: label maps are plain objects, so "constructor" resolves to a function.
-  it.fails("return a string even for inherited object keys", () => {
+  it("return a string even for inherited object keys", () => {
     expect(typeof sourceLabel("constructor")).toBe("string");
     expect(sourceLabel("toString")).toBe("toString");
     expect(criterionLabel("__proto__")).toBe("__proto__");

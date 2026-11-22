@@ -64,8 +64,7 @@ describe("findingsToCsv", () => {
     expect(row[8]).toBe("");
   });
 
-  // KNOWN BUG: the formula guard also prefixes legitimate "@handle" names with an apostrophe.
-  it.fails("renders firm and advertiser names when present", () => {
+  it("renders firm and advertiser names when present", () => {
     const f = makeFinding("x");
     f.firm = { id: 1, name: "Alfa Invest S.A.", type: "investment_firm", isAuthorized: true };
     f.advertiser = { id: 2, name: "@jacek", type: "finfluencer", isAuthorized: false };
@@ -84,12 +83,16 @@ describe("findingsToCsv", () => {
     expect(dataRow(findingsToCsv([f]))[3]).toBe("-0,25");
   });
 
-  it.each(["+1+1", "-2+3", "@cmd", "\tcmd"])("neutralises a leading formula character in %j", (value) => {
+  it.each(["+1+1", "-2+3", "@cmd(1)", "\tcmd"])("neutralises a leading formula character in %j", (value) => {
     expect(findingsToCsv([makeFinding("x", value)])).toContain(`;'${value};`);
   });
 
   it("neutralises and quotes a value that starts with a carriage return", () => {
     expect(findingsToCsv([makeFinding("x", "\rcmd")])).toContain(`;"'\rcmd";`);
+  });
+
+  it("still neutralises an @ value that looks like a formula", () => {
+    expect(findingsToCsv([makeFinding("x", "@SUM(A1)")])).toContain(";'@SUM(A1);");
   });
 
   it("does not neutralise a formula character in the middle of a value", () => {

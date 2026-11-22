@@ -87,3 +87,6 @@
 - Asked Claude to: implement #88 in web only. No new skill.
 - Changes: `lib/dates.ts` (`toLocalDay`, local-day boundaries); `from`/`to` go to the api as local-day UTC timestamps (list and export); mock filter and trend group by local day; trend asks the api for `bucket=hour` and sums hours into local days. `lib/dates.test.ts` pins `Europe/Warsaw`. Build, `npm test` (also under another TZ) and audit pass.
 - Human to verify: finding created 2026-11-20T23:30Z shows for from=to=21.11 and not for 20.11; trend counts it on 21.11.
+
+## Fixes for the 4 bugs found by the edge-case tests
+- Asked Claude to: fix them. Changes in `web/src/lib`: label and error-message lookups use `Object.hasOwn` (no more `constructor` resolving to a function); mock `fetchFindings` returns an empty page for page < 1; CSV formula guard skips plain `@handle` values (`@SUM(A1)` is still neutralised). `it.fails` markers removed; 99 tests pass.

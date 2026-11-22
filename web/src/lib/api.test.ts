@@ -85,8 +85,7 @@ describe("fetchFindings (mocks)", () => {
     expect((await api.fetchFindings({ page: 0 })).items).toEqual([]);
   });
 
-  // KNOWN BUG: Array.slice with a negative start returns items from the end of the list.
-  it.fails("returns an empty page for a negative page", async () => {
+  it("returns an empty page for a negative page", async () => {
     const api = await loadApi({ VITE_USE_MOCKS: "true" });
     expect((await api.fetchFindings({ page: -3 })).items).toEqual([]);
   });
