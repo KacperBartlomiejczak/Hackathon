@@ -36,6 +36,7 @@ export default function CalibrationPage() {
     mutationFn: (value: number) => saveModuleSettings(module, { threshold: value, weights: settings.data?.weights }),
     onSuccess: (data) => {
       queryClient.setQueryData(["module-settings", module], data);
+      for (const key of ["findings", "summary", "trend", "finding"]) void queryClient.invalidateQueries({ queryKey: [key] });
       setOverride(null);
     },
   });

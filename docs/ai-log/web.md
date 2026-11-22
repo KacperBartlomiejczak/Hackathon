@@ -100,3 +100,7 @@
 - PR #96 changed only `web/` (verdict wording), so it does not change `/eval` results and no `/reanalyze` is needed because of it. The "re-run `/reanalyze?module=1`" line in its description was wrong.
 - If `/reanalyze` is needed after M1 logic changes, it belongs to ai-core (endpoint) and ai-data (gold set, `/eval`), not web.
 - Process fix: every PR gets `Closes #...` or an issue created first.
+
+## #84: refresh findings after saving the threshold
+- Asked Claude to: make the web part of #84. Changes: after "Zapisz próg" the `findings`, `summary`, `trend` and `finding` queries are invalidated, so list and tiles refetch.
+- Not enough alone: `findings.risk_level` is stored by ai, and api does not call `ai /reanalyze` on `PUT /settings/modules/:module`. That part belongs to api (team/api).

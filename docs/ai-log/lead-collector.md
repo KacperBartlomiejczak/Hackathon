@@ -98,3 +98,7 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 - Zlecono: subagent Sonnet 5.5 (medium) zdiagnował #90 na logach i bazie; poprawka jednej linijki w `pipeline.ts`: przy błędzie `/analyze` status `crawl_runs` zmienia się z `ok` na `partial` (dozwolony przez kontrakt, bez jego zmiany).
 - Przyczyna: po stronie ai, a nie collectora. Bielik 11B na CPU przekracza budżet 240 s na moduł (`ReadTimeout`, `over budget`), a backlog ~93 dokumentów (#85) to pogłębia. Logi do wklejenia w #90 dla ai-core.
 - Weryfikacja: `tsc`, `eslint`, 27 testów; collector przebudowany i wstał. Nie sprawdzone: `partial` w widoku Źródła (api nie dostaje ponownego `crawl-status`), czysty start od zera.
+## 2026-11-22 — issue #70 (collector) i #75: token do ai, aktywny workflow CI
+- Zlecono: `X-Internal-Token` (z `INTERNAL_TOKEN`) w `fetch` `analyze()` w `collector/src/ai/client.ts` plus test z atrapą serwera; `git mv infra/ci/ci.yml .github/workflows/ci.yml` (prośba z PR #97, hook blokuje team/infra w `.github/`, commit z `ALLOW_FOREIGN=1`). Plan zaakceptowany przed zmianami.
+- Skille: brak nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 28 testów collectora. Nie sprawdzone: żywy stos z `AI_REQUIRE_TOKEN=true` (nie czytam ani nie zmieniam `.env`), pierwszy przebieg workflow na GitHubie, README nadal wskazuje `infra/ci/ci.yml`. Pierwszy komentarz w workflow też mówi jeszcze o `infra/ci` (do poprawy przez infra).
