@@ -15,16 +15,22 @@ thresholds:        # per-module flag threshold (medium risk and above)
   m3: 0.6
 
 llm:
-  # Measured on Bielik 11B Q4 (local Ollama): ~37 s per M2 call warm, 60 s+ cold. 60 s was too tight.
-  timeout_s: 120
+  # Measured on Bielik 11B Q4 (CPU Ollama): 57-111 s per call warm, more cold. 120 s was too tight.
+  timeout_s: 240
   retries: 1
   temperature: 0
   max_concurrency: 1  # = OLLAMA_NUM_PARALLEL
+  num_predict: 512    # caps generated tokens per call (structured answers are short; bounds CPU time)
 
 analysis:
-  # Wall-clock budget per document for all modules together; must stay below the collector timeout (AI_ANALYZE_TIMEOUT_MS, default 600 s).
+  # Wall-clock budget per document for all modules together; must stay below the collector timeout
+  # (AI_ANALYZE_TIMEOUT_MS, 600 s). One LLM call takes 57-111 s on CPU, so several queued calls need this much.
   # Modules run concurrently; one that misses the budget or fails is skipped (no invented score).
-  budget_s: 240
+  budget_s: 540
+  llm_gate:          # module calls the LLM only when its rules score >= gate; below -> no finding, no LLM call (plan B: CPU too slow)
+    m1: 0.3
+    m2: 0.0          # disabled: M2 flags MISSING risk info, phrases cannot see absence (gold: 12/15 positives < 0.3)
+    m3: 0.3
 
 embedding:         # raw bge-m3 cosine to anchor phrases is mapped linearly: <= floor -> 0, >= ceil -> 1
   floor: 0.45

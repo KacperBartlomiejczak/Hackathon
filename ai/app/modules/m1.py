@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from app import db
 from app.llm import OllamaClient
 from app.models import FindingCreate, Reason, high_threshold, risk_level
-from app.modules.common import MAX_DOC_CHARS, ModuleRun, QuoteStr, emb_score, llm_reasons, llm_score
+from app.modules.common import MAX_DOC_CHARS, ModuleRun, QuoteStr, emb_score, llm_gate, llm_reasons, llm_score
 from app.modules.quotes import validate_reasons
 from app.preprocess.entity_match import SOCIAL_HOSTS, M1Candidate
 from app.prompts import load_prompt
@@ -75,6 +75,12 @@ async def run_m1(
 ) -> ModuleRun:
     cand = best_candidate(candidates)
     ms: dict[str, int] = {}
+    gate = llm_gate(config, 1)
+    if cand.rules_score < gate:
+        logger.info("module=%d llm skipped gate rules=%.2f gate=%.2f document_id=%s",
+                    1, cand.rules_score, gate, document_id)
+        return ModuleRun(module=1, finding=None, rules=cand.rules_score, threshold=threshold,
+                         weights=weights, ms={})
     t = time.monotonic()
     prompt = load_prompt(PROMPT_PATH)
     out = await llm.generate(prompt.text, text[:MAX_DOC_CHARS], M1Output)

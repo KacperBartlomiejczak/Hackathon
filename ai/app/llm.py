@@ -6,10 +6,15 @@ Never returns a default or invented result: any failure raises LLMError.
 from __future__ import annotations
 
 import asyncio
+import contextvars
+import heapq
+import itertools
 import logging
 import os
 import re
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import TypeVar
 
 import httpx
@@ -24,6 +29,50 @@ KEEP_ALIVE = "30m"  # keep the model resident between documents; a cold load alo
 WARMUP_TIMEOUT_S = 300.0
 
 T = TypeVar("T", bound=BaseModel)
+
+# 0 = interactive (/analyze), higher = background (batch reanalyze). Lower number is served first.
+llm_priority: contextvars.ContextVar[int] = contextvars.ContextVar("llm_priority", default=0)
+
+
+@contextmanager
+def background_priority() -> Iterator[None]:
+    """Run LLM calls made inside the block at background priority (served after interactive ones)."""
+    prev = llm_priority.set(1)
+    try:
+        yield
+    finally:
+        llm_priority.reset(prev)
+
+
+class _PrioritySlots:
+    """Counting slots handed out to the best (lowest priority number, then oldest) waiter first."""
+
+    def __init__(self, capacity: int) -> None:
+        self._free = max(1, capacity)
+        self._waiters: list[tuple[int, int, asyncio.Future[None]]] = []
+        self._seq = itertools.count()
+
+    async def acquire(self, priority: int = 0) -> None:
+        if self._free > 0 and not self._waiters:
+            self._free -= 1
+            return
+        fut: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        heapq.heappush(self._waiters, (priority, next(self._seq), fut))
+        try:
+            await fut
+        except asyncio.CancelledError:
+            if fut.done() and not fut.cancelled():
+                self.release()  # the slot was already handed to us; give it to the next waiter
+            raise
+
+    def release(self) -> None:
+        while self._waiters:
+            _, _, fut = heapq.heappop(self._waiters)
+            if not fut.done():
+                fut.set_result(None)  # slot passes directly to the waiter
+                return
+        self._free += 1
+
 
 _DOC_TAG = re.compile(r"</?\s*document\s*>", re.IGNORECASE)
 
@@ -55,6 +104,7 @@ class OllamaClient:
         timeout_s: float = TIMEOUT_S,
         retries: int = RETRIES,
         max_concurrency: int = 1,
+        num_predict: int | None = None,
     ) -> None:
         self.base_url = (base_url or os.getenv("OLLAMA_URL") or "").rstrip("/")
         self.model = model or os.getenv("OLLAMA_LLM_MODEL") or ""
@@ -67,7 +117,8 @@ class OllamaClient:
         self._client = httpx.AsyncClient(timeout=timeout_s, transport=transport)
         # Ollama (OLLAMA_NUM_PARALLEL) serves N chats at once; more would only queue inside Ollama and
         # burn the httpx timeout while waiting. Queue here instead: the timeout starts after the slot.
-        self._slots = asyncio.Semaphore(max(1, max_concurrency))
+        self._num_predict = num_predict
+        self._slots = _PrioritySlots(max_concurrency)
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -77,7 +128,7 @@ class OllamaClient:
 
         Returns whether the model answered.
 
-        Bypasses the semaphore on purpose: it runs once at startup, before any document arrives.
+        Bypasses the slots on purpose: it runs once at startup, before any document arrives.
         """
         started = time.monotonic()
         payload = {
@@ -109,6 +160,8 @@ class OllamaClient:
                 {"role": "user", "content": f"<document>\n{neutralize_delimiters(document)}\n</document>"},
             ],
         }
+        if self._num_predict:
+            payload["options"] = {**payload["options"], "num_predict": self._num_predict}  # type: ignore[dict-item]
         started = time.monotonic()
         content = await self._post_with_retry(payload)
         try:
@@ -123,14 +176,18 @@ class OllamaClient:
     async def _post_once(self, payload: dict[str, object]) -> httpx.Response:
         """One chat call holding an Ollama slot; the httpx timeout starts only after the slot is taken."""
         queued = time.monotonic()
-        async with self._slots:
+        priority = llm_priority.get()
+        await self._slots.acquire(priority)
+        try:
             wait_ms = int((time.monotonic() - queued) * 1000)
             if wait_ms > 100:
-                logger.info("llm queue wait model=%s ms=%d", self.model, wait_ms)
+                logger.info("llm queue wait model=%s priority=%d ms=%d", self.model, priority, wait_ms)
             return await self._client.post(f"{self.base_url}/api/chat", json=payload)
+        finally:
+            self._slots.release()
 
     async def _post_with_retry(self, payload: dict[str, object]) -> str:
-        """Retries connect errors and 5xx; the backoff sleep happens outside the slot."""
+        """Retries timeouts, connect errors and 5xx (`retries` times); backoff sleeps outside the slot."""
         last: Exception | None = None
         for attempt in range(self._retries + 1):
             try:
@@ -144,8 +201,12 @@ class OllamaClient:
                     raise LLMInvalidResponse("message.content is not a string")
                 return content
             except httpx.TimeoutException as exc:
-                # The model was still computing; a retry would only double the load on a CPU box.
-                logger.error("llm timeout (no retry): %r", exc)
+                last = exc
+                if attempt < self._retries:
+                    logger.warning("llm timeout attempt %d, retrying", attempt + 1)
+                    await asyncio.sleep(self._backoff_s)
+                    continue
+                logger.error("llm timeout after %d attempts: %r", attempt + 1, exc)
                 raise LLMUnavailable(f"ollama timeout: {exc!r}") from exc
             except (httpx.TransportError, httpx.HTTPStatusError) as exc:
                 last = exc
