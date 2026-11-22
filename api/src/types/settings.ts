@@ -27,3 +27,6 @@ export type ModuleSettings = {
   threshold: number;
   weights: { llm: number; rules: number; emb: number };
 };
+
+/** PUT response: the saved settings + whether ai recomputed findings.risk_level for the module. */
+export type SettingsSaved = ModuleSettings & { recomputed: boolean };

@@ -168,3 +168,9 @@
 - Asked Claude to: put the README API section prepared in Issue #81 into `README.md` (after "Serwisy i porty"). README belongs to team/infra; the lead allowed team/api to help with infra files in `CLAUDE.md` (2ee7f4c), so the change goes in a PR marked "wymaga akceptu infra".
 - Claude pasted the text unchanged and checked every listed route against `api/src` (all 15 exist, including `/export`). The `ADMIN_TOKEN` sentence stays, because `.env.example` now has `ADMIN_TOKEN`.
 - Verified: only `README.md` and this log changed; no code or DB change.
+
+## 2026-11-22: Threshold change recomputes flags (Issue #84)
+- Asked Claude to: make "Zapisz próg" change the flags in the findings list. First attempt: api derived `riskLevel` in SQL from score and the current threshold (commit 9ca702e). Verified on a scratch Postgres, but ai-core's `/recompute-risk` (PR #102, persists `risk_level`) and web's refetch (PR #103) were already the agreed design, and the api rule (`score >= 0.8`) differed from ai's `max(0.8, threshold)`. The human accepted a plan to revert it and follow the ai design.
+- Now: `PUT /settings/modules/:module` calls `POST ${AI_URL}/recompute-risk?module=` with `X-Internal-Token` after the upsert, logs `updated`, and answers `recomputed: true|false`. A failing ai does not fail the save. `docs/contracts.md` (skill `data-contract`, by hand): the `riskLevel` rule, the ai endpoint table and the PUT response.
+- The first edits of the earlier attempt were made before the plan was approved (against CLAUDE.md).
+- Verified: `npm test` 57/57 (new `test/settings-recompute.test.ts`: token, module, ai 404, ai unreachable), typecheck, lint. Not run against a real ai: `/recompute-risk` exists only on `team/ai-core` until PR #102 merges.

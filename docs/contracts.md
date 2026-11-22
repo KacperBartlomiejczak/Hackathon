@@ -140,7 +140,7 @@ CREATE TABLE module_settings (
   "promptVersion": "m2-v3"
 }
 ```
-`riskLevel`: high ≥ 0.8, medium ≥ próg modułu, low < próg.
+`riskLevel`: `high` gdy `score >= max(0.8, próg modułu)`, `medium` gdy `score >= próg modułu`, inaczej `low`. Zmiana progu przez `PUT /settings/modules/:module` przelicza zapisane `risk_level` (ai `/recompute-risk`).
 
 ## API (api/, port 3000)
 | Metoda | Ścieżka | Opis |
@@ -316,7 +316,9 @@ api **nie** emituje `crawl:status` — robi to collector przez `/internal/crawl-
 ```json
 { "threshold": 0.7, "weights": { "llm": 0.5, "rules": 0.3, "emb": 0.2 } }
 ```
-`threshold` i każda waga 0–1, `weights` dokładnie `llm|rules|emb` (inne klucze → `400`), suma wag = 1 (±0.01), inaczej `400`. Odpowiedź `200` jak w GET. `weights.llm|rules|emb` odpowiadają `w_llm|w_rules|w_emb` z `ai/config.yaml`.
+`threshold` i każda waga 0–1, `weights` dokładnie `llm|rules|emb` (inne klucze → `400`), suma wag = 1 (±0.01), inaczej `400`. Odpowiedź `200` jak w GET plus `recomputed` (boolean). `weights.llm|rules|emb` odpowiadają `w_llm|w_rules|w_emb` z `ai/config.yaml`.
+
+Po zapisie api woła `POST ${AI_URL}/recompute-risk?module=<N>` (nagłówek `X-Internal-Token`, limit czasu `EVAL_TIMEOUT_MS`), a ai przelicza `findings.risk_level` modułu z nowego progu (bez LLM i bez alertów). `recomputed: true` = ai odpowiedziało `2xx`. Gdy ai nie działa, zwraca błąd albo przekracza limit czasu, zapis progu i tak się udaje (`200`, `recomputed: false`), a flagi zostają bez zmian do następnego zapisu. Liczbę zmienionych findingów (`updated`) api tylko loguje.
 
 `GET /eval?module=&threshold=` — `module` 1|2|3, `threshold` 0–1 (oba wymagane, pusty `threshold=` też → `400`). api przekazuje zapytanie do `${AI_URL}/eval` i zwraca status i body z ai 1:1 (np. `501`, dopóki ai nie ma implementacji). ai nieosiągalne / timeout (`EVAL_TIMEOUT_MS`, domyślnie 30 s) / zerwane połączenie w trakcie odpowiedzi → `502 {error:"ai_unavailable"}`. Odpowiedź `200` (= `EvalResult` z `ai/app/models.py`):
 ```json
@@ -378,6 +380,7 @@ Kolejka `crawl-source` (Valkey z `VALKEY_URL`), nazwa joba `crawl:<sourceId>`, p
 |---|---|---|
 | POST | `/analyze/{document_id}` | preprocessing → dedup → embedding → moduły → findings |
 | POST | `/reanalyze?module=` | ponowna analiza (po zmianie promptu) |
+| POST | `/recompute-risk?module=` | przelicza `findings.risk_level` modułu z progu w `module_settings` (bez LLM i alertów); odpowiedź `{module, threshold, updated}`; woła je api po `PUT /settings/modules/:module` |
 | GET | `/eval?module=&threshold=` | metryki na `gold.csv` |
 | POST | `/analyze-text` | **tylko demo, wewnętrzny**: analiza surowego tekstu, nic nie zapisuje, bez alertów |
 | GET | `/health` | status + czy Ollama odpowiada |
