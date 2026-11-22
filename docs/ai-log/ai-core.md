@@ -172,3 +172,11 @@
 - **#70:** `/eval` nie zwraca już tekstu wyjątku w `detail` (`eval failed`, szczegóły tylko w logu), test regresji z fałszywym wyjątkiem zawierającym DSN. Testy 401/503 dla tokenu już istniały (`test_app.py`). Zostaje po stronie innych: `X-Internal-Token` w collectorze i w proxy `/eval` w api, `AI_REQUIRE_TOKEN` i `AI_CONFIG` w `.env.example` (infra).
 - **#73:** skan Trivy: `python:3.12.12-slim-bookworm` 9C/133H → `3.12.16-slim-bookworm` 2C/99H (bez poprawek upstream) → `3.12.16-slim-trixie` **0C/51H**. Dockerfile przełączony na trixie, obraz zbudowany, import zależności i `uid=10001` sprawdzone, pytest 117 passed. Wynik w `ai/SECURITY.md`.
 - **Do sprawdzenia przez człowieka:** `docker compose up --build` z nowym obrazem `ai` (nie uruchamiano pełnego stosu z Ollamą na tej maszynie).
+
+## 2026-11-22 — issue #83: M1 reklama sponsorowana poniżej progu
+- **Zlecono:** ewidentna reklama finfluencera (bossa-ranking) miała score 0.31 i puste pole „Reklamujący”.
+- **Przyczyna:** `llm_score` M1 sumuje tylko kryteria z `verdict=fail` z wagami 0.5/0.3/0.2. Sama reklama (`promotes_firm`) bez obietnic zysku dawała max 0.5 w llm, więc przy rules 0.9 i emb ~0.55 wychodziło ok. 0.59 (<0.6). Sygnały matchera wchodzą do score przez `rules` (0.9), więc nie to było problemem.
+- **Zmiana:** wagi kryteriów M1 0.7/0.2/0.1 (`promotes_firm` jest rdzeniem M1), `m1-v2` (prompt: link partnerski i oznaczenie „sponsorowany” jako promowanie). Testy: reklama sponsorowana >= 0.6, neutralny news < 0.6.
+- **Wynik (żywy Bielik):** bossa-ranking 0.593 → 0.707 (llm 0.475 → 0.665); neutralny news 0.16 bez flagi; inwestuj-z-marta 0.83. pytest 122 passed.
+- **Do sprawdzenia przez człowieka:** brak finding-ów M1 dla gold w bazie (9/40 dokumentów, bez findingów) — pełny `/eval?module=1` po `/reanalyze` na zmienionych wagach.
+- **Poza zakresem:** „Reklamujący” puste, bo host/handle publikującego nie jest wierszem `entities` (api/web nie robią fallbacku na `authorHandle`); semantyka verdict w UI (patrz raport).

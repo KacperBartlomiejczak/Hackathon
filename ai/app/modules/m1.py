@@ -21,7 +21,8 @@ logger = logging.getLogger("ai.m1")
 PROMPT_PATH = "m1-third-party/system.md"
 LABEL = "third_party_promotion"
 
-CRITERION_WEIGHTS: dict[str, float] = {"promotes_firm": 0.5, "profit_promises": 0.3, "impersonation": 0.2}
+# promotes_firm is the core M1 signal: an evident ad must reach the flag threshold without profit promises.
+CRITERION_WEIGHTS: dict[str, float] = {"promotes_firm": 0.7, "profit_promises": 0.2, "impersonation": 0.1}
 
 
 class CriterionResult(BaseModel):
