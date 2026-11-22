@@ -46,3 +46,5 @@ Nie edytuj Dockerfile'i serwisów — jeśli coś w nich przeszkadza, wypisz, co
 Zadanie: <wklej>. Obrazy z przypiętymi wersjami, sekrety tylko przez env_file.
 Na koniec: commit, wpis do docs/ai-log/infra.md, co sprawdzić ręcznie.
 ```
+
+Pomocnik: pat-dem (team/api), zadania przydziela Osoba #6.

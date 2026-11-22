@@ -83,3 +83,14 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 ## 2026-11-21 — healthcheck `web` (z #49, #43)
 - Zlecono: naprawa healthchecka `web` w `docker-compose.yml` (używał `node`, którego nie ma w `nginx:alpine`) → `wget` na `127.0.0.1:5173` (nginx słucha tylko IPv4). Plik infra, zmiana jednej linijki za zgodą człowieka; do powiadomienia osoby #6.
 - Weryfikacja: `docker compose up -d --no-deps web` → `healthy` po 25 s (wcześniej `unhealthy`). Nie sprawdzone: czysty start od zera (`down -v` + `up --build`).
+## 2026-11-22 — issue #74: blokada SSRF w adapterze web
+- Zlecono: plan zaakceptowany przed zmianami. `src/adapters/ssrf.ts`: `isBlockedUrl` (tylko http/https, DNS + `net.BlockList`: loopback, sieci prywatne, link-local, CGNAT, IPv6 ULA, mapowane IPv4). `context.route('**/*')` w `fetchOne` odrzuca każde żądanie do adresu wewnętrznego, także po przekierowaniu, więc item kończy się błędem i nic nie trafia do S3. Ten sam test dla `startUrl` w discovery.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 21 testów (nowe: 127.0.0.1, 169.254.169.254, localhost, ::1, 10/8, ftp, file). Nie sprawdzone na żywo: źródło przekierowujące na `ollama:11434` w compose. Znany limit: okno DNS rebinding (komentarz shortcut).
+## 2026-11-22 — issue #51: adapter TikTok
+- Zlecono: `src/adapters/tiktok.ts` (discover: profil przez Playwright lub pojedynczy film; fetch: oEmbed + fallback na opis z JSON-a strony filmu), `getBrowser` wyeksportowany z `web.ts`, 2 źródła w `sources.yaml`. Skill: `scraper-adapter`, zero nowych paczek.
+- Zweryfikowano na żywo: fetch zwraca opis i autora dla 2 filmów (oEmbed bywa bez tytułu, stąd fallback). Listing profilu (@xtbpl, @mateuszhabowski, @tiktok) zwraca 0 filmów, bo TikTok oddaje headless pusty `itemList` — bez obchodzenia blokady, więc w yaml są pojedyncze filmy. Testy jednostkowe bez sieci.
+## 2026-11-22 — gold set w documents (prośba ai-data, #42)
+- Zlecono: 3 subagenci (Sonnet 5.5, medium). Snapshot 77 stron `crawl` z gold_urls_to_load.csv do offline fixtures (`gold-crawl.jsonl`, 22 MB, wykluczony lokalnie przez .git/info/exclude, bo hook blokuje .gitignore na tym branchu; plik trzeba przekazać poza gitem), 27 syntetyków skopiowanych 1:1 do `fixtures/sample/` plus test, weryfikacja SQL po `sha256(url)`.
+- Człowiek zdecydował: snapshot nie wchodzi do repo (rozmiar, treści stron trzecich). Człowiek też zauważył zmianę brancha na `main` w trakcie pracy i wrócił na swój.
+- Weryfikacja: 116 z 120 gold URL-i ma wiersz w `documents`. Brakują 4 (invezz xtb, PDF xtb, 2x comparic: 403 lub PDF), w tym 2 pozytywy M3. Test sample przechodzi, asercja liczby elementów osłabiona do `>= 43`, bo plik lokalny zmienia sumę. 2 dokumenty `failed` to blogi spoza gold setu, przyczyna nieustalona.

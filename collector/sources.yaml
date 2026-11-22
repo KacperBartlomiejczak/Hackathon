@@ -49,3 +49,16 @@ sources:
     module_hint: null
     enabled: true
     cron: '0 */6 * * *'
+  # TikTok (#51): profile listing is empty for headless browsers (TikTok serves no itemList), so single public videos are used (fallback).
+  - kind: tiktok
+    name: XTB Polska - day trading (TikTok)
+    start_url: https://www.tiktok.com/@xtbpl/video/7266023983877868833
+    module_hint: null
+    enabled: true
+    cron: '0 */6 * * *'
+  - kind: tiktok
+    name: Sówka Inwestówka - GPW (TikTok)
+    start_url: https://www.tiktok.com/@sowka.inwestowka/video/7508830799165230358
+    module_hint: null
+    enabled: true
+    cron: '0 */6 * * *'

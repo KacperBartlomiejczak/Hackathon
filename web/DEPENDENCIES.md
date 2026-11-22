@@ -12,3 +12,4 @@
 | vite, @vitejs/plugin-react | 8.3.8, 6.3.0 | MIT | bundler (dev) |
 | typescript | 7.0.2 | Apache-2.0 | typy (dev) |
 | @types/react, @types/react-dom | 19.3.0 | MIT | typy (dev) |
+| vitest | 5.1.0 | MIT | testy jednostkowe czystych funkcji (dev); wersja 5.1.1 jest za świeża (18.11), 5.1.0 akceptuje vite 8 |

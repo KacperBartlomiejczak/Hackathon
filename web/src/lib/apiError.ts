@@ -31,7 +31,7 @@ const STATUS_MESSAGES: Record<string, string> = {
 
 export function apiErrorMessage(err: unknown, fallback: string): string {
   if (!(err instanceof ApiError)) return fallback;
-  if (err.code && STATUS_MESSAGES[err.code]) return STATUS_MESSAGES[err.code];
+  if (err.code && Object.hasOwn(STATUS_MESSAGES, err.code)) return STATUS_MESSAGES[err.code];
   if (err.status === 401 || err.status === 403) return STATUS_MESSAGES.unauthorized;
   if (err.status === 501) return "Ta funkcja nie jest jeszcze zaimplementowana po stronie serwera.";
   if (err.status === 404) return STATUS_MESSAGES.not_found;

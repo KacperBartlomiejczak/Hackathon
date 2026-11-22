@@ -44,9 +44,11 @@ const VERDICT_LABEL: Record<string, string> = {
   unclear: "niejasne",
 };
 
-export const sourceLabel = (kind: string): string => SOURCE_LABEL[kind] ?? kind;
-export const criterionLabel = (code: string): string => CRITERION_LABEL[code] ?? code;
-export const verdictLabel = (verdict: string): string => VERDICT_LABEL[verdict] ?? verdict;
+const lookup = (map: Record<string, string>, key: string): string => (Object.hasOwn(map, key) ? map[key] : key);
+
+export const sourceLabel = (kind: string): string => lookup(SOURCE_LABEL, kind);
+export const criterionLabel = (code: string): string => lookup(CRITERION_LABEL, code);
+export const verdictLabel = (verdict: string): string => lookup(VERDICT_LABEL, verdict);
 
 export const MODULE_LABEL ={ 1: "M1 Finfluencerzy", 2: "M2 Informacja o ryzyku", 3: "M3 Shadow advisory" } as const;
 

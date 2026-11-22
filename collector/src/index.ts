@@ -21,7 +21,7 @@ const synced = await syncSources(db, sources);
 await syncSchedulers(queues.crawlSource, synced);
 if (config.CRAWL_ON_START) {
   const startedAt = Date.now();
-  for (const s of synced.filter((x) => x.enabled)) {
+  for (const s of synced.filter((x) => x.enabled && !x.cron)) {
     await queues.crawlSource.add(
       'source',
       { sourceId: s.id, trigger: 'manual' },

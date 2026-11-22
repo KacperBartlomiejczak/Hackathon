@@ -70,3 +70,23 @@
 - Asked Claude to: review the dashboard in the browser (mock mode) for console errors and Issues, then fix them. No new skill.
 - Changes: `web/public/favicon.svg` + `<link rel="icon">` (removes the favicon.ico 404); `name` attribute on all filter inputs/selects, `ModuleSelect` and `StatusSelect` (removes the "form field has neither id nor name" Issue).
 - Human checked: console on the findings list in Chrome with DevTools. Still to check by hand: Trendy, Kalibracja, Źródła, finding details, loading/empty states, projector view.
+
+## Docker build arg for admin token, vitest smoke tests (issues #71, #75)
+- Asked Claude to: pass `VITE_ADMIN_TOKEN` into the web Docker build and add `npm test` to web. Skill: dependency-guard (vitest).
+- Changes: `ARG`/`ENV VITE_ADMIN_TOKEN` (no default) in `web/Dockerfile`; threshold save error now uses `apiErrorMessage` (401 hint); `vitest@5.1.0` (MIT, accepts vite 8; 5.1.1 skipped, only 4 days old) with 8 tests for `exportFormat` and `apiError`; `web/SECURITY.md` and `web/DEPENDENCIES.md` updated. `npm run build`, `npm test` (8/8) and `npm audit` (0) pass.
+- Human checked (Docker, 2026-11-22): image built with `--build-arg VITE_ADMIN_TOKEN=<test-token>` contains the token in `/usr/share/nginx/html/assets/api-*.js`, image built without the arg does not. Stack up, all services healthy. Calibration: UI values match `/eval`; M1 changes with the slider, M2/M3 barely (api reports `missingFindings` 36-38 of 40 gold docs, so only 2-4 have findings: ai-data). Console 0 warnings on Findingi, details (with screenshot from S3, no 403), Trendy, Kalibracja, Źródła, empty list state; only errors seen were 500s from `/findings` before applying `infra/db/004_seen_tracking.sql` to the old local DB volume (existing volumes do not re-run init scripts).
+- Still to check: loading state and 1280 px on a projector; calibration screenshot for the pitch should use a low M1 threshold (default 0.6 shows zeros).
+
+## Unit tests with edge cases for web/src/lib
+- Asked Claude to: add tests including edge cases. No new skill, no new dependencies (existing vitest).
+- Changes: `utils.test.ts`, `api.test.ts` (mock mode, real mode with stubbed `fetch`, admin token, export, trend gap filling), extended `apiError.test.ts` and `exportFormat.test.ts`. 94 tests; `npm test` and `npm run build` pass.
+- Found 4 real bugs, kept as `it.fails` with `KNOWN BUG` comments (remove the marker when fixing): negative page returns items from the end; plain-object lookups resolve `constructor` (labels, `apiErrorMessage`); CSV formula guard prefixes legitimate `@handle` advertiser names with `'`.
+- Human to decide: fix the 4 bugs (small changes in `web/src/lib`).
+
+## Local-day date filters and trend (issue #88)
+- Asked Claude to: implement #88 in web only. No new skill.
+- Changes: `lib/dates.ts` (`toLocalDay`, local-day boundaries); `from`/`to` go to the api as local-day UTC timestamps (list and export); mock filter and trend group by local day; trend asks the api for `bucket=hour` and sums hours into local days. `lib/dates.test.ts` pins `Europe/Warsaw`. Build, `npm test` (also under another TZ) and audit pass.
+- Human to verify: finding created 2026-11-20T23:30Z shows for from=to=21.11 and not for 20.11; trend counts it on 21.11.
+
+## Fixes for the 4 bugs found by the edge-case tests
+- Asked Claude to: fix them. Changes in `web/src/lib`: label and error-message lookups use `Object.hasOwn` (no more `constructor` resolving to a function); mock `fetchFindings` returns an empty page for page < 1; CSV formula guard skips plain `@handle` values (`@SUM(A1)` is still neutralised). `it.fails` markers removed; 99 tests pass.
