@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   node:
-    name: ${{ matrix.service }} (build + test)
+    name: ${{ matrix.service }} (lint + build + test)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -37,6 +37,10 @@ jobs:
           cache: npm
           cache-dependency-path: ${{ matrix.service }}/package-lock.json
       - run: npm ci --ignore-scripts
+      # web nie ma jeszcze skryptu "lint" (issue #110, część 2).
+      - name: Lint
+        if: matrix.service != 'web'
+        run: npm run lint
       - run: npm run build
       # collector nie ma skryptu "test", więc uruchamiamy node:test bezpośrednio (27 testów).
       - name: Testy

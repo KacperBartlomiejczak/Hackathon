@@ -4,7 +4,6 @@ import { desc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db/client.js";
 import { documents, findings } from "../db/schema.js";
-import { effectiveRiskLevel } from "../db/risk.js";
 import { documentIsActive } from "../db/seen.js";
 import type { Storage } from "../storage/s3.js";
 import {
@@ -71,7 +70,7 @@ const moduleColumns = {
   id: findings.id,
   module: findings.module,
   score: findings.score,
-  riskLevel: effectiveRiskLevel,
+  riskLevel: findings.riskLevel,
   label: findings.label,
   status: findings.status,
   createdAt: findings.createdAt,

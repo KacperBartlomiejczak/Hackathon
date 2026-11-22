@@ -24,7 +24,7 @@ Ostatnia aktualizacja: 2026-11-22
 | `ai/` | `uvx pip-audit==2.10.1` (47 paczek runtime, 50 z dev w `ai/SECURITY.md`), ponowny `uvx pip-audit@2.10.0 --disable-pip --no-deps` po PR #67 oraz OSV (55 paczek wg Issue #44) | **0 znanych podatności** (`No known vulnerabilities found`) | `exclude-newer = "2026-11-07T00:00:00Z"`; tranzytywne `tld` używane jako MPL-1.1 |
 | `web/` | `npm audit --audit-level=high` oraz `npm audit` (`web/SECURITY.md`, ponownie po dodaniu `vitest@5.1.0` w PR #82) | **0 podatności** (`found 0 vulnerabilities`) | brak sekretów w kodzie i `web/Dockerfile` (opcjonalny `ARG VITE_ADMIN_TOKEN`) |
 | `api/` | `npm audit --audit-level=high` (`api/SECURITY.md`, 129 prod + 122 dev, ponownie po PR #80) | **0 podatności** (`found 0 vulnerabilities`) | dodatkowo `npm audit --omit=dev` = 0 |
-| `collector/` | `npm audit --audit-level=high` (Issue #44, `docs/ai-log/lead-collector.md`) | **0 podatności** | powtórzone 2026-11-22: `found 0 vulnerabilities`; plik `collector/SECURITY.md` do dodania przez właściciela |
+| `collector/` | `npm audit --audit-level=high` (`collector/SECURITY.md`, 208 pakietów w lockfile; Issue #44) | **0 podatności** | powtórzone 2026-11-22: `found 0 vulnerabilities` (także `--omit=dev`); szczegóły i zabezpieczenia w `collector/SECURITY.md` |
 
 ### Komendy do powtórzenia audytu paczek
 

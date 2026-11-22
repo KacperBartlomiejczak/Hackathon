@@ -116,3 +116,9 @@
 - Asked: finding 65 (XTB) cited "Nie jest rekomendacją inwestycyjną..." as proof of advice. Skill: risk-classifier.
 - `ai/rules/m3.yaml` (`disclaimer` pattern, rules v4), `ai/app/modules/m3.py` (rules skip disclaimer sentences, `strip_disclaimers()` before the LLM, reasons quoting a disclaimer dropped), prompt `m3-v4` (negation is never evidence), tests in `test_modules.py`. Full `ai/tests` pass.
 - NOT verified on the live stack: reanalyze document 99 and open `/findings/65`. Prompt/rules version bump means older M3 findings keep v3 until reanalyzed.
+
+## 2026-11-22 — #89: loader dokumentów gold, usunięty duplikat advertiser
+- **Zlecono:** załadowanie 115 URL-i z gold do `documents` i usunięcie duplikatu ścieżki advertiser (uwaga z przeglądu #102).
+- **Zmiana:** nowy `ai/eval/load_gold.py` (tekst z fixtures `collector/fixtures/sample/*.jsonl` albo pobranie + trafilatura, wstawia `documents` z `text_clean`); usunięty martwy `ensure_advertiser` (zostaje `db.resolve_advertiser`). Pytest 123 passed, ruff czysty.
+- **Wynik na żywym stosie:** wstawiono 97 dokumentów, 7 URL-i nie pobrano (`SSLCertVerificationError`, m.in. strefainwestorow.pl, erste.pl, infor.pl). `analyze_gold.py` nie dokończył: Ollama na 7,75 GiB RAM dawała timeouty LLM, `missingFindings` nadal 38–40.
+- **Do sprawdzenia przez człowieka:** uruchomić `analyze_gold.py` na maszynie z większym RAM-em; zdecydować o 7 URL-ach z błędem SSL.
