@@ -39,16 +39,17 @@ services:
     restart: unless-stopped
 
   seaweedfs:
-    image: chrislusf/seaweedfs:3.96
+    image: chrislusf/seaweedfs:4.52
     env_file:
       - .env
-    command: ["server", "-dir=/data", "-s3", "-s3.port=8333", "-ip.bind=0.0.0.0"]
+    entrypoint: ["sh", "/seaweedfs-entrypoint.sh"]
     ports:
       - "127.0.0.1:8333:8333"
     volumes:
       - seaweedfs_data:/data
+      - ./infra/seaweedfs/entrypoint.sh:/seaweedfs-entrypoint.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status && wget -q -O /dev/null http://localhost:8333/"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status && wget -q -O /dev/null http://localhost:8333/healthz"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -171,6 +172,7 @@ services:
       context: ./web
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+        VITE_ADMIN_TOKEN: ${VITE_ADMIN_TOKEN:-}
     ports:
       - "5173:5173"
     depends_on:

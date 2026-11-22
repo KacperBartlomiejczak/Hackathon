@@ -13,7 +13,7 @@ UKNF przejmuje prawa do kodu, więc cały stos używa wyłącznie licencji permi
 |---|---|---|---|
 | `postgres` | `pgvector/pgvector:0.8.7-pg16` | PostgreSQL License | Baza relacyjna PostgreSQL 16 + wektory `pgvector` |
 | `valkey` | `valkey/valkey:8.1.12-alpine` | BSD-3-Clause | Broker kolejek BullMQ (zamiast Redisa RSAL/SSPL) |
-| `seaweedfs` | `chrislusf/seaweedfs:3.96` | Apache-2.0 | Object storage kompatybilny z S3 (zamiast MinIO AGPL) |
+| `seaweedfs` | `chrislusf/seaweedfs:4.52` | Apache-2.0 | Object storage kompatybilny z S3 (zamiast MinIO AGPL) |
 | `ollama` | `ollama/ollama:0.40.17` | MIT | Lokalny silnik inferencji LLM i embeddingów |
 | `s3-init`, `ollama-init` | `curlimages/curl:8.23.0` | curl (MIT-like) | Jednorazowe utworzenie bucketa S3 i pobranie modeli Ollamy |
 | `api`, `collector` (build) | `node:22.23.5-bookworm-slim` | MIT (Node.js) | Środowisko Node 22 (build i runtime `api`) |
