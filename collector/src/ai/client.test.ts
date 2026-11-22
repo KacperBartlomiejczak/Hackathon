@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { test } from 'node:test';
 
 process.env.DATABASE_URL = 'dummy';
+process.env.INTERNAL_TOKEN = 'tok';
 const { postAnalyze } = await import('./client.js');
 
 async function serve(codes: number[]): Promise<{ url: string; hits: () => number; close: () => void }> {
@@ -22,6 +23,19 @@ test('200 returns true', async () => {
   assert.equal(await postAnalyze(1, s.url, 5), true);
   assert.equal(s.hits(), 1);
   s.close();
+});
+
+test('sends X-Internal-Token', async () => {
+  let token: string | string[] | undefined;
+  const server = createServer((req, res) => {
+    token = req.headers['x-internal-token'];
+    res.end();
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address() as AddressInfo;
+  assert.equal(await postAnalyze(2, `http://127.0.0.1:${port}`, 5), true);
+  assert.equal(token, 'tok');
+  server.close();
 });
 
 test('501 is final, no retry', async () => {
