@@ -3,7 +3,7 @@
 Cel: zmieścić cały przepływ end-to-end w **≤ 3 minuty** (180 sekund), pokazując wymagania jury UKNF: lokalne modele, 3 moduły (M1/M2/M3) z cytatami i screenshotem, alert Socket.io na żywo, panel kalibracji (FP vs FN), zmianę statusu, eksport oraz architekturę i proces AI.
 
 ## Warunki wstępne przed nagraniem (T−5 min)
-- Czysty start: `docker compose down -v && cp .env.example .env && docker compose up --build -d`
+- Czysty start (tylko przy teście od zera): `docker compose down -v && cp .env.example .env && docker compose up --build -d` — **uwaga:** flaga `-v` usuwa wolumen `ollama_data` (~8 GB modeli), więc w dniu demo uruchamiaj stos na już rozgrzanym wolumenie (`docker compose up -d`).
 - Zweryfikowane `docker compose ps` (wszystkie kontenery `healthy`), `curl -s http://localhost:8000/health` (`ollama: ok`), `curl -s http://localhost:3000/health`.
 - Otwarte 2 okna do przełączania (lub split):
   1. Przeglądarka na `http://localhost:5173` (z otwartym lub gotowym do pokazania DevTools → Console, zero błędów/warningów).

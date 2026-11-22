@@ -147,9 +147,9 @@ REST dla dashboardu i Socket.io dla alertów. Pełne kształty JSON, parametry i
 Wszystkie zmienne środowiskowe oraz ich opisy znajdują się w [.env.example](.env.example). Sekrety są przekazywane do kontenerów wyłącznie przez `env_file: [.env]` — pliku `.env` nie wolno commitować do repozytorium.
 Najważniejsze zmienne: `OLLAMA_LLM_MODEL`, `OLLAMA_EMBED_MODEL`, `OLLAMA_NUM_PARALLEL`, `ANALYZE_CONCURRENCY`, `AI_REQUIRE_TOKEN`, `S3_PUBLIC_ENDPOINT` (adres S3 widziany z przeglądarki), `WEB_ORIGIN`, `VITE_API_URL`.
 
-**Tokeny (opcjonalne).** `ADMIN_TOKEN` (api) razem z `VITE_ADMIN_TOKEN` (web) włączają wymóg `Authorization: Bearer` dla zapisów REST (PUT/PATCH/POST); oba muszą mieć tę samą wartość (min. 16 znaków), a po zmianie `VITE_ADMIN_TOKEN` trzeba przebudować `web`: `docker compose up -d --build web`. `AI_REQUIRE_TOKEN=true` wymusza nagłówek `X-Internal-Token` w serwisie `ai`; włączaj dopiero, gdy collector go wysyła. `AI_CONFIG` pozwala wskazać inny `config.yaml` dla `ai`.
+**Tokeny i autoryzacja AI.** `AI_REQUIRE_TOKEN=true` w `.env.example` wymusza nagłówek `X-Internal-Token` na endpointach `ai` (wysyłają go zarówno `api`, jak i `collector`). `ADMIN_TOKEN` (api) razem z `VITE_ADMIN_TOKEN` (web) opcjonalnie włączają wymóg `Authorization: Bearer` dla zapisów REST (PUT/PATCH/POST); oba muszą mieć tę samą wartość (min. 16 znaków), a po zmianie `VITE_ADMIN_TOKEN` trzeba przebudować `web`: `docker compose up -d --build web`. `AI_CONFIG` pozwala wskazać inny `config.yaml` dla `ai`.
 
-**CI.** Workflow GitHub Actions (`infra/ci/ci.yml`, docelowo `.github/workflows/ci.yml`) na PR do `main` buduje i testuje `api`, `collector`, `web`, uruchamia `ruff` i `pytest` w `ai`, audyty `npm audit` i `pip-audit` oraz `docker compose config -q`.
+**CI.** Workflow GitHub Actions (`.github/workflows/ci.yml`) na PR do `main` buduje i testuje `api`, `collector`, `web`, uruchamia `ruff` i `pytest` w `ai`, audyty `npm audit` i `pip-audit` oraz `docker compose config -q`.
 
 - Kontrakt schematu DB i API: [docs/contracts.md](docs/contracts.md) (diagram ER: [presentation/database.mmd](presentation/database.mmd))
 - Bezpieczeństwo i skany obrazów/paczek: [docs/SECURITY.md](docs/SECURITY.md)

@@ -174,3 +174,9 @@
 - Now: `PUT /settings/modules/:module` calls `POST ${AI_URL}/recompute-risk?module=` with `X-Internal-Token` after the upsert, logs `updated`, and answers `recomputed: true|false`. A failing ai does not fail the save. `docs/contracts.md` (skill `data-contract`, by hand): the `riskLevel` rule, the ai endpoint table and the PUT response.
 - The first edits of the earlier attempt were made before the plan was approved (against CLAUDE.md).
 - Verified: `npm test` 57/57 (new `test/settings-recompute.test.ts`: token, module, ai 404, ai unreachable), typecheck, lint. Not run against a real ai: `/recompute-risk` exists only on `team/ai-core` until PR #102 merges.
+
+## 2026-11-22: `total` and `missingFindings` in GET /eval
+- Asked Claude to: document the two extra fields ai returns from `GET /eval` (requested by ai-data). Documentation only, no api code change (the proxy passes the body through).
+- Claude compared `ai/app/models.py` (`EvalResult`) and `ai/app/eval.py` with the contract, then added both fields to the example and a short description in `docs/contracts.md` (skill `data-contract`, by hand). The example numbers were chosen so that `total = tp+fp+fn+tn`.
+- Verified: only `docs/contracts.md` and this log changed; field names match the `ai` model.
+- Left for ai-core: the `TODO(contracts)` comment in `ai/app/models.py` can be removed.

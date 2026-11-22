@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.llm import OllamaClient
 from app.models import Reason
-from app.modules.common import RULES_DIR, emb_score, llm_reasons
+from app.modules.common import RULES_DIR, QuoteStr, emb_score, llm_gate, llm_reasons
 from app.modules.common import llm_score as common_llm_score
 from app.prompts import load_prompt
 from app.scoring import combine
@@ -41,12 +41,14 @@ CriterionId = Literal[tuple(CRITERION_WEIGHTS)]  # type: ignore[valid-type]  # e
 class CriterionResult(BaseModel):
     criterion: CriterionId
     verdict: Literal["pass", "fail", "unclear"]
-    quote: str = Field(max_length=600)
+    quote: QuoteStr
     confidence: float = Field(ge=0, le=1)
 
 
 class M2Output(BaseModel):
-    criteria: list[CriterionResult]
+    # minItems/maxItems only in the JSON schema sent to Ollama: without them Bielik answers `[]` and llm = 0.
+    criteria: list[CriterionResult] = Field(json_schema_extra={
+        "minItems": len(CRITERION_WEIGHTS), "maxItems": len(CRITERION_WEIGHTS)})
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,11 @@ def rules_score(text: str) -> float:
 def llm_score(outputs: list[CriterionResult], valid: set[str]) -> float:
     """Weighted confidence of failed criteria whose quote survived validation."""
     return common_llm_score(outputs, valid, CRITERION_WEIGHTS)
+
+
+def m2_gate_passed(text: str, config: dict[str, Any]) -> bool:
+    """True when the rules score is high enough to spend an LLM call on this text (gate 0 = always)."""
+    return rules_score(text) >= llm_gate(config, 2)
 
 
 async def run_m2(llm: OllamaClient, text: str) -> M2Result:

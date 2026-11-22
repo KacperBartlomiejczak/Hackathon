@@ -5,14 +5,16 @@ from __future__ import annotations
 import logging
 import time
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field
 
+from app import db
 from app.llm import OllamaClient
 from app.models import FindingCreate, Reason, high_threshold, risk_level
-from app.modules.common import MAX_DOC_CHARS, ModuleRun, emb_score, llm_reasons, llm_score
+from app.modules.common import MAX_DOC_CHARS, ModuleRun, QuoteStr, emb_score, llm_gate, llm_reasons, llm_score
 from app.modules.quotes import validate_reasons
-from app.preprocess.entity_match import M1Candidate
+from app.preprocess.entity_match import SOCIAL_HOSTS, M1Candidate
 from app.prompts import load_prompt
 from app.scoring import combine
 
@@ -21,18 +23,20 @@ logger = logging.getLogger("ai.m1")
 PROMPT_PATH = "m1-third-party/system.md"
 LABEL = "third_party_promotion"
 
-CRITERION_WEIGHTS: dict[str, float] = {"promotes_firm": 0.5, "profit_promises": 0.3, "impersonation": 0.2}
+CRITERION_WEIGHTS: dict[str, float] = {"promotes_firm": 0.7, "profit_promises": 0.2, "impersonation": 0.1}
 
 
 class CriterionResult(BaseModel):
     criterion: Literal["promotes_firm", "profit_promises", "impersonation"]
     verdict: Literal["pass", "fail", "unclear"]
-    quote: str = Field(max_length=600)
+    quote: QuoteStr
     confidence: float = Field(ge=0, le=1)
 
 
 class M1Output(BaseModel):
-    criteria: list[CriterionResult]
+    # minItems/maxItems only in the JSON schema sent to Ollama: without them Bielik answers `[]` and llm = 0.
+    criteria: list[CriterionResult] = Field(json_schema_extra={
+        "minItems": len(CRITERION_WEIGHTS), "maxItems": len(CRITERION_WEIGHTS)})
 
 
 def best_candidate(candidates: list[M1Candidate]) -> M1Candidate:
@@ -48,12 +52,35 @@ def _matcher_reasons(c: M1Candidate) -> list[Reason]:
     ]
 
 
+def advertiser_identity(url: str, author_handle: str | None) -> tuple[str | None, str | None]:
+    """(host, handle) of the publisher, same rule as entity_match: social host -> handle, else host."""
+    host = (urlparse(url).hostname or "").lower().removeprefix("www.")
+    handle = author_handle.strip().rsplit("/", 1)[-1].lstrip("@").lower() if author_handle else None
+    if host in SOCIAL_HOSTS:
+        return None, handle or None
+    return host or None, None
+
+
+async def attach_advertiser(conn: Any, finding: FindingCreate, url: str, author_handle: str | None) -> None:
+    """Fill finding.advertiser_entity_id (creating the entity if needed) when it is still empty."""
+    if finding.module != 1 or finding.advertiser_entity_id is not None:
+        return
+    host, handle = advertiser_identity(url, author_handle)
+    finding.advertiser_entity_id = await db.resolve_advertiser(conn, host, handle)
+
+
 async def run_m1(
     llm: OllamaClient, config: dict[str, Any], text: str, doc_vector: list[float] | None,
     candidates: list[M1Candidate], document_id: int, threshold: float, weights: dict[str, float],
 ) -> ModuleRun:
     cand = best_candidate(candidates)
     ms: dict[str, int] = {}
+    gate = llm_gate(config, 1)
+    if cand.rules_score < gate:
+        logger.info("module=%d llm skipped gate rules=%.2f gate=%.2f document_id=%s",
+                    1, cand.rules_score, gate, document_id)
+        return ModuleRun(module=1, finding=None, rules=cand.rules_score, threshold=threshold,
+                         weights=weights, ms={})
     t = time.monotonic()
     prompt = load_prompt(PROMPT_PATH)
     out = await llm.generate(prompt.text, text[:MAX_DOC_CHARS], M1Output)

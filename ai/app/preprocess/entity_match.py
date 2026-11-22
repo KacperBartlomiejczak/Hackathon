@@ -56,7 +56,7 @@ class M1Candidate:
     quote: str  # exact substring of the input text
     anchors: tuple[str, ...]
     advertiser: str | None  # host (web) or handle (social); None when unknown
-    advertiser_entity_id: int | None  # filled by the pipeline via ensure_advertiser()
+    advertiser_entity_id: int | None  # filled by the pipeline via db.resolve_advertiser()
     url: str
     rules_score: float  # 0..1, rules part only
     official_channels_known: bool
@@ -73,23 +73,6 @@ async def load_entities(conn: asyncpg.Connection) -> list[Entity]:
                tuple(r["official_domains"] or ()), tuple(r["social_handles"] or ()))
         for r in rows
     ]
-
-
-async def ensure_advertiser(conn: asyncpg.Connection, advertiser: str, is_social: bool) -> int:
-    """Entity id of the third-party publisher (host or handle); created as 'advertiser' on first sight."""
-    row = await conn.fetchrow(
-        "SELECT id FROM entities WHERE type = 'advertiser' "
-        "AND $1 = ANY(official_domains || social_handles) LIMIT 1",
-        advertiser,
-    )
-    if row:
-        return int(row["id"])
-    domains, handles = ([], [advertiser]) if is_social else ([advertiser], [])
-    return int(await conn.fetchval(
-        "INSERT INTO entities (name, type, official_domains, social_handles) "
-        "VALUES ($1, 'advertiser', $2, $3) RETURNING id",
-        advertiser, domains, handles,
-    ))
 
 
 # --- publisher ---------------------------------------------------------------------------------

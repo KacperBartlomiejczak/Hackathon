@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import asyncpg
 import httpx
@@ -33,10 +33,13 @@ from app.models import (
     HealthStatus,
     ModuleRunOut,
     ReanalyzeResult,
+    RecomputeRiskResponse,
+    high_threshold,
 )
 from app.modules.common import warm_anchors
 from app.preprocess.clean import normalize
 from app.preprocess.entity_match import Entity, load_entities
+from app.scoring import weights_from_config
 from seed.seed_entities import load_rows, seed_entities
 
 
@@ -92,11 +95,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.warning("DATABASE_URL not set")
     app.state.llm = None
+    app.state.llm_ready = None  # None = warmup pending, True/False = model answered or not
     app.state.reanalyze_task = None
+    app.state.rewarm_task = None
     try:
         llm_cfg = app.state.config.get("llm", {})
         app.state.llm = OllamaClient(timeout_s=float(llm_cfg.get("timeout_s", 60)),
-                                     retries=int(llm_cfg.get("retries", 1)))
+                                     retries=int(llm_cfg.get("retries", 1)),
+                                     max_concurrency=int(llm_cfg.get("max_concurrency", 1)),
+                                     num_predict=int(llm_cfg["num_predict"]) if llm_cfg.get("num_predict")
+                                     else None)
     except LLMError as exc:
         logger.error("llm client init failed: %s", exc)
     warm = asyncio.create_task(_warmup(app)) if app.state.llm is not None else None
@@ -107,6 +115,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             warm.cancel()
         if app.state.reanalyze_task is not None:
             app.state.reanalyze_task.cancel()
+        if app.state.rewarm_task is not None:
+            app.state.rewarm_task.cancel()
         if app.state.llm is not None:
             await app.state.llm.aclose()
         await app.state.http.aclose()
@@ -117,9 +127,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 async def _warmup(app: FastAPI) -> None:
     """Load Bielik and the embedding anchors in the background so the first document is not cold."""
     try:
-        await app.state.llm.warmup()
+        app.state.llm_ready = await app.state.llm.warmup()
         await warm_anchors()
     except (httpx.HTTPError, ValueError, OSError) as exc:
+        app.state.llm_ready = False
         logger.warning("warmup failed: %r", exc)
 
 
@@ -140,6 +151,36 @@ async def _check_ollama(client: httpx.AsyncClient) -> bool:
     return True
 
 
+def _same_model(a: str, b: str) -> bool:
+    """Ollama names are equal when identical or differing only by an implicit ':latest' tag."""
+    def norm(n: str) -> str:
+        return n if ":" in n else f"{n}:latest"
+    return norm(a) == norm(b)
+
+
+async def _model_loaded(client: httpx.AsyncClient, model: str) -> bool | None:
+    """Whether `model` is resident in Ollama memory (GET /api/ps); None when that cannot be determined."""
+    base = os.getenv("OLLAMA_URL")
+    if not base:
+        return None
+    try:
+        resp = await client.get(f"{base.rstrip('/')}/api/ps")
+        resp.raise_for_status()
+        loaded = resp.json().get("models", [])
+        return any(_same_model(model, str(m.get(k, ""))) for m in loaded for k in ("name", "model"))
+    except (httpx.HTTPError, ValueError, AttributeError) as exc:
+        logger.warning("ollama /api/ps failed: %r", exc)
+        return None
+
+
+def _ensure_rewarm(app: FastAPI) -> None:
+    """Start a background re-warmup unless one is already running."""
+    task: asyncio.Task[None] | None = app.state.rewarm_task
+    if task is None or task.done():
+        logger.info("llm model not loaded in ollama, re-warming")
+        app.state.rewarm_task = asyncio.create_task(_warmup(app))
+
+
 async def _check_postgres(pool: asyncpg.Pool | None) -> bool:
     if pool is None:
         return False
@@ -152,12 +193,23 @@ async def _check_postgres(pool: asyncpg.Pool | None) -> bool:
     return True
 
 
+def _llm_state(llm: object | None, ready: bool | None) -> Literal["ok", "loading", "error"]:
+    if llm is None or ready is False:
+        return "error"
+    return "ok" if ready else "loading"
+
+
 @app.get("/health", response_model=HealthStatus)
 async def health(response: Response) -> HealthStatus:
     started = time.perf_counter()
     ollama_ok = await _check_ollama(app.state.http)
     pg_ok = await _check_postgres(app.state.pool)
     ok = ollama_ok and pg_ok
+    llm_state = _llm_state(app.state.llm, app.state.llm_ready)
+    if ollama_ok and llm_state == "ok":
+        if await _model_loaded(app.state.http, app.state.llm.model) is False:
+            llm_state = "loading"
+            _ensure_rewarm(app)
     if not ok:
         response.status_code = 503
     logger.info("health ollama=%s postgres=%s took=%.3fs", ollama_ok, pg_ok, time.perf_counter() - started)
@@ -165,6 +217,7 @@ async def health(response: Response) -> HealthStatus:
         status="ok" if ok else "degraded",
         ollama="ok" if ollama_ok else "error",
         postgres="ok" if pg_ok else "error",
+        llm=llm_state,
     )
 
 
@@ -179,7 +232,7 @@ async def analyze(document_id: Annotated[int, PathParam(ge=1)]) -> AnalyzeResult
     except pipeline.DocumentNotFound:
         raise HTTPException(status_code=404, detail="document not found") from None
     except pipeline.AnalysisFailed as exc:
-        raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"analysis failed: {exc.category}") from exc
 
 
 @app.post(
@@ -226,7 +279,9 @@ async def analyze_text(req: AnalyzeTextRequest) -> AnalyzeTextResult:
         timings["modules"] = int((time.monotonic() - t) * 1000)
     except (LLMError, httpx.HTTPError, ValueError) as exc:
         logger.error("analyze-text failed: %r", exc)
-        raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"analysis failed: {pipeline.failure_category(exc)}"
+        ) from exc
     timings["total"] = int((time.monotonic() - started) * 1000)
     logger.info("analyze-text route=%s ms=%d", route.modules, timings["total"])
     return AnalyzeTextResult(
@@ -276,6 +331,30 @@ async def reanalyze(
         )
     logger.info("reanalyze module=%s queued=%d", module, len(found))
     return ReanalyzeResult(module=module, queued=len(found))  # type: ignore[arg-type]
+
+
+@app.post(
+    "/recompute-risk",
+    response_model=RecomputeRiskResponse,
+    dependencies=[Depends(require_internal_token)],
+)
+async def recompute_risk(module: Annotated[int, Query(ge=1, le=3)]) -> RecomputeRiskResponse:
+    """Re-derive risk_level of stored findings from the current module threshold. No LLM, no alerts."""
+    if app.state.pool is None:
+        raise HTTPException(status_code=503, detail="database not configured")
+    config = app.state.config
+    started = time.monotonic()
+    try:
+        threshold, _ = await db.load_module_settings(
+            app.state.pool, module, float(config["thresholds"][f"m{module}"]), weights_from_config(config)
+        )
+        updated = await db.recompute_risk_levels(app.state.pool, module, threshold, high_threshold(config))
+    except db.DatabaseError as exc:
+        logger.error("recompute-risk module=%s result=failed error=%s", module, exc)
+        raise HTTPException(status_code=500, detail="database error") from exc
+    logger.info("recompute-risk module=%s threshold=%s updated=%d duration_ms=%d",
+                module, threshold, updated, int((time.monotonic() - started) * 1000))
+    return RecomputeRiskResponse(module=module, threshold=threshold, updated=updated)  # type: ignore[arg-type]
 
 
 # contracts.md specifies GET /eval (the request asked for POST; contract wins).

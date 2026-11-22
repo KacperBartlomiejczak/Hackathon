@@ -111,6 +111,27 @@ async def load_module_settings(
     return float(row["threshold"]), {k: float(weights[k]) for k in ("llm", "rules", "emb")}
 
 
+# Same rule as models.risk_level(); $1 = threshold, $2 = high. Keep both in sync.
+RISK_CASE_SQL = (
+    "CASE WHEN score >= GREATEST($2::float8, $1::float8) THEN 'high' "
+    "WHEN score >= $1::float8 THEN 'medium' ELSE 'low' END"
+)
+
+_RECOMPUTE_RISK = f"""
+UPDATE findings SET risk_level = {RISK_CASE_SQL}
+WHERE module = $3 AND risk_level IS DISTINCT FROM {RISK_CASE_SQL}
+"""
+
+
+async def recompute_risk_levels(pool: asyncpg.Pool, module: int, threshold: float, high: float) -> int:
+    """Re-derive findings.risk_level for one module from stored scores. Returns the number of rows changed."""
+    try:
+        status = await pool.execute(_RECOMPUTE_RISK, threshold, high, module)
+    except (OSError, asyncpg.PostgresError) as exc:
+        raise DatabaseError(f"recompute_risk_levels({module}) failed: {exc}") from exc
+    return int(status.rsplit(" ", 1)[-1])  # asyncpg returns "UPDATE <n>"
+
+
 _UPSERT_FINDING = """
 INSERT INTO findings (document_id, module, score, risk_level, label, reasons,
                       firm_entity_id, advertiser_entity_id, model, prompt_version)
@@ -137,3 +158,49 @@ async def upsert_finding(conn: asyncpg.Connection, f: FindingCreate) -> Finding:
     if row is None:
         raise DatabaseError("upsert_finding returned no row")
     return Finding(**f.model_dump(), id=row["id"], status=row["status"], created_at=row["created_at"])
+
+
+# --- advertiser entities (M1) ------------------------------------------------------------------
+
+_FIND_ADVERTISER = r"""
+SELECT id FROM entities
+WHERE ($1::text IS NOT NULL AND EXISTS (
+        SELECT 1 FROM unnest(social_handles) h WHERE lower(ltrim(h, '@')) = $1))
+   OR ($2::text IS NOT NULL AND EXISTS (
+        SELECT 1 FROM unnest(official_domains) d  -- same normalisation as entity_match._norm_domain
+        WHERE regexp_replace(split_part(regexp_replace(lower(btrim(d)), '^[a-z]+://', ''), '/', 1),
+                             '^www\.', '') = $2))
+ORDER BY id LIMIT 1
+"""
+
+_INSERT_ADVERTISER = """
+INSERT INTO entities (name, type, is_authorized, official_domains, social_handles)
+VALUES ($1, $2, false, $3::text[], $4::text[]) RETURNING id
+"""
+
+
+async def resolve_advertiser(conn: asyncpg.Connection, host: str | None, handle: str | None) -> int | None:
+    """Id of the entity publishing a third-party promotion; creates an unauthorized one when unknown.
+
+    Idempotent: lookup + insert run in one transaction under an advisory lock keyed by the identity.
+    """
+    h = handle.strip().lstrip("@").lower() if handle else None
+    d = host.strip().lower().removeprefix("www.") if host else None
+    h, d = h or None, d or None
+    if h is None and d is None:
+        return None
+    key = f"advertiser:{h or ''}:{d or ''}"
+    try:
+        async with conn.transaction():
+            await conn.execute("SELECT pg_advisory_xact_lock(hashtext($1))", key)
+            found = await conn.fetchval(_FIND_ADVERTISER, h, d)
+            if found is not None:
+                return int(found)
+            if h is not None:
+                row_id = await conn.fetchval(_INSERT_ADVERTISER, f"@{h}", "finfluencer", [], [f"@{h}"])
+            else:
+                row_id = await conn.fetchval(_INSERT_ADVERTISER, d, "advertiser", [d], [])
+            logger.info("advertiser entity created id=%s key=%s", row_id, key)
+            return int(row_id)
+    except (OSError, asyncpg.PostgresError) as exc:
+        raise DatabaseError(f"resolve_advertiser({key}) failed: {exc}") from exc

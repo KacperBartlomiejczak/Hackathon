@@ -10,10 +10,10 @@ from typing import Any
 
 from app.llm import LLMError, LLMUnavailable, OllamaClient
 from app.models import FindingCreate, high_threshold, risk_level
-from app.modules.common import ModuleRun
+from app.modules.common import ModuleRun, llm_gate
 from app.modules.m1 import run_m1
 from app.modules.m2 import LABEL as M2_LABEL
-from app.modules.m2 import llm_score, m2_emb, run_m2, score_m2
+from app.modules.m2 import llm_score, m2_emb, m2_gate_passed, rules_score, run_m2, score_m2
 from app.modules.m3 import run_m3
 from app.modules.quotes import validate_reasons
 from app.preprocess.entity_match import Entity
@@ -22,7 +22,7 @@ from app.scoring import weights_from_config
 
 logger = logging.getLogger("ai.analysis")
 
-DEFAULT_BUDGET_S = 240.0  # below the collector /analyze timeout (300 s)
+DEFAULT_BUDGET_S = 540.0  # below the collector /analyze timeout (600 s)
 
 Settings = dict[int, tuple[float, dict[str, float]]]  # module -> (threshold, weights)
 
@@ -36,6 +36,11 @@ async def _run_m2(
     llm: OllamaClient, config: dict[str, Any], text: str, document_id: int, firm_entity_id: int | None,
     threshold: float, weights: dict[str, float], doc_vector: list[float] | None,
 ) -> ModuleRun:
+    if not m2_gate_passed(text, config):
+        rules = rules_score(text)
+        logger.info("module=2 llm skipped gate rules=%.2f gate=%.2f document_id=%s",
+                    rules, llm_gate(config, 2), document_id)
+        return ModuleRun(module=2, finding=None, rules=rules, threshold=threshold, weights=weights)
     t = time.monotonic()
     res = await run_m2(llm, text)
     run = ModuleRun(module=2, finding=None, rules=res.rules, threshold=threshold, weights=weights,
@@ -85,7 +90,8 @@ async def run_modules(
 
     A module that fails or misses the budget is logged and left out of the result (never a made-up
     score); the others are kept. If nothing finished, the first failure is raised (LLMError), so the
-    document ends up `failed`. `only_module` restricts the run to one module (used by /reanalyze).
+    document ends up `failed`
+    (a non-LLM crash is raised as is). `only_module` restricts the run to one module (used by /reanalyze).
     """
     route = route_document(text, url, author_handle, entities, document_id)
     if only_module is not None:
@@ -108,10 +114,12 @@ async def run_modules(
                          document_id, module, budget_s)
             first_error = first_error or LLMUnavailable(f"module {module} exceeded budget {budget_s:.0f}s")
         elif (exc := task.exception()) is not None:
-            if not isinstance(exc, LLMError):
-                raise exc
-            logger.error("analyze document_id=%s module=%d failed partial=true error=%s",
-                         document_id, module, exc)
+            if isinstance(exc, LLMError):
+                logger.error("analyze document_id=%s module=%d failed partial=true error=%s",
+                             document_id, module, exc)
+            else:  # a bug in one module must not take the others down
+                logger.error("analyze document_id=%s module=%d crashed partial=true", document_id, module,
+                             exc_info=exc)
             first_error = first_error or exc
         else:
             runs.append(task.result())
