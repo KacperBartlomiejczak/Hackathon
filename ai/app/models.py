@@ -193,6 +193,7 @@ class HealthStatus(CamelModel):
     status: Literal["ok", "degraded"]
     ollama: Literal["ok", "error"]
     postgres: Literal["ok", "error"]
+    llm: Literal["ok", "loading", "error"] = "loading"  # informational, does not affect status
 
 
 def risk_level(score: float, threshold: float, high: float = HIGH_RISK_SCORE) -> RiskLevel:

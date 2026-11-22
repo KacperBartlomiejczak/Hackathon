@@ -2,6 +2,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db/client.js";
 import { documents, findings } from "../db/schema.js";
+import { effectiveRiskLevel } from "../db/risk.js";
 import { documentIsActive } from "../db/seen.js";
 import {
   EXCERPT_LENGTH,
@@ -81,7 +82,7 @@ export const exportRoutes: FastifyPluginAsync<Deps> = async (app, { db }) => {
           id: findings.id,
           module: findings.module,
           score: findings.score,
-          riskLevel: findings.riskLevel,
+          riskLevel: effectiveRiskLevel,
           label: findings.label,
           status: findings.status,
           reasons: findings.reasons,

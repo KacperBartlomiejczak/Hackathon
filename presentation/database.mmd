@@ -1,0 +1,87 @@
+erDiagram
+  %% InvestWatch: schemat bazy (PostgreSQL 16 + pgvector + pg_trgm)
+  %% Źródło: docs/contracts.md, infra/db/001_init.sql … 004_seen_tracking.sql
+  sources |o--o{ crawl_runs : "source_id"
+  sources |o--o{ documents : "source_id"
+  crawl_runs |o--o{ documents : "crawl_run_id"
+  documents |o--o{ documents : "duplicate_of"
+  documents ||--o{ findings : "document_id, max 1 na moduł"
+  entities |o--o{ findings : "firm_entity_id"
+  entities |o--o{ findings : "advertiser_entity_id"
+  findings ||--o{ finding_status_history : "finding_id"
+  module_settings ||..o{ findings : "module, bez FK"
+
+  sources {
+    serial id PK
+    text kind "web, social, sample"
+    text name
+    text start_url
+    text cron "np. co 6 h"
+    boolean enabled
+  }
+  crawl_runs {
+    serial id PK
+    int source_id FK
+    text status "running, ok, partial, failed"
+    int items_found
+    timestamptz started_at
+    timestamptz finished_at
+  }
+  documents {
+    bigserial id PK
+    text url
+    text url_hash UK
+    int source_id FK
+    int crawl_run_id FK
+    text source_kind
+    text title "GIN trgm"
+    text text_clean "GIN trgm"
+    text html_key "S3"
+    text screenshot_key "S3"
+    text content_hash "dedup"
+    bigint simhash "dedup"
+    bigint duplicate_of FK
+    vector embedding "bge-m3, 1024"
+    text status "fetched, processed, duplicate, failed"
+    timestamptz first_seen_at "trigger"
+    timestamptz last_seen_at "trigger"
+  }
+  findings {
+    bigserial id PK
+    bigint document_id FK "UNIQUE z module"
+    smallint module "1, 2, 3"
+    real score "0-1"
+    text risk_level "low, medium, high"
+    text label
+    jsonb reasons "kryterium, werdykt, cytat, waga"
+    int firm_entity_id FK
+    int advertiser_entity_id FK
+    text model
+    text prompt_version
+    text status "new, in_review, confirmed, dismissed"
+    timestamptz created_at
+  }
+  entities {
+    serial id PK
+    text name
+    text_array aliases
+    text type "firma, finfluencer, ..."
+    boolean is_authorized "rejestr KNF"
+    text register_ref
+    text nip
+    text_array official_domains
+    text_array social_handles
+  }
+  finding_status_history {
+    bigserial id PK
+    bigint finding_id FK
+    text old_status
+    text new_status
+    text changed_by
+    timestamptz changed_at
+  }
+  module_settings {
+    smallint module PK "1, 2, 3"
+    real threshold "domyślnie 0.6"
+    jsonb weights "llm, rules, emb"
+  }

@@ -207,3 +207,14 @@
 - **Zmiana:** `minItems`/`maxItems` = liczba kryteriów w schemacie JSON dla Ollamy (`json_schema_extra`, walidacja zostaje łagodna) w M1/M2/M3; `m1-v3`, `m2-v5`, `m3-v5`; test `test_llm_schema_items.py`. Koszt: ~45–50 s na dokument M2 na GPU zamiast ~0.4 s.
 - **Wynik (43 dokumenty, żywy Bielik):** M2 0.4 → TP 2, FN 15; 0.8 → TP 1, FN 16. M1 0.4 → TP 5; 0.8 → TP 2. M3 0.4 → TP 2; 0.8 → TP 0. FP = 0 wszędzie. pytest 440 passed.
 - **Do zrobienia przez innych:** ai-data — fikcyjna firma `przykladowy-broker.example` z gold setu M2 nie jest w seedzie jako podmiot z rejestru, więc 25 syntetycznych dokumentów M2 nie trafia do M2 (`route=[]`). Lead — sposób załadowania 77 URL-i `crawl`.
+
+## 2026-11-22 — #95 domknięcie: zdanie „zastrzeżenie + prawdziwa rada”
+- **Luka:** „To nie jest rekomendacja, ale kupuj akcje ABC, cena docelowa 50 zł.” było w całości traktowane jak zastrzeżenie (reguły pomijały zdanie, LLM go nie widział, powód z cytatem był odrzucany), więc formułka mogła ukryć realną poradę.
+- **Zmiana (`m3.py`):** zastrzeżenie liczy się na poziomie klauzuli (podział na „ale/jednak/natomiast/lecz”, średnik, myślnik): `strip_disclaimers` usuwa tylko klauzulę z formułką, reguły pomijają dopasowania tylko w klauzuli-zastrzeżeniu, powód z cytatem jest odrzucany, gdy po usunięciu zastrzeżeń nie zostaje żaden sygnał doradztwa (`is_disclaimer_quote`). Czyste zastrzeżenie (dok. 99) działa jak wcześniej. 2 nowe testy, pytest 438 passed.
+- **Do sprawdzenia przez człowieka:** `/reanalyze?module=3&document_id=99` i `/findings/65`; wzorce „ale/jednak” tylko dla polskiego tekstu.
+
+## 2026-11-22 — #90 /health pokazuje stan modelu LLM
+- **Zlecono:** przegląd issues ai-core, synchronizacja z origin, domknięcie niezrobionego z #90 (`/health` nie wiedział, czy Bielik się załadował). #95, #83, #70 (część ai) były już zrobione w PR #102.
+- **Zmiana:** `OllamaClient.warmup()` zwraca bool, `app.state.llm_ready` ustawiany po warmupie, `/health` ma pole `llm` (`ok` / `loading` / `error`). Pole informacyjne: `status` i kod 503 zależą jak dotąd od Ollamy i Postgresa, więc healthcheck w compose się nie zmienia. Pytest 439 passed.
+- **Nie zrobione:** fail-fast po nieudanym warmupie (świadomie, na CPU model może się ładować dłużej niż timeout).
+- **Do sprawdzenia przez człowieka:** `curl localhost:8000/health` na żywym stosie; `docs/contracts.md` nie opisuje pola `llm` (zmiana przez team/api). `ruff check` zgłasza 2 × E501 w `ai/app/preprocess/entity_match.py` (plik ai-data) — zgłosić.
