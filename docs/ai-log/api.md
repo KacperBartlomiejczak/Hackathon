@@ -152,3 +152,14 @@
   - Local api on a scratch `pgvector/pgvector:0.8.7-pg16` with `infra/db` and a stub ai: PUT/PATCH/POST without a token → 401; PUT with the token → 200 and saved; GET without a token → 200; CORS preflight allows `authorization`; `/eval` → stub accepted the token (200); the token value does not appear in the log. Scratch container and processes removed.
 - PR review (2026-11-22, CVE and performance pass before merge): the hook was first registered as `onRequest`, but @fastify/rate-limit 11 adds route-level `onRequest` hooks, which Fastify runs after instance-level ones, so wrong tokens got 401 forever and never 429 (checked with `inject`: 6 bad PUTs at `max: 3` → all 401). Moved to `preHandler` and added a test (3 wrong tokens → 401, then 429). `npm audit`: 0 vulnerabilities, no dependency changes; the added per-request cost is one SHA-256 on writes only.
 - Left for others: infra puts `ADMIN_TOKEN=` / `VITE_ADMIN_TOKEN=` (same value) and `AI_REQUIRE_TOKEN=true` in `.env.example` and README; lead adds `X-Internal-Token` in `collector/src/ai/client.ts`. `AI_REQUIRE_TOKEN` can go on only after that.
+
+## 2026-11-22: Edge-case test pass and bugfixes (after freeze)
+- Asked Claude to: check the api part and test edge cases. It ran the existing suite (44/44, typecheck, lint) and wrote 113 integration tests run against the real `buildApp` on a scratch `pgvector/pgvector:0.8.7-pg16` (with `infra/db`) + Valkey + a stub ai. 108 passed. The human accepted the fix plan ("ok").
+- Found and fixed:
+  - `to=YYYY-MM-DD` (what web's `<input type="date">` sends) meant 00:00 UTC, so the chosen day was left out (from=to=today → empty list). A bare date in `to` now means 23:59:59.999Z. Same in `/stats/trend`.
+  - `from`/`to` outside 1970–9999 → 400 (was 500 from Postgres).
+  - NUL byte in `q`, `changedBy`, `note` → 400 (was 500 from Postgres).
+  - `/eval?threshold=` coerced to 0 → now 400. `/eval` reads the ai body inside the try, so a dropped connection gives 502, not 500.
+- Skill used: `data-contract` (by hand): `docs/contracts.md` describes the `from`/`to` day rule, the date range, NUL and the 502 case. No DB change.
+- Verified: `npm test` 53/53 (new `test/validation.test.ts`), typecheck, lint; the 113 integration tests 113/113 after the fix. Scratch containers removed.
+- Left for web: days are counted in UTC; a new issue asks web to send local-day boundaries as full timestamps and group the trend by local day.
