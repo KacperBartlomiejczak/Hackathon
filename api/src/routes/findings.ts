@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db/client.js";
 import { documents, entities, findings, findingStatusHistory } from "../db/schema.js";
+import { effectiveRiskLevel } from "../db/risk.js";
 import { documentIsActive } from "../db/seen.js";
 import type { Io } from "../realtime/socket.js";
 import type { Storage } from "../storage/s3.js";
@@ -31,7 +32,7 @@ const escapeLike = (s: string): string => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 export function buildFindingsWhere(query: FindingsFilter): SQL | undefined {
   const conditions: (SQL | undefined)[] = [
     query.module !== undefined ? eq(findings.module, query.module) : undefined,
-    query.risk ? eq(findings.riskLevel, query.risk) : undefined,
+    query.risk ? sql`${effectiveRiskLevel} = ${query.risk}` : undefined,
     query.status ? eq(findings.status, query.status) : undefined,
     query.source ? eq(documents.sourceKind, query.source) : undefined,
     query.from ? gte(findings.createdAt, query.from) : undefined,
@@ -52,7 +53,7 @@ export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storag
 
     const result = await db.transaction(async (tx) => {
       const [current] = await tx
-        .select({ status: findings.status, module: findings.module, riskLevel: findings.riskLevel })
+        .select({ status: findings.status, module: findings.module, riskLevel: effectiveRiskLevel })
         .from(findings)
         .where(eq(findings.id, id))
         .for("update");
@@ -111,7 +112,7 @@ export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storag
           id: findings.id,
           module: findings.module,
           score: findings.score,
-          riskLevel: findings.riskLevel,
+          riskLevel: effectiveRiskLevel,
           label: findings.label,
           status: findings.status,
           createdAt: findings.createdAt,
@@ -181,6 +182,7 @@ export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storag
     const [row] = await db
       .select({
         finding: findings,
+        riskLevel: effectiveRiskLevel,
         document: {
           id: documents.id,
           url: documents.url,
@@ -230,6 +232,7 @@ export const findingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, storag
 
     return {
       ...row.finding,
+      riskLevel: row.riskLevel,
       document,
       firm: row.firm,
       advertiser: row.advertiser,
