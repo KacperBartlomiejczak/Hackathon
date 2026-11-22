@@ -40,45 +40,149 @@ flowchart LR
 ---
 
 <!-- Slajd 3 -->
-## Moduł 1/3: `collector` i `api` — zbieranie danych i agregacja wyników
+## Schemat bazy danych (PostgreSQL 16 + pgvector + pg_trgm)
 
-- **`collector` (Node 22 + Playwright + BullMQ):**
-  - **Zakres źródeł (MVP):** aktywne adaptery `sample` (dane offline), `web` (Chromium, discovery z głębokości 1, rotacja 23 User-Agentów i `PROXY_LIST`, limit 2/host, jitter) oraz `youtube` (publiczny RSS kanałów) + harmonogram `sources.cron`. Adaptery FB/IG/TikTok pozostają poza obecnym MVP (gotowy interfejs adaptera; w UI filtr źródeł dynamicznie ukrywa nieaktywne typy z `GET /sources`).
-  - Zapisuje HTML i screenshot PNG do SeaweedFS S3 oraz metadane do `documents` (`upsert` po `url_hash`, triggery `first_seen_at` / `last_seen_at`).
-- **`api` (Fastify + Drizzle + Socket.io):**
-  - **Agregator M1/M2/M3 (`GET /documents`, `GET /documents/:id`):** składa wyniki modułów w jeden rekord dokumentu (`modules` `"1"/"2"/"3"` + podsumowanie `overall`: `maxScore`, `riskLevel`, `flaggedModules`).
-  - **Śledzenie widoczności reklam M1:** `first_seen_at`, `last_seen_at` oraz wyliczane `isActive` (karencja 1 h po późniejszym pełnym przebiegu `ok`).
-  - REST API + Socket.io (`alert:new`, `finding:updated`, `crawl:status`), indeksy GIN `pg_trgm`, presigned URL (15 min) i eksport CSV/JSON.
+> Źródło diagramu: `presentation/database.mmd` (osadzony jako wektorowy SVG w `InvestWatch.pdf`; źródło prawdy: `docs/contracts.md`, `infra/db/001–004`)
+
+```mermaid
+erDiagram
+  sources |o--o{ crawl_runs : "source_id"
+  sources |o--o{ documents : "source_id"
+  crawl_runs |o--o{ documents : "crawl_run_id"
+  documents |o--o{ documents : "duplicate_of"
+  documents ||--o{ findings : "document_id, max 1 na moduł"
+  entities |o--o{ findings : "firm_entity_id"
+  entities |o--o{ findings : "advertiser_entity_id"
+  findings ||--o{ finding_status_history : "finding_id"
+  module_settings ||..o{ findings : "module, bez FK"
+
+  sources {
+    serial id PK
+    text kind "web, social, sample"
+    text name
+    text start_url
+    text cron "np. co 6 h"
+    boolean enabled
+  }
+  crawl_runs {
+    serial id PK
+    int source_id FK
+    text status "running, ok, partial, failed"
+    int items_found
+    timestamptz started_at
+    timestamptz finished_at
+  }
+  documents {
+    bigserial id PK
+    text url
+    text url_hash UK
+    int source_id FK
+    int crawl_run_id FK
+    text source_kind
+    text title "GIN trgm"
+    text text_clean "GIN trgm"
+    text html_key "S3"
+    text screenshot_key "S3"
+    text content_hash "dedup"
+    bigint simhash "dedup"
+    bigint duplicate_of FK
+    vector embedding "bge-m3, 1024"
+    text status "fetched, processed, duplicate, failed"
+    timestamptz first_seen_at "trigger"
+    timestamptz last_seen_at "trigger"
+  }
+  findings {
+    bigserial id PK
+    bigint document_id FK "UNIQUE z module"
+    smallint module "1, 2, 3"
+    real score "0-1"
+    text risk_level "low, medium, high"
+    text label
+    jsonb reasons "kryterium, werdykt, cytat, waga"
+    int firm_entity_id FK
+    int advertiser_entity_id FK
+    text model
+    text prompt_version
+    text status "new, in_review, confirmed, dismissed"
+    timestamptz created_at
+  }
+  entities {
+    serial id PK
+    text name
+    text_array aliases
+    text type "firma, finfluencer, ..."
+    boolean is_authorized "rejestr KNF"
+    text register_ref
+    text nip
+    text_array official_domains
+    text_array social_handles
+  }
+  finding_status_history {
+    bigserial id PK
+    bigint finding_id FK
+    text old_status
+    text new_status
+    text changed_by
+    timestamptz changed_at
+  }
+  module_settings {
+    smallint module PK "1, 2, 3"
+    real threshold "domyślnie 0.6"
+    jsonb weights "llm, rules, emb"
+  }
+```
+
+**Kluczowe decyzje:**
+- Max 1 finding na dokument i moduł: `UNIQUE (document_id, module)` — `ai` wykonuje upsert.
+- Każda flaga ma dowód: `reasons[]` = kryterium, werdykt, cytat, waga.
+- Filtry dashboardu: indeks `(module, risk_level, status, created_at)`, wyszukiwarka `q`: `pg_trgm` (GIN) na `title` i `text_clean`.
+- Deduplikacja i podobieństwo: `url_hash` UNIQUE, `content_hash`, `simhash`; `pgvector` z embeddingiem `bge-m3` (`vector(1024)`).
+- Okresowa aktualizacja M1: trigger `documents_track_seen` ustawia `first_seen_at` / `last_seen_at`.
+- `module_settings` (próg i wagi) łączy się z `findings.module` logicznie, bez FK.
 
 ---
 
 <!-- Slajd 4 -->
+## Moduł 1/3: `collector` i `api` — zbieranie danych i agregacja wyników
+
+- **`collector` (Node 22 + Playwright + BullMQ):**
+  - **Zakres źródeł (MVP):** aktywne adaptery `sample` (dane offline + syntetyki gold set), `web` (Chromium, discovery z głębokości 1, rotacja 23 User-Agentów i `PROXY_LIST`, limit 2/host, jitter), `youtube` (publiczny RSS kanałów) oraz `tiktok` (pojedyncze filmy przez oEmbed + fallback JSON, #51) + harmonogram `sources.cron`. Adaptery FB/IG pozostają poza obecnym MVP (gotowy interfejs adaptera; filtr w UI dynamicznie ukrywa nieaktywne typy z `GET /sources`).
+  - **Ochrona przed SSRF (`collector/src/adapters/ssrf.ts`, #74):** `isBlockedUrl` (DNS + `net.BlockList`) i `context.route('**/*')` blokują żądania i przekierowania na loopback, sieci prywatne, link-local i usługi Compose.
+  - Zapisuje HTML i screenshot PNG do SeaweedFS S3 oraz metadane do `documents` (`upsert` po `url_hash`, triggery `first_seen_at` / `last_seen_at`).
+- **`api` (Fastify + Drizzle + Socket.io):**
+  - **Agregator M1/M2/M3 (`GET /documents`, `GET /documents/:id`):** składa wyniki modułów w jeden rekord dokumentu (`modules` `"1"/"2"/"3"` + podsumowanie `overall`: `maxScore`, `riskLevel`, `flaggedModules`).
+  - **Śledzenie widoczności reklam M1:** `first_seen_at`, `last_seen_at` oraz wyliczane `isActive` (karencja 1 h po późniejszym pełnym przebiegu `ok`).
+  - REST API + Socket.io (`alert:new`, `finding:updated`, `crawl:status`), indeksy GIN `pg_trgm`, presigned URL (15 min), eksport CSV/JSON i opcjonalny `ADMIN_TOKEN`.
+
+---
+
+<!-- Slajd 5 -->
 ## Moduł 2/3: `ai` — tokenizacja, embeddingi oraz M1/M2/M3
 
 - **Preprocessing:** ekstrakcja tekstu (`trafilatura`) → deduplikacja dokładna (SHA-256) i przybliżona (`simhash` na 3-gramach słów, próg Hamminga `6`) → **tokenizacja i embeddingi** (tokenizacja leksykalno-fleksyjna z granicami słów dla aliasów KNF + wektory `bge-m3` `vector(1024)` w `pgvector`).
-- **3 moduły analityczne:**
+- **3 moduły analityczne (na `main`):**
   1. **M1 (Finfluencerzy):** wzmianka o firmie z rejestru KNF (86 podmiotów w `entities.csv`) spoza jej `official_domains` / `social_handles`.
-  2. **M2 (Informacja o ryzyku):** ewolucja `m2-v1` (4 kryteria) → `m2-v3` (8 kryteriów na `main` wg MiFID II art. 44 / rozporządzenia 2017/565) → `m2-v4` (`team/ai-core`: **16 kryteriów tekstowych** zmapowanych na reguły tekstowe 1, 2, 3, 6, 9–12b, 14–18 załącznika UKNF; 5 reguł układu graficznego 4, 5, 7, 8, 13 wymaga HTML/screenshotu i jest poza zakresem tekstowym).
-  3. **M3 (Shadow advisory):** nielicencjonowane doradztwo i zarządzanie portfelem wg **art. 76** ustawy o obrocie instrumentami finansowymi (`rules/m3.yaml` + embeddingi `bge-m3` + ocena LLM).
+  2. **M2 (Informacja o ryzyku):** ewolucja `m2-v1` (4 kryteria) → `m2-v3` (8 kryteriów wg MiFID II art. 44 / rozporządzenia 2017/565) → **`m2-v4` (PR #76 na `main`: 16 kryteriów tekstowych** zmapowanych na reguły tekstowe 1, 2, 3, 6, 9–12b, 14–18 załącznika UKNF; 5 reguł układu graficznego 4, 5, 7, 8, 13 wymaga HTML/screenshotu i jest poza zakresem tekstowym).
+  3. **M3 (Shadow advisory):** nielicencjonowane doradztwo i zarządzanie portfelem wg **art. 76** ustawy o obrocie instrumentami finansowymi (`m3-v3`, `rules/m3.yaml` + embeddingi `bge-m3` + ocena LLM).
 - **Dlaczego `Bielik-11B-v2.3-Instruct` i `bge-m3` zamiast `Gemma` / `BERT`?**
   - **Bielik 11B (Apache-2.0):** natywny polski tokenizer i korpus → precyzyjna polska fleksja, terminologia UKNF i strukturalny JSON. Pomiar na GPU RTX 3060 12 GB: **3,4–5,8 s** (M1/M3), **9–10,5 s** (M2), **< 0,15 s** bez modułu.
   - **`bge-m3` (MIT):** okno 8192 tokenów (16× więcej niż klasyczny BERT) i wielojęzyczne wektory 1024-dim w tej samej Ollamie.
 
 ---
 
-<!-- Slajd 5 -->
+<!-- Slajd 6 -->
 ## Moduł 3/3: `web` — dashboard analityka UKNF
 
 - **Widoki robocze (React 19 + Vite + Tailwind + Recharts, styl instytucjonalny `knf.gov.pl`):**
-  - **Findingi:** tabela incydentów z filtrami (moduł, ryzyko, status, dynamiczne źródło z `GET /sources`, zakres dat, wyszukiwarka pełnotekstowa `q` z debounce 300 ms) oraz paginacją.
+  - **Findingi:** tabela incydentów z filtrami (moduł, ryzyko, status, dynamiczne źródło z `GET /sources`, zakres dat w czasie lokalnym `Europe/Warsaw` #88, wyszukiwarka pełnotekstowa `q` z debounce 300 ms) oraz paginacją.
   - **Szczegóły findingu:** pełna treść po czyszczeniu, lista `reasons[]` z polskimi etykietami, **dosłownym cytatem** i werdyktem, podgląd screenshota z S3, zmiana statusu z historią audytu.
-  - **Trendy i raportowanie:** kafelki podsumowania (`/stats/summary`), wykres incydentów w czasie (`/stats/trend`), eksport CSV/JSON dla polskiego Excela (`;`, przecinek dziesiętny, BOM UTF-8, neutralizacja formula injection `= + - @`).
-  - **Kalibracja, alerty i źródła:** toasty `alert:new` przez Socket.io, licznik **„Oznaczone flagą”** (`tp + fp`), zapis progu i wag oraz przycisk **„Uruchom crawl”**.
-- **Lekki i bezpieczny obraz produkcyjny:** code-splitting (`React.lazy`, główny chunk 346 kB) serwowany przez **`nginx:1.30.7-alpine` + `apk upgrade libxml2`** (**Trivy: 0 CRITICAL / 0 HIGH**).
+  - **Trendy i raportowanie:** kafelki podsumowania (`/stats/summary`), wykres incydentów w czasie grupowany po dniu lokalnym (`bucket=hour`), eksport CSV/JSON dla polskiego Excela (`;`, przecinek dziesiętny, BOM UTF-8, neutralizacja formula injection `= + - @`).
+  - **Kalibracja, alerty i źródła:** toasty `alert:new` przez Socket.io, licznik **„Oznaczone flagą”** (`tp + fp`), zapis progu i wag (opcjonalny `VITE_ADMIN_TOKEN`, #71) oraz przycisk **„Uruchom crawl”**.
+- **Lekki i bezpieczny obraz produkcyjny (`vitest`: 99 testów):** code-splitting (`React.lazy`, główny chunk 346 kB) serwowany przez **`nginx:1.30.7-alpine` + `apk upgrade libxml2`** (**Trivy: 0 CRITICAL / 0 HIGH**), bez `env_file`.
 
 ---
 
-<!-- Slajd 6 -->
+<!-- Slajd 7 -->
 ## Kalibracja, wiarygodność i odporność na prompt injection
 
 - **Hybrydowy scoring:**
@@ -89,22 +193,21 @@ flowchart LR
 - **Odporność na prompt injection (`ai/tests/test_prompt_injection.py`):**
   - Treść strony izolowana w `<document>...</document>` (`neutralize_delimiters` w `llm.py`): **12 testów offline + 3/3 testy live na Bieliku 11B** (wyniki z atakiem identyczne z bazowymi: M1 `0.941`, M2 `1.000`, M3 `0.956`, zero cytatów z payloadu ataku).
 - **Progi i panel kalibracji (`GET /eval` + `gold.csv` + `rubric.md`):**
-  - `high >= 0.8` (alert Socket.io), `medium >= próg`, `low < próg`; suwak progu na żywo przelicza `precision`, `recall`, `TP`, `FP`, `FN`, `TN` na ręcznie oznaczonym zbiorze wg rubryki UKNF.
-
----
-
-<!-- Slajd 7 -->
-## Bezpieczeństwo i czystość licencyjna
-
-- **Izolacja sieci i kontenerów:** wszystkie usługi w dedykowanej sieci bridge Docker Compose; kontenery `api` (`USER node`), `collector` (`USER pwuser`) i `ai` (`USER app`) działają bez uprawnień roota; przypięte wersje obrazów (zero `latest`).
-- **Sekrety i walidacja startowa:** sekrety wyłącznie w `.env` (`.gitignore`), wstrzykiwane przez `env_file`; `api/src/config.ts` i `collector/src/config.ts` walidują zmienne przez `zod` przy starcie (`INTERNAL_TOKEN` >= 16 znaków).
-- **Ochrona ruchu wewnętrznego i logów:** `/internal/*` chronione `X-Internal-Token` (`timingSafeEqual` na SHA-256), opcjonalna straż endpointów AI (`AI_REQUIRE_TOKEN`, `hmac.compare_digest`), CORS ograniczony do `WEB_ORIGIN`, maskowanie pól wrażliwych (`redact`) w `pino`, rate-limit `300/min` (`10/min` na `/export`).
-- **100% lokalne AI i czyste licencje (`docs/SECURITY.md`, `docs/DEPENDENCIES.md`):** Valkey (BSD-3), SeaweedFS (Apache-2.0), `asyncpg` (Apache-2.0), Bielik (Apache-2.0), `bge-m3` (MIT).
-- **Wyniki audytów:** `npm audit` ×3 i `pip-audit` (`47` paczek runtime / `50` z dev + OSV `55` paczek) = **0 podatności**; obraz produkcyjny `web` w Trivy = **0 CRITICAL / 0 HIGH**; pozostałe obrazy zeskanowane `docker scout quickview`.
+  - `high >= 0.8` (alert Socket.io), `medium >= próg`, `low < próg`; suwak progu na żywo przelicza `precision`, `recall`, `TP`, `FP`, `FN`, `TN` na **120-wierszowym `gold.csv` (40/40/40 po kluczu URL)** oznaczonym wg `ai/eval/rubric.md`.
 
 ---
 
 <!-- Slajd 8 -->
+## Bezpieczeństwo i czystość licencyjna
+
+- **Izolacja sieci, portów i kontenerów (#72):** wszystkie usługi w sieci bridge Docker Compose; porty pomocnicze (`postgres`, `valkey`, `seaweedfs`, `ollama`, `ai`) zbindowane wyłącznie do **`127.0.0.1`**, na zewnątrz tylko `web` (`5173`) i `api` (`3000`); `web` bez `env_file` (sekrety niedostępne w kontenerze); kontenery `api` (`USER node`), `collector` (`USER pwuser`) i `ai` (`USER app`, `uid=10001`) non-root; przypięte wersje obrazów.
+- **Sekrety, uwierzytelnianie i SSRF:** sekrety wyłącznie w `.env` (`.gitignore`), walidacja `zod` przy starcie (`INTERNAL_TOKEN` >= 16 znaków); `/internal/*` chronione `X-Internal-Token` (`timingSafeEqual` na SHA-256), uwierzytelniany S3 SeaweedFS (`-s3.config` + SigV4), opcjonalny `ADMIN_TOKEN` na zapisach REST (#71) i `AI_REQUIRE_TOKEN` (`hmac.compare_digest`), blokada SSRF w `collector` (#74), maskowanie `redact` w `pino`, rate-limit `300/min` (`10/min` `/export`).
+- **100% lokalne AI i czyste licencje (`docs/SECURITY.md`, `docs/DEPENDENCIES.md`):** Valkey (BSD-3), SeaweedFS (Apache-2.0), `asyncpg` (Apache-2.0), Bielik (Apache-2.0), `bge-m3` (MIT).
+- **Wyniki audytów (22.11, Trivy 0.76.2):** `npm audit` ×3 i `pip-audit` (`47` runtime / `50` dev + OSV `55` paczek) = **0 podatności**; obrazy w Trivy: `web` **`0C / 0H`**, `valkey:8.1.12-alpine` **`0C / 0H`**, `seaweedfs:4.52` **`0C / 1H`**, `ai` (`python:3.12.16-slim-trixie`) **`0C / 51H`** (`--ignore-unfixed` → `0`).
+
+---
+
+<!-- Slajd 9 -->
 ## Standaryzowany proces pracy z AI (20% oceny — `docs/AI_PROCESS.md`)
 
 - **Kontrakt w `CLAUDE.md` + 5 skilli (`.claude/skills/`):** obowiązek *plan-first* (najpierw plan i akceptacja człowieka, potem kod), zakaz `console.log`/`print`, skille `scraper-adapter`, `risk-classifier`, `data-contract`, `dependency-guard`, `demo-check`.
@@ -116,7 +219,7 @@ flowchart LR
 
 ---
 
-<!-- Slajd 9 -->
+<!-- Slajd 10 -->
 ## Demo na żywo — kluczowy przepływ
 
 1. **Start stosu:** `docker compose up --build` → czyste środowisko z gotowym buckietem S3, bazą `pgvector` i modelami w Ollamie.
@@ -129,10 +232,10 @@ flowchart LR
 
 ---
 
-<!-- Slajd 10 -->
+<!-- Slajd 11 -->
 ## Dalszy rozwój i skalowanie
 
 - **Analiza 5 reguł układu graficznego M2 (reguły UKNF 4, 5, 7, 8, 13):** weryfikacja rozmiaru czcionki, kontrastu, dostępu jednym kliknięciem, responsywności oraz dominacji wyników historycznych na wyrenderowanym DOM i screenshotach S3 (VLM / Playwright CSS metrics).
-- **Adaptery social mediów i rozbudowa rejestru KNF (`entities.csv`):** wdrożenie kolektorów Facebook/Instagram/TikTok (interfejs `Adapter` gotowy w `collector/`) oraz uzupełnienie `official_domains` i `social_handles` dla wszystkich podmiotów KNF.
-- **Analiza wideo (OCR / ASR) i tryb produkcyjny:** transkrypcja rolek (YouTube Shorts, TikTok, Reels), wymuszenie `-s3.config` w SeaweedFS oraz `AI_REQUIRE_TOKEN=1` po dopięciu nagłówka `X-Internal-Token` w `collector/`.
-- **Ciągłe strojenie jakości:** rozbudowa zbioru `gold.csv` wg `ai/eval/rubric.md`, wdrożenie `m2-v4` (16 kryteriów) na pełnym stosie oraz skalowanie `OLLAMA_NUM_PARALLEL > 1` na wielu GPU.
+- **Pełne adaptery Facebook / Instagram i rozbudowa rejestru KNF (`entities.csv`):** wdrożenie kolektorów FB/IG oraz listingu profili TikTok (interfejs `Adapter` gotowy w `collector/`) oraz uzupełnienie `official_domains` i `social_handles` dla wszystkich podmiotów KNF.
+- **Analiza wideo (OCR / ASR) i pełne uwierzytelnienie AI:** transkrypcja rolek (YouTube Shorts, TikTok, Reels) oraz włączenie `AI_REQUIRE_TOKEN=true` po dopięciu nagłówka `X-Internal-Token` w `collector/src/ai/client.ts`.
+- **Ciągłe strojenie jakości i skalowanie GPU:** rozbudowa zbioru `gold.csv` wg `ai/eval/rubric.md`, okresowa re-ewaluacja przez `POST /reanalyze` oraz skalowanie `OLLAMA_NUM_PARALLEL > 1` na wielu GPU.

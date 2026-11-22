@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InvestWatch — HackNation 2026 (UKNF)</title>
+  <style>
+    @page {
+      size: 13.333in 7.5in;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      font-family: "Segoe UI", "Liberation Sans", Arial, sans-serif;
+      color: #0F172A;
+      background: #E2E8F0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .slide {
+      width: 13.333in;
+      height: 7.5in;
+      background: #F8FAFC;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 0.44in 0.56in 0.5in 0.56in;
+      break-after: page;
+      page-break-after: always;
+      margin: 0 auto 16px auto;
+    }
+
+    .slide-last {
+      break-after: auto;
+      page-break-after: auto;
+      margin-bottom: 0;
+    }
+
+    @media print {
+      html, body {
+        background: #F8FAFC;
+      }
+      .slide {
+        margin: 0;
+      }
+    }
+
+    /* Top accent bar */
+    .slide::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 7px;
+      background: linear-gradient(90deg, #0F2942 0%, #1D4ED8 70%, #0EA5E9 100%);
+    }
+
+    /* Cover slide */
+    .slide-cover {
+      background: linear-gradient(135deg, #0B1F33 0%, #0F2942 58%, #163A5F 100%);
+      color: #F8FAFC;
+      justify-content: space-between;
+      padding: 0.6in 0.68in 0.52in 0.68in;
+    }
+
+    .slide-cover::before {
+      height: 8px;
+      background: linear-gradient(90deg, #38BDF8 0%, #2563EB 60%, #1D4ED8 100%);
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      color: #BAE6FD;
+      font-size: 13.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 6px;
+      margin-bottom: 18px;
+    }
+
+    .cover-title {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      color: #FFFFFF;
+      margin-bottom: 12px;
+    }
+
+    .cover-subtitle {
+      font-size: 24px;
+      font-weight: 500;
+      color: #CBD5E1;
+      line-height: 1.3;
+      max-width: 9.8in;
+    }
+
+    .cover-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 28px;
+    }
+
+    .cover-card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 10px;
+      padding: 20px 22px;
+    }
+
+    .cover-card-tag {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #7DD3FC;
+      margin-bottom: 8px;
+    }
+
+    .cover-card h3 {
+      font-size: 19px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+
+    .cover-card p {
+      font-size: 14.5px;
+      line-height: 1.48;
+      color: #E2E8F0;
+    }
+
+    .cover-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+      padding-top: 14px;
+      font-size: 13.5px;
+      color: #94A3B8;
+    }
+
+    /* Standard slide header & footer */
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 2px solid #E2E8F0;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+
+    .slide-kicker {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #1D4ED8;
+      margin-bottom: 3px;
+    }
+
+    .slide-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: #0F2942;
+      line-height: 1.15;
+    }
+
+    .slide-meta {
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748B;
+      white-space: nowrap;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .slide-footer {
+      margin-top: auto;
+      padding-top: 8px;
+      border-top: 1px solid #E2E8F0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: #64748B;
+      flex-shrink: 0;
+    }
+
+    /* Layout helpers */
+    .cols-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .cols-2-wide {
+      display: grid;
+      grid-template-columns: 1.18fr 0.82fr;
+      gap: 18px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .cols-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: 10px;
+      padding: 15px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card-navy {
+      background: #0F2942;
+      border: 1px solid #0F2942;
+      color: #F8FAFC;
+    }
+
+    .card-soft {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+    }
+
+    .card-warn {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+    }
+
+    .card-ok {
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0F2942;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .card-navy .card-title {
+      color: #FFFFFF;
+    }
+
+    .pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .pill-blue { background: #DBEAFE; color: #1E40AF; }
+    .pill-green { background: #D1FAE5; color: #065F46; }
+    .pill-red { background: #FEE2E2; color: #991B1B; }
+    .pill-slate { background: #E2E8F0; color: #334155; }
+
+    ul.clean {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    ul.clean li {
+      position: relative;
+      padding-left: 16px;
+      font-size: 13.4px;
+      line-height: 1.4;
+      color: #1E293B;
+    }
+
+    ul.clean li::before {
+      content: "▪";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: #1D4ED8;
+      font-weight: 700;
+    }
+
+    .card-navy ul.clean li {
+      color: #E2E8F0;
+    }
+
+    .card-navy ul.clean li::before {
+      color: #38BDF8;
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      background: #F1F5F9;
+      border: 1px solid #E2E8F0;
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #0F2942;
+    }
+
+    .card-navy code {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.22);
+      color: #BAE6FD;
+    }
+
+    .formula-box {
+      background: #0F2942;
+      color: #FFFFFF;
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 15px;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 0.01em;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .stat-box {
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0F2942;
+      line-height: 1.15;
+    }
+
+    .stat-lbl {
+      font-size: 11.5px;
+      color: #475569;
+      margin-top: 3px;
+    }
+
+    .flow-steps {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      flex: 1;
+    }
+
+    .step-card {
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-top: 5px solid #1D4ED8;
+      border-radius: 10px;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step-num {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #0F2942;
+      color: #FFFFFF;
+      font-weight: 800;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .step-title {
+      font-size: 15.5px;
+      font-weight: 700;
+      color: #0F2942;
+      line-height: 1.25;
+    }
+
+    .step-desc {
+      font-size: 13px;
+      line-height: 1.45;
+      color: #334155;
+    }
+
+    .banner {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-left: 5px solid #1D4ED8;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 12.8px;
+      line-height: 1.4;
+      color: #0F2942;
+      flex-shrink: 0;
+    }
+
+    .decisions-box {
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-left: 5px solid #0F2942;
+      border-radius: 8px;
+      padding: 8px 14px;
+      flex-shrink: 0;
+    }
+
+    .decisions-title {
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #0F2942;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 5px;
+    }
+
+    .decisions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 20px;
+      font-size: 11.4px;
+      line-height: 1.32;
+      color: #1E293B;
+    }
+
+    .decisions-grid div {
+      position: relative;
+      padding-left: 12px;
+    }
+
+    .decisions-grid div::before {
+      content: "▪";
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: #1D4ED8;
+      font-weight: 700;
+    }
+
+    .decisions-grid code {
+      font-size: 10.6px;
+      padding: 0 3px;
+    }
+
+    .svg-wrap {
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: 10px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      min-height: 0;
+    }
+
+    table.compact {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.4px;
+    }
+
+    table.compact th {
+      text-align: left;
+      background: #F1F5F9;
+      color: #0F2942;
+      padding: 5px 9px;
+      border-bottom: 2px solid #CBD5E1;
+      font-weight: 700;
+    }
+
+    table.compact td {
+      padding: 5px 9px;
+      border-bottom: 1px solid #E2E8F0;
+      color: #1E293B;
+      vertical-align: top;
+      line-height: 1.32;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- SLAJD 1: OKŁADKA I PROBLEM -->
+  <section class="slide slide-cover">
+    <div>
+      <div class="cover-badge">Zadanie UKNF · HackNation 2026 · 100% Open-Source &amp; On-Premise</div>
+      <h1 class="cover-title">InvestWatch</h1>
+      <p class="cover-subtitle">
+        Automatyczny monitoring treści o instrumentach i usługach finansowych w polskim internecie —
+        lokalne modele AI bez zewnętrznych API i chmury.
+      </p>
+    </div>
+
+    <div class="cover-grid">
+      <div class="cover-card">
+        <div class="cover-card-tag">Problem rynku</div>
+        <h3>Skala i ulotność naruszeń</h3>
+        <p>
+          Dynamiczny przyrost reklam inwestycyjnych w sieci i social mediach: promocja przez finfluencerów,
+          brak lub ukrywanie ostrzeżeń o ryzyku oraz nielicencjonowane doradztwo poza rejestrem KNF.
+        </p>
+      </div>
+      <div class="cover-card">
+        <div class="cover-card-tag">Wyzwanie nadzoru</div>
+        <h3>Ograniczenia ręcznego przeglądu</h3>
+        <p>
+          Ręczne przeglądanie setek stron i postów jest powolne, a agresywne kampanie reklamowe potrafią
+          zniknąć w ciągu kilku godzin zanim analityk zabezpieczy materiał dowodowy.
+        </p>
+      </div>
+      <div class="cover-card">
+        <div class="cover-card-tag">Rozwiązanie InvestWatch</div>
+        <h3>3 moduły z twardym dowodem</h3>
+        <p>
+          Automatyczny pipeline wykrywający naruszenia w modułach <strong>M1 / M2 / M3</strong> i dostarczający
+          gotowy pakiet dowodowy: <strong>dosłowny cytat, ocenę kryteriów i screenshot z S3</strong>.
+        </p>
+      </div>
+    </div>
+
+    <div class="cover-footer">
+      <span>Stos: Node 22 (TS) · Python 3.12 (FastAPI) · React 19 · PostgreSQL 16 pgvector · Valkey · SeaweedFS S3 · Ollama (Bielik-11B + bge-m3)</span>
+      <span>Slajd 1 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 2: ARCHITEKTURA -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Architektura systemu</div>
+        <h2 class="slide-title">Architektura on-premise uruchamiana jedną komendą</h2>
+      </div>
+      <div class="slide-meta"><code>cp .env.example .env &amp;&amp; docker compose up --build</code></div>
+    </div>
+
+    <div class="slide-body">
+      <div class="svg-wrap">
+        <svg viewBox="0 0 1180 390" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#1E40AF" />
+            </marker>
+            <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#DC2626" />
+            </marker>
+            <marker id="arrow-slate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#475569" />
+            </marker>
+          </defs>
+
+          <!-- WEB -->
+          <rect x="18" y="42" width="190" height="82" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+          <text x="113" y="72" text-anchor="middle" font-size="16" font-weight="800" fill="#0F2942">web (:5173)</text>
+          <text x="113" y="94" text-anchor="middle" font-size="12.5" fill="#334155">React 19 + Vite + Recharts</text>
+          <text x="113" y="112" text-anchor="middle" font-size="11.5" fill="#1D4ED8" font-weight="700">Nginx 1.30.7-alpine (0C/0H)</text>
+
+          <!-- API -->
+          <rect x="330" y="42" width="235" height="82" rx="10" fill="#0F2942" stroke="#0F2942" stroke-width="2" />
+          <text x="447" y="70" text-anchor="middle" font-size="16" font-weight="800" fill="#FFFFFF">api (:3000)</text>
+          <text x="447" y="92" text-anchor="middle" font-size="12" fill="#CBD5E1">Fastify + Drizzle + Socket.io</text>
+          <text x="447" y="110" text-anchor="middle" font-size="11.5" fill="#7DD3FC">REST · /documents · /eval · /export</text>
+
+          <!-- VALKEY -->
+          <rect x="690" y="42" width="195" height="82" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+          <text x="787" y="72" text-anchor="middle" font-size="14" font-weight="800" fill="#0F2942">valkey (127.0.0.1:6379)</text>
+          <text x="787" y="94" text-anchor="middle" font-size="12.5" fill="#334155">Valkey 8.1.12 (BSD-3)</text>
+          <text x="787" y="112" text-anchor="middle" font-size="11.5" fill="#475569">Kolejka BullMQ crawl-source</text>
+
+          <!-- COLLECTOR -->
+          <rect x="962" y="42" width="200" height="82" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+          <text x="1062" y="72" text-anchor="middle" font-size="16" font-weight="800" fill="#0F2942">collector</text>
+          <text x="1062" y="94" text-anchor="middle" font-size="12.5" fill="#334155">Node 22 + Playwright</text>
+          <text x="1062" y="112" text-anchor="middle" font-size="11" fill="#1D4ED8" font-weight="700">sample · web · yt · tiktok · SSRF</text>
+
+          <!-- POSTGRES -->
+          <rect x="18" y="268" width="245" height="92" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+          <text x="140" y="296" text-anchor="middle" font-size="14" font-weight="800" fill="#0F2942">postgres (127.0.0.1:5432)</text>
+          <text x="140" y="318" text-anchor="middle" font-size="12.5" fill="#334155">PostgreSQL 16 + pgvector + pg_trgm</text>
+          <text x="140" y="338" text-anchor="middle" font-size="11.5" fill="#475569">documents · vector(1024) · findings</text>
+
+          <!-- SEAWEEDFS -->
+          <rect x="345" y="268" width="225" height="92" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+          <text x="457" y="296" text-anchor="middle" font-size="13.2" font-weight="800" fill="#0F2942">seaweedfs S3 (127.0.0.1:8333)</text>
+          <text x="457" y="318" text-anchor="middle" font-size="11.5" fill="#334155">SeaweedFS 4.52 (Apache-2.0, SigV4)</text>
+          <text x="457" y="338" text-anchor="middle" font-size="11.5" fill="#475569">Surowy HTML + screenshoty PNG</text>
+
+          <!-- AI -->
+          <rect x="650" y="246" width="275" height="114" rx="10" fill="#ECFDF5" stroke="#059669" stroke-width="2.2" />
+          <text x="787" y="274" text-anchor="middle" font-size="14.5" font-weight="800" fill="#065F46">ai (127.0.0.1:8000) — FastAPI</text>
+          <text x="787" y="295" text-anchor="middle" font-size="12" font-weight="700" fill="#0F172A">1. clean (trafilatura) → 2. dedup (SHA + simhash)</text>
+          <text x="787" y="314" text-anchor="middle" font-size="12" font-weight="700" fill="#047857">3. tokenizacja + embeddingi bge-m3</text>
+          <text x="787" y="333" text-anchor="middle" font-size="12" fill="#1E293B">4. routing → M1 / M2 / M3 + rapidfuzz ≥ 90</text>
+          <text x="787" y="350" text-anchor="middle" font-size="11" fill="#475569">/analyze · /reanalyze · /eval · /analyze-text</text>
+
+          <!-- OLLAMA -->
+          <rect x="970" y="256" width="192" height="104" rx="10" fill="#0F2942" stroke="#0F2942" stroke-width="2" />
+          <text x="1066" y="285" text-anchor="middle" font-size="13.5" font-weight="800" fill="#FFFFFF">ollama (127.0.0.1:11434)</text>
+          <text x="1066" y="307" text-anchor="middle" font-size="12" fill="#BAE6FD" font-weight="700">Bielik 11B v2.3 Q4_K_M</text>
+          <text x="1066" y="326" text-anchor="middle" font-size="12" fill="#E2E8F0">+ bge-m3 (1024-dim)</text>
+          <text x="1066" y="346" text-anchor="middle" font-size="11" fill="#94A3B8">100% lokalnie (Apache-2.0 / MIT)</text>
+
+          <!-- Arrows -->
+          <line x1="208" y1="83" x2="326" y2="83" stroke="#1E40AF" stroke-width="2" marker-end="url(#arrow)" marker-start="url(#arrow)" />
+          <text x="267" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#1E40AF">REST + Socket.io</text>
+
+          <line x1="565" y1="83" x2="686" y2="83" stroke="#1E40AF" stroke-width="2" marker-end="url(#arrow)" />
+          <text x="625" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#1E40AF">crawl-source</text>
+
+          <line x1="885" y1="83" x2="958" y2="83" stroke="#1E40AF" stroke-width="2" marker-end="url(#arrow)" />
+          <text x="921" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#1E40AF">joby</text>
+
+          <path d="M 1020 124 L 1020 176 L 810 176 L 810 242" fill="none" stroke="#1E40AF" stroke-width="2.2" marker-end="url(#arrow)" />
+          <text x="915" y="168" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E40AF">POST /analyze/{document_id}</text>
+
+          <path d="M 1062 124 L 1062 206 L 495 206 L 495 264" fill="none" stroke="#475569" stroke-width="1.8" marker-end="url(#arrow-slate)" />
+          <text x="665" y="199" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">HTML + screenshot PNG</text>
+
+          <path d="M 1105 124 L 1105 224 L 220 224 L 220 264" fill="none" stroke="#475569" stroke-width="1.8" marker-end="url(#arrow-slate)" />
+          <text x="360" y="217" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">documents · crawl_runs</text>
+
+          <path d="M 990 42 L 990 18 L 495 18 L 495 38" fill="none" stroke="#475569" stroke-width="1.6" stroke-dasharray="5,3" marker-end="url(#arrow-slate)" />
+          <text x="742" y="14" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">POST /internal/crawl-status (X-Internal-Token)</text>
+
+          <path d="M 380 124 L 380 172 L 140 172 L 140 264" fill="none" stroke="#475569" stroke-width="1.8" marker-end="url(#arrow-slate)" />
+          <text x="245" y="164" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">SQL + pg_trgm</text>
+
+          <line x1="457" y1="124" x2="457" y2="264" stroke="#475569" stroke-width="1.8" marker-end="url(#arrow-slate)" />
+          <text x="414" y="192" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">presigned URL</text>
+
+          <line x1="650" y1="314" x2="574" y2="314" stroke="#475569" stroke-width="1.8" marker-end="url(#arrow-slate)" />
+          <text x="612" y="305" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">HTML</text>
+
+          <path d="M 650 342 L 595 342 L 595 376 L 195 376 L 195 364" fill="none" stroke="#475569" stroke-width="1.8" marker-end="url(#arrow-slate)" />
+          <text x="405" y="371" text-anchor="middle" font-size="11" font-weight="600" fill="#475569">embeddingi vector(1024) · findings</text>
+
+          <line x1="925" y1="308" x2="966" y2="308" stroke="#1E40AF" stroke-width="2.2" marker-end="url(#arrow)" />
+          <text x="945" y="294" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E40AF">LLM</text>
+
+          <path d="M 730 246 L 730 144 L 520 144 L 520 128" fill="none" stroke="#DC2626" stroke-width="2" marker-end="url(#arrow-red)" />
+          <text x="625" y="138" text-anchor="middle" font-size="11" font-weight="700" fill="#DC2626">POST /internal/alerts (high)</text>
+        </svg>
+      </div>
+
+      <div class="banner">
+        <strong>Czyste licencje i izolacja sieciowa (#72):</strong>
+        <strong>Valkey 8</strong> (BSD-3), <strong>SeaweedFS 4.52</strong> (Apache-2.0, SigV4), <code>asyncpg</code> (Apache-2.0).
+        Porty pomocnicze i <code>ai</code> zbindowane wyłącznie do <code>127.0.0.1</code> (na zewnątrz tylko <code>web :5173</code> i <code>api :3000</code>); <code>web</code> bez <code>env_file</code>.
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 2 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 3: SCHEMAT BAZY DANYCH -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Model danych · <code>docs/contracts.md</code> · <code>infra/db/001–004</code></div>
+        <h2 class="slide-title">Schemat bazy danych (PostgreSQL 16 + <code>pgvector</code> + <code>pg_trgm</code>)</h2>
+      </div>
+      <div class="slide-meta"><code>presentation/database.mmd</code> · 7 tabel</div>
+    </div>
+
+    <div class="slide-body" style="gap: 10px;">
+      <div class="svg-wrap" style="padding: 6px 10px;">
+        <svg viewBox="0 0 1180 388" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">
+          <defs>
+            <marker id="er-one" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <line x1="7" y1="1.5" x2="7" y2="8.5" stroke="#475569" stroke-width="1.8" />
+            </marker>
+            <marker id="er-many" viewBox="0 0 14 10" refX="12" refY="5" markerWidth="8" markerHeight="6" orient="auto-start-reverse">
+              <circle cx="3" cy="5" r="2.2" fill="#FFFFFF" stroke="#475569" stroke-width="1.3" />
+              <path d="M 12 1.5 L 6 5 L 12 8.5 M 6 5 L 12 5" fill="none" stroke="#475569" stroke-width="1.4" />
+            </marker>
+          </defs>
+
+          <!-- Legend (color by writing service) -->
+          <text x="12" y="17" font-size="11" font-weight="700" fill="#0F2942">Zapisuje do tabeli:</text>
+          <rect x="130" y="6" width="13" height="13" rx="3" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="1.4" />
+          <text x="148" y="17" font-size="10.8" fill="#1E293B"><tspan font-weight="700">collector</tspan> (sources, crawl_runs, documents)</text>
+
+          <rect x="405" y="6" width="13" height="13" rx="3" fill="#D1FAE5" stroke="#059669" stroke-width="1.4" />
+          <text x="423" y="17" font-size="10.8" fill="#1E293B"><tspan font-weight="700">ai</tspan> (findings + text_clean, simhash, embedding)</text>
+
+          <rect x="720" y="6" width="13" height="13" rx="3" fill="#E2E8F0" stroke="#0F2942" stroke-width="1.4" />
+          <text x="738" y="17" font-size="10.8" fill="#1E293B"><tspan font-weight="700">api</tspan> (status_history, module_settings)</text>
+
+          <rect x="980" y="6" width="13" height="13" rx="3" fill="#FEF3C7" stroke="#B45309" stroke-width="1.4" />
+          <text x="998" y="17" font-size="10.8" fill="#1E293B"><tspan font-weight="700">seed KNF</tspan> (entities)</text>
+
+          <!-- COL 1: sources & crawl_runs (collector) -->
+          <g transform="translate(10, 34)">
+            <rect width="205" height="125" rx="6" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="1.6" />
+            <path d="M 0 6 a 6 6 0 0 1 6 -6 h 193 a 6 6 0 0 1 6 6 v 17 h -205 z" fill="#1D4ED8" />
+            <text x="10" y="16" font-size="11.5" font-weight="700" fill="#FFFFFF">sources</text>
+            <text x="195" y="15.5" text-anchor="end" font-size="9.5" font-weight="700" fill="#DBEAFE">collector</text>
+            <g font-family="Consolas, monospace" font-size="10.2" fill="#0F172A">
+              <text x="8" y="38"><tspan font-weight="700" fill="#1E40AF">PK</tspan> serial id</text>
+              <text x="8" y="54">text kind <tspan fill="#64748B">(web, social, sample)</tspan></text>
+              <text x="8" y="70">text name</text>
+              <text x="8" y="86">text start_url</text>
+              <text x="8" y="102">text cron <tspan fill="#64748B">(np. co 6 h)</tspan></text>
+              <text x="8" y="118">boolean enabled</text>
+            </g>
+          </g>
+
+          <g transform="translate(10, 214)">
+            <rect width="205" height="125" rx="6" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="1.6" />
+            <path d="M 0 6 a 6 6 0 0 1 6 -6 h 193 a 6 6 0 0 1 6 6 v 17 h -205 z" fill="#1D4ED8" />
+            <text x="10" y="16" font-size="11.5" font-weight="700" fill="#FFFFFF">crawl_runs</text>
+            <text x="195" y="15.5" text-anchor="end" font-size="9.5" font-weight="700" fill="#DBEAFE">collector</text>
+            <g font-family="Consolas, monospace" font-size="10.2" fill="#0F172A">
+              <text x="8" y="38"><tspan font-weight="700" fill="#1E40AF">PK</tspan> serial id</text>
+              <text x="8" y="54"><tspan font-weight="700" fill="#475569">FK</tspan> int source_id</text>
+              <text x="8" y="70">text status <tspan fill="#64748B">(running..failed)</tspan></text>
+              <text x="8" y="86">int items_found</text>
+              <text x="8" y="102">timestamptz started_at</text>
+              <text x="8" y="118">timestamptz finished_at</text>
+            </g>
+          </g>
+
+          <!-- COL 2: documents (collector + ai) -->
+          <g transform="translate(285, 34)">
+            <rect width="278" height="305" rx="6" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="1.6" />
+            <path d="M 0 6 a 6 6 0 0 1 6 -6 h 266 a 6 6 0 0 1 6 6 v 17 h -278 z" fill="#1D4ED8" />
+            <text x="10" y="16" font-size="11.5" font-weight="700" fill="#FFFFFF">documents</text>
+            <text x="268" y="15.5" text-anchor="end" font-size="9.5" font-weight="700" fill="#A7F3D0">collector + ai</text>
+            <g font-family="Consolas, monospace" font-size="9.8" fill="#0F172A">
+              <text x="8" y="38"><tspan font-weight="700" fill="#1E40AF">PK</tspan> bigserial id</text>
+              <text x="8" y="54">text url</text>
+              <text x="8" y="70"><tspan font-weight="700" fill="#B45309">UK</tspan> text url_hash</text>
+              <text x="8" y="86"><tspan font-weight="700" fill="#475569">FK</tspan> int source_id</text>
+              <text x="8" y="102"><tspan font-weight="700" fill="#475569">FK</tspan> int crawl_run_id</text>
+              <text x="8" y="118">text source_kind</text>
+              <text x="8" y="134">text title <tspan fill="#64748B">(GIN trgm)</tspan></text>
+              <text x="8" y="150">text text_clean <tspan fill="#047857">(GIN trgm, ai)</tspan></text>
+              <text x="8" y="166">text html_key <tspan fill="#64748B">(S3)</tspan></text>
+              <text x="8" y="182">text screenshot_key <tspan fill="#64748B">(S3)</tspan></text>
+              <text x="8" y="198">text content_hash <tspan fill="#047857">(dedup, ai)</tspan></text>
+              <text x="8" y="214">bigint simhash <tspan fill="#047857">(dedup, ai)</tspan></text>
+              <text x="8" y="230"><tspan font-weight="700" fill="#475569">FK</tspan> bigint duplicate_of</text>
+              <text x="8" y="246">vector embedding <tspan fill="#047857">(bge-m3 1024, ai)</tspan></text>
+              <text x="8" y="262">text status <tspan fill="#64748B">(fetched..failed)</tspan></text>
+              <text x="8" y="278">timestamptz first_seen_at <tspan fill="#64748B">(trigger)</tspan></text>
+              <text x="8" y="294">timestamptz last_seen_at <tspan fill="#64748B">(trigger)</tspan></text>
+            </g>
+          </g>
+
+          <!-- COL 3: findings (ai) & module_settings (api) -->
+          <g transform="translate(628, 34)">
+            <rect width="256" height="237" rx="6" fill="#ECFDF5" stroke="#059669" stroke-width="1.6" />
+            <path d="M 0 6 a 6 6 0 0 1 6 -6 h 244 a 6 6 0 0 1 6 6 v 17 h -256 z" fill="#059669" />
+            <text x="10" y="16" font-size="11.5" font-weight="700" fill="#FFFFFF">findings</text>
+            <text x="246" y="15.5" text-anchor="end" font-size="9.5" font-weight="700" fill="#D1FAE5">ai (api: status)</text>
+            <g font-family="Consolas, monospace" font-size="9.6" fill="#0F172A">
+              <text x="8" y="38"><tspan font-weight="700" fill="#065F46">PK</tspan> bigserial id</text>
+              <text x="8" y="54"><tspan font-weight="700" fill="#475569">FK</tspan> bigint document_id <tspan fill="#047857">(UQ z module)</tspan></text>
+              <text x="8" y="70">smallint module <tspan fill="#64748B">(1, 2, 3)</tspan></text>
+              <text x="8" y="86">real score <tspan fill="#64748B">(0–1)</tspan></text>
+              <text x="8" y="102">text risk_level <tspan fill="#64748B">(low, med, high)</tspan></text>
+              <text x="8" y="118">text label</text>
+              <text x="8" y="134">jsonb reasons <tspan fill="#64748B">(kryt., cytat, waga)</tspan></text>
+              <text x="8" y="150"><tspan font-weight="700" fill="#475569">FK</tspan> int firm_entity_id</text>
+              <text x="8" y="166"><tspan font-weight="700" fill="#475569">FK</tspan> int advertiser_entity_id</text>
+              <text x="8" y="182">text model</text>
+              <text x="8" y="198">text prompt_version</text>
+              <text x="8" y="214">text status <tspan fill="#64748B">(new..dismissed)</tspan></text>
+              <text x="8" y="230">timestamptz created_at</text>
+            </g>
+          </g>
+
+          <g transform="translate(628, 310)">
+            <rect width="256" height="72" rx="6" fill="#F1F5F9" stroke="#0F2942" stroke-width="1.6" />
+            <path d="M 0 6 a 6 6 0 0 1 6 -6 h 244 a 6 6 0 0 1 6 6 v 21 h -256 z" fill="#0F2942" />
+            <text x="10" y="15" font-size="11.5" font-weight="700" fill="#FFFFFF">module_settings</text>
+            <text x="246" y="14.5" text-anchor="end" font-size="9.5" font-weight="700" fill="#CBD5E1">api</text>
+            <g font-family="Consolas, monospace" font-size="9.8" fill="#0F172A">
+              <text x="8" y="36"><tspan font-weight="700" fill="#0F2942">PK</tspan> smallint module <tspan fill="#64748B">(1, 2, 3)</tspan></text>
+              <text x="8" y="51">real threshold <tspan fill="#64748B">(domyślnie 0.6)</tspan></text>
+              <text x="8" y="66">jsonb weights <tspan fill="#64748B">(llm, rules, emb)</tspan></text>
+            </g>
+          </g>
+
+          <!-- COL 4: entities (seed) & finding_status_history (api) -->
+          <g transform="translate(968, 34)">
+            <rect width="204" height="173" rx="6" fill="#FFFBEB" stroke="#B45309" stroke-width="1.6" />
+            <path d="M 0 6 a 6 6 0 0 1 6 -6 h 192 a 6 6 0 0 1 6 6 v 17 h -204 z" fill="#B45309" />
+            <text x="10" y="16" font-size="11.5" font-weight="700" fill="#FFFFFF">entities</text>
+            <text x="194" y="15.5" text-anchor="end" font-size="9.5" font-weight="700" fill="#FEF3C7">seed KNF</text>
+            <g font-family="Consolas, monospace" font-size="9.8" fill="#0F172A">
+              <text x="8" y="38"><tspan font-weight="700" fill="#92400E">PK</tspan> serial id</text>
+              <text x="8" y="54">text name</text>
+              <text x="8" y="70">text[] aliases</text>
+              <text x="8" y="86">text type <tspan fill="#64748B">(firma, finfl...)</tspan></text>
+              <text x="8" y="102">boolean is_authorized <tspan fill="#64748B">(KNF)</tspan></text>
+              <text x="8" y="118">text register_ref</text>
+              <text x="8" y="134">text nip</text>
+              <text x="8" y="150">text[] official_domains</text>
+              <text x="8" y="166">text[] social_handles</text>
+            </g>
+          </g>
+
+          <g transform="translate(968, 236)">
+            <rect width="204" height="125" rx="6" fill="#F1F5F9" stroke="#0F2942" stroke-width="1.6" />
+            <path d="M 0 6 a 6 6 0 0 1 6 -6 h 192 a 6 6 0 0 1 6 6 v 17 h -204 z" fill="#0F2942" />
+            <text x="10" y="16" font-size="11.5" font-weight="700" fill="#FFFFFF">finding_status_history</text>
+            <text x="194" y="15.5" text-anchor="end" font-size="9.5" font-weight="700" fill="#CBD5E1">api</text>
+            <g font-family="Consolas, monospace" font-size="9.8" fill="#0F172A">
+              <text x="8" y="38"><tspan font-weight="700" fill="#0F2942">PK</tspan> bigserial id</text>
+              <text x="8" y="54"><tspan font-weight="700" fill="#475569">FK</tspan> bigint finding_id</text>
+              <text x="8" y="70">text old_status</text>
+              <text x="8" y="86">text new_status</text>
+              <text x="8" y="102">text changed_by</text>
+              <text x="8" y="118">timestamptz changed_at</text>
+            </g>
+          </g>
+
+          <!-- RELATIONSHIPS (no overlaps) -->
+          <!-- sources -> crawl_runs -->
+          <line x1="112" y1="159" x2="112" y2="214" stroke="#475569" stroke-width="1.5" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <rect x="78" y="178" width="68" height="15" rx="3" fill="#FFFFFF" />
+          <text x="112" y="189" text-anchor="middle" font-size="9.5" font-weight="600" fill="#334155">source_id</text>
+
+          <!-- sources -> documents -->
+          <line x1="215" y1="98" x2="285" y2="98" stroke="#475569" stroke-width="1.5" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <text x="250" y="90" text-anchor="middle" font-size="9.5" font-weight="600" fill="#334155">source_id</text>
+
+          <!-- crawl_runs -> documents -->
+          <line x1="215" y1="274" x2="285" y2="274" stroke="#475569" stroke-width="1.5" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <text x="250" y="266" text-anchor="middle" font-size="9.5" font-weight="600" fill="#334155">crawl_run_id</text>
+
+          <!-- documents -> documents (duplicate_of) -->
+          <path d="M 385 339 L 385 362 L 460 362 L 460 339" fill="none" stroke="#475569" stroke-width="1.5" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <text x="422" y="376" text-anchor="middle" font-size="9.5" font-weight="600" fill="#334155">duplicate_of</text>
+
+          <!-- documents -> findings -->
+          <line x1="563" y1="130" x2="628" y2="130" stroke="#475569" stroke-width="1.7" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <text x="595" y="121" text-anchor="middle" font-size="9.2" font-weight="700" fill="#0F2942">document_id</text>
+          <text x="595" y="143" text-anchor="middle" font-size="8.6" fill="#047857">max 1 / moduł</text>
+
+          <!-- entities -> findings (firm_entity_id) -->
+          <line x1="968" y1="108" x2="884" y2="108" stroke="#475569" stroke-width="1.5" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <text x="926" y="100" text-anchor="middle" font-size="9" font-weight="600" fill="#334155">firm_entity_id</text>
+
+          <!-- entities -> findings (advertiser_entity_id) -->
+          <line x1="968" y1="162" x2="884" y2="162" stroke="#475569" stroke-width="1.5" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <text x="926" y="154" text-anchor="middle" font-size="8.4" font-weight="600" fill="#334155">advertiser_entity_id</text>
+
+          <!-- findings -> finding_status_history -->
+          <line x1="884" y1="252" x2="968" y2="252" stroke="#475569" stroke-width="1.5" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <text x="926" y="244" text-anchor="middle" font-size="9.2" font-weight="600" fill="#334155">finding_id</text>
+
+          <!-- module_settings .. findings (bez FK) -->
+          <line x1="756" y1="310" x2="756" y2="271" stroke="#64748B" stroke-width="1.5" stroke-dasharray="4,3" marker-start="url(#er-one)" marker-end="url(#er-many)" />
+          <rect x="712" y="283" width="88" height="14" rx="3" fill="#FFFFFF" />
+          <text x="756" y="293" text-anchor="middle" font-size="9.2" font-weight="600" fill="#475569">module (bez FK)</text>
+        </svg>
+      </div>
+
+      <div class="decisions-box">
+        <div class="decisions-title">Kluczowe decyzje projektowe</div>
+        <div class="decisions-grid">
+          <div><strong>Max 1 finding na dokument i moduł:</strong> <code>UNIQUE (document_id, module)</code> — <code>ai</code> wykonuje upsert.</div>
+          <div><strong>Deduplikacja i podobieństwo:</strong> <code>url_hash</code> UNIQUE, <code>content_hash</code>, <code>simhash</code>; <code>pgvector</code> z embeddingiem <code>bge-m3</code> (<code>1024</code>).</div>
+          <div><strong>Każda flaga ma dowód:</strong> <code>reasons[]</code> = kryterium, werdykt, dosłowny cytat, waga.</div>
+          <div><strong>Okresowa aktualizacja M1:</strong> trigger <code>documents_track_seen</code> ustawia <code>first_seen_at</code> / <code>last_seen_at</code>.</div>
+          <div><strong>Filtry i szukanie <code>q</code>:</strong> indeks <code>(module, risk_level, status, created_at)</code> + <code>pg_trgm</code> GIN na <code>title</code> i <code>text_clean</code>.</div>
+          <div><strong>Konfiguracja modułów:</strong> <code>module_settings</code> (próg i wagi) łączy się z <code>findings.module</code> logicznie, bez FK.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 3 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 4: MODUŁ 1/3 COLLECTOR & API -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Moduł 1/3 · Akwizycja i warstwa API</div>
+        <h2 class="slide-title"><code>collector</code> i <code>api</code> — zbieranie treści oraz agregator wyników</h2>
+      </div>
+      <div class="slide-meta">Node 22 · TS strict · Playwright · Fastify · Socket.io</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="cols-2">
+        <div class="card">
+          <div class="card-title"><span><code>collector</code></span><span class="pill pill-blue">Playwright + BullMQ</span></div>
+          <ul class="clean">
+            <li><strong>Aktywne adaptery (MVP):</strong>
+              <code>sample</code> (dane offline + syntetyki gold set), <code>web</code> (Chromium, discovery z głębokości 1, rotacja <strong>23 User-Agentów</strong> i <code>PROXY_LIST</code>, limit 2/host, jitter), <code>youtube</code> (publiczny RSS kanałów) oraz <code>tiktok</code> (pojedyncze filmy przez oEmbed + fallback JSON, #51).</li>
+            <li><strong>Zakres social i ochrona SSRF (#74):</strong> adaptery FB/IG pozostają poza obecnym MVP (gotowy interfejs <code>Adapter</code>; filtr UI ukrywa nieaktywne typy z <code>GET /sources</code>). W <code>ssrf.ts</code> (<code>isBlockedUrl</code> + <code>context.route</code>) blokowane są żądania na loopback, sieci prywatne, link-local i usługi Compose.</li>
+            <li><strong>Harmonogram i odporność:</strong> <code>upsertJobScheduler</code> wg <code>sources.cron</code> (<code>Europe/Warsaw</code>), semafor <code>ANALYZE_CONCURRENCY=1</code>, timeout <code>600 s</code>, deduplikacja w locie i zapis błędów do <code>crawl_runs.error</code>.</li>
+            <li><strong>Zabezpieczenie dowodów:</strong> HTML + screenshot PNG w SeaweedFS S3, <code>upsert</code> w <code>documents</code> po <code>url_hash</code>, triggery <code>first_seen_at</code> / <code>last_seen_at</code>.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span><code>api</code></span><span class="pill pill-green">Fastify + Drizzle</span></div>
+          <ul class="clean">
+            <li><strong>Agregator M1/M2/M3 (<code>GET /documents</code>, <code>GET /documents/:id</code>):</strong> składa osobne rekordy z <code>findings</code> w jeden ujednolicony obiekt dokumentu (<code>modules: {"1","2","3"}</code> + podsumowanie <code>overall</code>: <code>maxScore</code>, <code>riskLevel</code>, <code>flaggedModules</code>).</li>
+            <li><strong>Śledzenie widoczności reklam M1 (<code>004_seen_tracking.sql</code>):</strong> triggery bazy utrzymują <code>first_seen_at</code> i <code>last_seen_at</code>, a API wylicza <code>isActive</code> (flaga <code>false</code> po późniejszym pełnym przebiegu <code>ok</code> z karencją 1 h, który nie znalazł URL-a).</li>
+            <li><strong>Wyszukiwanie, audyt i ochrona zapisów:</strong> filtry z indeksami GIN <code>pg_trgm</code>, <code>PATCH /findings/:id/status</code> z <code>SELECT ... FOR UPDATE</code> i historią, presigned URL (15 min) oraz opcjonalny <code>ADMIN_TOKEN</code> (#71).</li>
+            <li><strong>Real-time &amp; eksport:</strong> Socket.io (<code>alert:new</code>, <code>finding:updated</code>, <code>crawl:status</code>) oraz eksport CSV/JSON dla polskiego Excela (<code>;</code>, przecinek dziesiętny, BOM UTF-8, limit 10 000 wierszy).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-val">23 UA</div><div class="stat-lbl">rotacja User-Agent + proxy</div></div>
+        <div class="stat-box"><div class="stat-val">3 ms</div><div class="stat-lbl">zapytanie <code>pg_trgm</code> na 50 tys. dok.</div></div>
+        <div class="stat-box"><div class="stat-val">15 min</div><div class="stat-lbl">ważność presigned URL S3</div></div>
+        <div class="stat-box"><div class="stat-val">3 zdarzenia</div><div class="stat-lbl">Socket.io na żywo</div></div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 4 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 5: MODUŁ 2/3 AI + TOKENIZACJA + BIELIK -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Moduł 2/3 · Silnik analityczny AI</div>
+        <h2 class="slide-title"><code>ai</code> — preprocessing (tokenizacja i embeddingi) oraz M1 / M2 / M3</h2>
+      </div>
+      <div class="slide-meta">Python 3.12 · FastAPI · Ollama · 86 podmiotów KNF</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="banner">
+        <strong>Potok preprocessingu:</strong>
+        <code>trafilatura</code> (czysty tekst) → <strong>deduplikacja</strong> (SHA-256 + 64-bit <code>simhash</code> na 3-gramach, próg Hamminga <code>6</code>) →
+        <strong>tokenizacja i embeddingi</strong> (tokenizacja leksykalno-fleksyjna z granicami słów dla aliasów KNF + wektory <code>bge-m3</code> <code>vector(1024)</code> w <code>pgvector</code>) → routing do M1 / M2 / M3.
+      </div>
+
+      <div class="cols-2-wide">
+        <div class="card">
+          <div class="card-title"><span>Trzy moduły analityczne (na <code>main</code>)</span><span class="pill pill-blue">Budżet 240 s</span></div>
+          <ul class="clean">
+            <li><strong>M1 (Finfluencerzy):</strong> wykrywa wzmiankę o podmiocie z rejestru KNF (86 firm w <code>entities.csv</code>, polskie końcówki fleksyjne i anchory ±200 znaków) publikowaną spoza <code>official_domains</code> / <code>social_handles</code>.</li>
+            <li><strong>M2 (Informacja o ryzyku):</strong> ewolucja od 4 kryteriów (<code>m2-v1</code>), przez 8 kryteriów (<code>m2-v3</code>, MiFID II art. 44 / rozporządzenie 2017/565), do <strong>16 kryteriów tekstowych (<code>m2-v4</code>, PR #76 na <code>main</code>)</strong> zmapowanych na reguły tekstowe 1, 2, 3, 6, 9–12b, 14–18 z załącznika UKNF. <em>5 reguł układu graficznego (4, 5, 7, 8, 13) wymaga HTML/screenshotu i jest poza zakresem tekstowym.</em></li>
+            <li><strong>M3 (Shadow advisory):</strong> nielicencjonowane doradztwo i zarządzanie portfelem wg definicji z <strong>art. 76</strong> ustawy o obrocie instrumentami finansowymi (<code>m3-v3</code>, <code>rules/m3.yaml</code> + embeddingi <code>bge-m3</code> + ocena LLM).</li>
+          </ul>
+        </div>
+
+        <div class="card card-navy">
+          <div class="card-title"><span>Dlaczego Bielik-11B + <code>bge-m3</code>?</span><span class="pill pill-green">vs Gemma / BERT</span></div>
+          <ul class="clean">
+            <li><strong><code>SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M</code> (Apache-2.0):</strong> natywny polski tokenizer i korpus → trafna interpretacja polskiej fleksji, języka reklam i terminologii KNF przy dyscyplinie schematu JSON (<code>temperature: 0</code>).</li>
+            <li><strong>Zmierzone czasy na GPU (RTX 3060 12 GB):</strong>
+              M1 / M3: <strong>3,4–5,8 s</strong> · M2: <strong>9–10,5 s</strong> · brak modułu: <strong>&lt; 0,15 s</strong> (zimny start ~30 s).</li>
+            <li><strong><code>bge-m3</code> (MIT) zamiast klasycznego <code>BERT</code>:</strong> okno do <strong>8192 tokenów</strong> (16× więcej niż 512 w BERT), wielojęzyczne wektory 1024-dim dla całych publikacji w tym samym serwerze Ollama.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 5 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 6: MODUŁ 3/3 WEB -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Moduł 3/3 · Panel analityka UKNF</div>
+        <h2 class="slide-title"><code>web</code> — dashboard operacyjny w stylu instytucjonalnym</h2>
+      </div>
+      <div class="slide-meta">React 19 · Vite · Tailwind · Recharts · <code>vitest: 99</code></div>
+    </div>
+
+    <div class="slide-body">
+      <div class="cols-2">
+        <div class="card">
+          <div class="card-title"><span>Widoki i przepływ pracy analityka</span><span class="pill pill-blue">UI po polsku</span></div>
+          <ul class="clean">
+            <li><strong>Findingi:</strong> tabela incydentów z filtrami (moduł, ryzyko, status, dynamiczne źródło z <code>GET /sources</code>, zakres dat w czasie lokalnym <code>Europe/Warsaw</code> #88, wyszukiwarka pełnotekstowa <code>q</code> z debounce 300 ms) i paginacją.</li>
+            <li><strong>Szczegóły findingu:</strong> pełny tekst po czyszczeniu, lista kryteriów z polskimi etykietami (<code>utils.ts</code>), <strong>dosłownym cytatem</strong> i werdyktem, podgląd screenshota PNG z S3 oraz zmiana statusu z historią audytu.</li>
+            <li><strong>Trendy i raportowanie:</strong> kafelki podsumowania (<code>/stats/summary</code>), wykres incydentów grupowany po dniu lokalnym (<code>bucket=hour</code>) i eksport CSV/JSON pod polski Excel (<code>;</code>, przecinek dziesiętny, BOM UTF-8, neutralizacja <code>= + - @</code>).</li>
+            <li><strong>Kalibracja, alerty i źródła:</strong> toasty <code>alert:new</code> przez Socket.io, suwak progu z licznikiem <strong>„Oznaczone flagą”</strong> (<code>tp + fp</code>), zapis progu i wag (opcjonalny <code>VITE_ADMIN_TOKEN</code>, #71) oraz przycisk <strong>„Uruchom crawl”</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Jakość techniczna i bezpieczeństwo frontendu</span><span class="pill pill-green">0 CRITICAL / 0 HIGH</span></div>
+          <ul class="clean">
+            <li><strong>Czytelność instytucjonalna:</strong> paleta wzorowana na <code>knf.gov.pl</code> (granatowy nagłówek, wysoki kontrast, liczby tabelaryczne, czerwień zarezerwowana wyłącznie dla alertów wysokiego ryzyka).</li>
+            <li><strong>Wydajność bundla i testy:</strong> code-splitting stron przez <code>React.lazy</code> (główny chunk zmniejszony z <code>850 kB</code> do <code>346 kB</code>; Recharts ładowany wyłącznie w Trendach) oraz <strong>99 testów w <code>vitest</code></strong>.</li>
+            <li><strong>Czystość konsoli:</strong> zero <code>console.log</code>, szybki <code>QueryState</code> z retry po awarii API, zerowe błędy i warningi w DevTools przeglądarki.</li>
+            <li><strong>Utwardzony obraz produkcyjny:</strong> stage runtime na <code>nginx:1.30.7-alpine</code> z łatką <code>apk upgrade --no-cache libxml2</code> (Trivy 0.76.2: <strong>0 CRITICAL, 0 HIGH</strong>), kontener bez <code>env_file</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 6 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 7: KALIBRACJA, WIARYGODNOŚĆ I PROMPT INJECTION -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Wiarygodność i strojenie</div>
+        <h2 class="slide-title">Kalibracja progów, zasada „bez cytatu nie ma flagi” i odporność na ataki</h2>
+      </div>
+      <div class="slide-meta"><code>GET /eval</code> · <code>gold.csv</code> (120) · <code>rapidfuzz ≥ 90</code></div>
+    </div>
+
+    <div class="slide-body">
+      <div class="formula-box">
+        score = w_llm · llm + w_rules · rules + w_emb · emb &nbsp;&nbsp;(domyślnie: 0.60 / 0.25 / 0.15, edytowalne w module_settings)
+      </div>
+
+      <div class="cols-3">
+        <div class="card">
+          <div class="card-title"><span>Zero halucynacji</span><span class="pill pill-blue">rapidfuzz ≥ 90</span></div>
+          <ul class="clean">
+            <li>Pole <code>CriterionResult.quote</code> jest wymagane w schemacie JSON (Pydantic <code>format</code>, <code>temperature: 0</code>).</li>
+            <li><code>quotes.py</code> odrzuca każdy cytat bez pokrycia w treści dokumentu (dla cytatów wielozdaniowych sprawdza każde zdanie osobno).</li>
+            <li><strong>Fail-closed:</strong> błąd Ollamy / timeout = status <code>failed</code> (HTTP 502), nigdy zmyślony wynik.</li>
+          </ul>
+        </div>
+
+        <div class="card card-ok">
+          <div class="card-title"><span>Prompt injection</span><span class="pill pill-green">3/3 live OK</span></div>
+          <ul class="clean">
+            <li>Treść stron jest izolowana w <code>&lt;document&gt;...&lt;/document&gt;</code>; <code>neutralize_delimiters</code> usuwa próby zamknięcia znacznika.</li>
+            <li><code>test_prompt_injection.py</code>: <strong>12 testów offline + 3/3 testy live na Bieliku 11B</strong> (PL+EN próby nadpisania instrukcji).</li>
+            <li>Wyniki z atakiem identyczne z bazowymi: M1 <code>0.941</code>, M2 <code>1.000</code>, M3 <code>0.956</code> (zero wstrzykniętych cytatów).</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Kalibracja FP vs FN</span><span class="pill pill-slate">rubric.md</span></div>
+          <ul class="clean">
+            <li>Progi: <code>high ≥ 0.8</code> (alert Socket.io), <code>medium ≥ próg</code>, <code>low &lt; próg</code>.</li>
+            <li>Suwak w panelu wywołuje <code>GET /eval</code> i przelicza <code>precision</code>, <code>recall</code>, <code>TP</code>, <code>FP</code>, <code>FN</code>, <code>TN</code> oraz licznik flag.</li>
+            <li><strong>120-wierszowy <code>gold.csv</code> (40/40/40 po kluczu URL)</strong> oznaczony wg <code>ai/eval/rubric.md</code>, zapis przez <code>PUT /settings/modules/:m</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 7 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 8: BEZPIECZEŃSTWO I LICENCJE -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Bezpieczeństwo i zgodność prawna</div>
+        <h2 class="slide-title">Bezpieczeństwo stosu, skany podatności i czystość licencyjna</h2>
+      </div>
+      <div class="slide-meta"><code>docs/SECURITY.md</code> · <code>docs/DEPENDENCIES.md</code></div>
+    </div>
+
+    <div class="slide-body">
+      <div class="cols-2">
+        <div class="card">
+          <div class="card-title"><span>Mechanizmy obronne w architekturze</span><span class="pill pill-blue">Hardening #72</span></div>
+          <ul class="clean">
+            <li><strong>Izolacja sieci i kontenerów:</strong> porty pomocnicze (<code>postgres</code>, <code>valkey</code>, <code>seaweedfs</code>, <code>ollama</code>, <code>ai</code>) zbindowane do <strong><code>127.0.0.1</code></strong>; na zewnątrz tylko <code>web</code> (5173) i <code>api</code> (3000); <code>web</code> bez <code>env_file</code>; non-root <code>api</code> (<code>node</code>), <code>collector</code> (<code>pwuser</code>), <code>ai</code> (<code>app</code>, <code>uid=10001</code>).</li>
+            <li><strong>Sekrety i walidacja Zod:</strong> wyłącznie przez <code>.env</code> (<code>.gitignore</code>), blokada sekretów w <code>pre-commit</code>, startowa walidacja <code>INTERNAL_TOKEN ≥ 16 znaków</code> i URL-i w <code>api</code> i <code>collector</code>.</li>
+            <li><strong>Ochrona ruchu, S3 i SSRF:</strong> <code>X-Internal-Token</code> (<code>timingSafeEqual</code>) na <code>/internal/*</code>, uwierzytelniany S3 (<code>-s3.config</code> + SigV4), opcjonalny <code>ADMIN_TOKEN</code> (#71) i <code>AI_REQUIRE_TOKEN</code>, blokada SSRF w <code>collector</code> (#74), <code>pino</code> redact, rate-limit <code>300/min</code> (<code>10/min</code> <code>/export</code>).</li>
+            <li><strong>100% on-premise:</strong> żadne treści nie opuszczają infrastruktury urzędu.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Wyniki audytów (22.11) i licencje</span><span class="pill pill-green">0 CVE w paczkach</span></div>
+          <table class="compact">
+            <thead>
+              <tr><th>Zakres</th><th>Narzędzie / weryfikacja</th><th>Wynik</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>api/</code>, <code>collector/</code>, <code>web/</code></td>
+                <td><code>npm audit --audit-level=high</code></td>
+                <td><strong>0 podatności</strong> (każdy serwis)</td>
+              </tr>
+              <tr>
+                <td><code>ai/</code> (Python 3.12)</td>
+                <td><code>pip-audit</code> (47 runtime / 50 dev) + OSV (55)</td>
+                <td><strong>0 znanych podatności</strong></td>
+              </tr>
+              <tr>
+                <td><code>web</code> i <code>valkey</code></td>
+                <td>Trivy 0.76.2 (<code>nginx:1.30.7-alpine</code>, <code>valkey:8.1.12-alpine</code>)</td>
+                <td><strong>0C / 0H</strong> w obu obrazach</td>
+              </tr>
+              <tr>
+                <td><code>seaweedfs</code> i <code>ai</code></td>
+                <td>Trivy 0.76.2 (<code>seaweedfs:4.52</code>, <code>python:3.12.16-slim-trixie</code>)</td>
+                <td><code>0C / 1H</code> · <code>0C / 51H</code> (<code>--ignore-unfixed → 0</code>)</td>
+              </tr>
+              <tr>
+                <td>Licencje stosu</td>
+                <td>MIT, Apache-2.0, BSD-3, PSF, MPL-1.1/2.0</td>
+                <td><strong>Zero GPL/AGPL/SSPL</strong> (Valkey, SeaweedFS, <code>asyncpg</code>)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 8 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 9: PROCES AI -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Inżynieria wspomagana AI (20% oceny jury)</div>
+        <h2 class="slide-title">Standaryzowany proces pracy z asystentami AI (<code>docs/AI_PROCESS.md</code>)</h2>
+      </div>
+      <div class="slide-meta"><code>CLAUDE.md</code> · 5 skilli · <code>.githooks/pre-commit</code></div>
+    </div>
+
+    <div class="slide-body">
+      <div class="cols-2">
+        <div class="card card-soft">
+          <div class="card-title"><span>Standard i zabezpieczenia procesu</span><span class="pill pill-blue">Plan-First</span></div>
+          <ul class="clean">
+            <li><strong>Wspólny kontrakt:</strong> <code>CLAUDE.md</code> + <code>docs/contracts.md</code> wymuszają plan przed kodem, brak <code>console.log</code>/<code>print</code>, TS <code>strict: true</code>, Zod i Pydantic v2.</li>
+            <li><strong>5 skilli domenowych (<code>.claude/skills/</code>):</strong> <code>scraper-adapter</code>, <code>risk-classifier</code>, <code>data-contract</code>, <code>dependency-guard</code>, <code>demo-check</code>.</li>
+            <li><strong>Egzekwowanie w Gicie:</strong> 6 stałych branchy <code>team/*</code> pilnowanych przez <code>.githooks/pre-commit</code> (blokada obcych katalogów, commitów na <code>main</code> i sekretów w diffie).</li>
+            <li><strong>Pełna ścieżka audytu:</strong> każdy zespół prowadzi <code>docs/ai-log/*.md</code> scalony do <code>docs/AI_PROCESS.md</code>.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Błędy wyłapane dzięki weryfikacji człowiek + AI</span><span class="pill pill-green">Realne przykłady</span></div>
+          <ul class="clean">
+            <li><strong>Łańcuch dostaw (<code>ai-core</code>):</strong> <code>dependency-guard</code> zablokował <code>psycopg</code> (LGPL-3.0) → zastąpiono przez <code>asyncpg</code> (Apache-2.0).</li>
+            <li><strong>Bielik na żywo (<code>ai-core</code>):</strong> model kopiował jeden cytat i sklejał niesąsiadujące zdania → prompty <code>m2-v2</code>/<code>m3-v2</code> i walidacja per zdanie w <code>quotes.py</code>.</li>
+            <li><strong>SQL i deduplikacja (<code>api</code> + <code>ai-data</code>):</strong> podniesiono próg <code>simhash 3 → 6</code> na <code>pgvector</code>; złapano błąd <code>date_trunc</code>, kolizję <code>"id"</code> w <code>/sources</code> oraz brak kwalifikacji tabeli w <code>seen.ts</code>.</li>
+            <li><strong>Integracja i obrazy (<code>web</code> + <code>collector</code> + <code>infra</code>):</strong> naprawiono payload zapisu progu z <code>weights</code>, załatano <code>libxml2</code> (0C/0H w <code>web</code>), dodano brakujący <code>ioredis</code>, obsługę błędów JSON w <code>pull-models.sh</code> i healthcheck <code>web</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 9 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 10: DEMO NA ŻYWO -->
+  <section class="slide">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Ścieżka prezentacyjna end-to-end</div>
+        <h2 class="slide-title">Demo na żywo — kluczowy przepływ w &le; 3 minuty</h2>
+      </div>
+      <div class="slide-meta"><code>presentation/DEMO_SCRIPT.md</code> (0:00–3:00)</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="flow-steps">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-title">Start całego stosu</div>
+          <div class="step-desc">
+            <code>docker compose up --build</code> — wszystkie kontenery <code>healthy</code>, gotowy bucket S3, tabela <code>entities</code> (86 firm KNF) i modele w Ollamie.
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-title">Wyzwolenie crawla</div>
+          <div class="step-desc">
+            Zakładka <strong>Źródła</strong> → kliknięcie <strong>„Uruchom crawl”</strong> → Valkey kolejkuje zadanie, status <code>crawl:status</code> wpada na żywo.
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-title">Alert wysokiego ryzyka</div>
+          <div class="step-desc">
+            Gdy <code>score ≥ 0.8</code>, w przeglądarce pojawia się bez odświeżania strony toast Socket.io <strong><code>alert:new</code></strong> dla nowego incydentu.
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <div class="step-title">Analiza dowodów M1/M2/M3</div>
+          <div class="step-desc">
+            Wejście w szczegóły (oraz widok agregatora <code>/documents</code>): ocena kryteriów, <strong>dosłowne cytaty</strong> z tekstu oraz screenshot z SeaweedFS S3.
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">5</div>
+          <div class="step-title">Kalibracja i eksport</div>
+          <div class="step-desc">
+            Suwak progu zmienia na żywo <code>precision</code>/<code>recall</code>/<code>FP</code>/<code>FN</code> i licznik „Oznaczone flagą”; zmiana statusu na <code>confirmed</code> + pobranie CSV.
+          </div>
+        </div>
+      </div>
+
+      <div class="banner">
+        <strong>Odporność na warunki halowe (Plan B):</strong> offline źródło <code>sample</code> wbudowane w obraz <code>collector</code> gwarantuje powtarzalne uruchomienie nawet bez dostępu do zewnętrznych portali.
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 10 / 11</span>
+    </div>
+  </section>
+
+  <!-- SLAJD 11: DALSZY ROZWÓJ -->
+  <section class="slide slide-last">
+    <div class="slide-header">
+      <div>
+        <div class="slide-kicker">Roadmapa po hackathonie</div>
+        <h2 class="slide-title">Dalszy rozwój, skalowanie i wdrożenie produkcyjne w UKNF</h2>
+      </div>
+      <div class="slide-meta">Gotowość do rozbudowy modułowej</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="cols-2">
+        <div class="card">
+          <div class="card-title"><span>Rozwój analityki i źródeł danych</span><span class="pill pill-blue">M1 / M2 / M3</span></div>
+          <ul class="clean">
+            <li><strong>5 reguł układu graficznego M2 (reguły UKNF 4, 5, 7, 8, 13):</strong> automatyczny pomiar wielkości czcionki ostrzeżenia, kontrastu, dostępu jednym kliknięciem, responsywności oraz dominacji wyników historycznych na wyrenderowanym DOM / screenshotach S3 (metryki Playwright + VLM).</li>
+            <li><strong>Pełne adaptery Facebook / Instagram i rejestr KNF:</strong> wdrożenie kolektorów FB/IG oraz listingu profili TikTok (interfejs <code>Adapter</code> gotowy w <code>collector/</code>) oraz uzupełnienie <code>official_domains</code> i <code>social_handles</code> w <code>entities.csv</code>.</li>
+            <li><strong>Analiza wideo (OCR / ASR):</strong> lokalna transkrypcja rolek (YouTube Shorts, TikTok, Reels) oraz odczyt drobnego druku z kreacji graficznych.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>Hardening produkcyjny i skalowanie GPU</span><span class="pill pill-green">Skalowanie</span></div>
+          <ul class="clean">
+            <li><strong>Pełne uwierzytelnienie AI:</strong> włączenie <code>AI_REQUIRE_TOKEN=true</code> po dopięciu nagłówka <code>X-Internal-Token</code> w <code>collector/src/ai/client.ts</code> oraz wystawienie wyłącznie portów <code>web</code> i <code>api</code> za reverse proxy z TLS.</li>
+            <li><strong>Ciągłe strojenie jakości:</strong> rozbudowa zbioru <code>gold.csv</code> przez analityków UKNF wg <code>ai/eval/rubric.md</code> i okresowa re-ewaluacja starszych dokumentów przez <code>POST /reanalyze</code>.</li>
+            <li><strong>Wydajność inferencji:</strong> skalowanie <code>OLLAMA_NUM_PARALLEL &gt; 1</code> na wielu GPU oraz rozproszona pula workerów <code>collector</code> (z przypinaniem IP w proxy przeciw DNS rebindingowi).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>InvestWatch · HackNation 2026 (UKNF)</span>
+      <span>Slajd 11 / 11</span>
+    </div>
+  </section>
+
+</body>
+</html>

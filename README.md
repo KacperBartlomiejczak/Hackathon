@@ -111,6 +111,37 @@ docker compose exec -T postgres sh -c 'psql -U "${POSTGRES_USER:-investwatch}" -
 | `seaweedfs` | `chrislusf/seaweedfs:4.52` | `127.0.0.1:8333` | Object storage kompatybilny z S3, z kluczami (bucket inicjowany przez `s3-init`) |
 | `ollama` | `ollama/ollama:0.40.17` | `127.0.0.1:11434` | Lokalna inferencja LLM i embeddingów (modele pobiera `ollama-init`) |
 
+## API (`api/`, port 3000)
+
+REST dla dashboardu i Socket.io dla alertów. Pełne kształty JSON, parametry i kody błędów: [docs/contracts.md](docs/contracts.md#api-api-port-3000).
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| GET | `/health` | stan serwisu |
+| GET | `/findings` | lista findingów; filtry `module, risk, status, source, from, to, q`, paginacja `page, pageSize` |
+| GET | `/findings/:id` | finding + dokument, cytaty (`reasons`), screenshot (presigned URL, 15 min), historia statusów |
+| PATCH | `/findings/:id/status` | `new → in_review → confirmed \| dismissed`, zapis historii, emit `finding:updated` |
+| GET | `/documents`, `/documents/:id` | agregator: jeden obiekt na dokument z wynikami M1/M2/M3 i podsumowaniem `overall` |
+| GET | `/stats/trend` | liczba findingów w czasie (`bucket=day\|hour`, opcjonalnie `module`) |
+| GET | `/stats/summary` | liczniki per moduł, ryzyko, źródło, status |
+| GET / PUT | `/settings/modules/:module` | próg i wagi scoringu modułu (0–1, suma wag = 1) |
+| GET | `/eval?module=&threshold=` | proxy do `ai /eval`: precision, recall, TP/FP/FN/TN |
+| GET | `/sources` | źródła + ostatni przebieg crawla |
+| POST | `/sources/:id/run` | ręczny crawl (job w kolejce `crawl-source`), `202` |
+| GET | `/export?format=csv\|json` | raport M1/M2/M3 z tymi samymi filtrami co `/findings`; CSV z BOM, separator `;` |
+| POST | `/internal/alerts` | tylko z `ai`, nagłówek `X-Internal-Token` → emit `alert:new` |
+| POST | `/internal/crawl-status` | tylko z `collector`, nagłówek `X-Internal-Token` → emit `crawl:status` |
+
+**Socket.io** (CORS tylko `WEB_ORIGIN`):
+
+| Zdarzenie | Kiedy |
+|---|---|
+| `alert:new` | ai zapisało finding z ryzykiem `high` |
+| `finding:updated` | zmiana statusu przez `PATCH /findings/:id/status` |
+| `crawl:status` | collector zaczął lub skończył crawl źródła |
+
+**Bezpieczeństwo:** każde wejście walidowane przez `zod`, błędy jako `{ error, message }` bez stack trace'ów, rate limit 300/min na IP (`/export` 10/min), CORS tylko dla `WEB_ORIGIN`. `/internal/*` wymaga `X-Internal-Token` (`INTERNAL_TOKEN`). Opcjonalny `ADMIN_TOKEN` (min. 16 znaków) zamyka zapisy (`PUT`/`PATCH`/`POST` poza `/internal/*`) za `Authorization: Bearer`. Szczegóły i wynik `npm audit`: [api/SECURITY.md](api/SECURITY.md).
+
 ## Konfiguracja i dokumentacja
 
 Wszystkie zmienne środowiskowe oraz ich opisy znajdują się w [.env.example](.env.example). Sekrety są przekazywane do kontenerów wyłącznie przez `env_file: [.env]` — pliku `.env` nie wolno commitować do repozytorium.
@@ -120,7 +151,7 @@ Najważniejsze zmienne: `OLLAMA_LLM_MODEL`, `OLLAMA_EMBED_MODEL`, `OLLAMA_NUM_PA
 
 **CI.** Workflow GitHub Actions (`infra/ci/ci.yml`, docelowo `.github/workflows/ci.yml`) na PR do `main` buduje i testuje `api`, `collector`, `web`, uruchamia `ruff` i `pytest` w `ai`, audyty `npm audit` i `pip-audit` oraz `docker compose config -q`.
 
-- Kontrakt schematu DB i API: [docs/contracts.md](docs/contracts.md)
+- Kontrakt schematu DB i API: [docs/contracts.md](docs/contracts.md) (diagram ER: [presentation/database.mmd](presentation/database.mmd))
 - Bezpieczeństwo i skany obrazów/paczek: [docs/SECURITY.md](docs/SECURITY.md)
 - Wykaz bibliotek, narzędzi i licencji: [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)
 - Standaryzowany proces pracy z AI: [docs/AI_PROCESS.md](docs/AI_PROCESS.md)
