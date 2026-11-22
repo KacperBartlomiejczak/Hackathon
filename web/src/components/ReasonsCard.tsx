@@ -9,7 +9,7 @@ export function ReasonsCard({ finding }: { finding: FindingDetails }) {
         {finding.reasons.map((r, i) => (
           <li key={`${r.criterion}-${i}`} className="border-l-4 border-red-400 pl-3">
             <p className="text-sm font-medium">
-              {criterionLabel(r.criterion)} <span className="text-slate-500">· {verdictLabel(r.verdict)} · waga {r.weight}</span>
+              {criterionLabel(r.criterion)} <span className="text-slate-500">· {verdictLabel(r.verdict, finding.module)} · waga {r.weight}</span>
             </p>
             <blockquote className="mt-1 text-sm italic text-slate-700">„{r.quote}”</blockquote>
           </li>
