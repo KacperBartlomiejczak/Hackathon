@@ -105,3 +105,8 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 ## 2026-11-22 — issue #90 pkt 2: jednorazowy ponowny `/analyze` po 502
 - Zlecono: subagent Sonnet 5.5 (medium): w `collector/src/ai/client.ts` po HTTP 502 (ai oznaczyło dokument jako failed, zwykle timeout LLM) jedna powtórka po `AI_RETRY_DELAY_MS` (domyślnie 30 s, nowa zmienna w `config.ts`); nie zużywa prób 503, drugi 502 = rezygnacja. Timeout po stronie collectora nadal bez retry (ai mogło dalej liczyć).
 - Skrót: powtórka trzyma slot semafora, więc kolejka stoi na czas opóźnienia. Testy: 502→200 i 502→502 (2 wywołania). Nie dodano zmiennej do `.env.example` (należy do infra).
+## 2026-11-22 — collector/README.md, demo-check bez czystego startu, dane do #90
+- Zlecono: plan zaakceptowany przed zmianami, z zakazem `down -v`. `collector/README.md` (Quick Start, adaptery, konfiguracja env, limity). Dwóch subagentów Sonnet 5.5 (medium), tylko odczyt: `demo-check` pkt 1–2 na żywym stosie oraz zebranie logów i liczb do #90 dla ai-core.
+- Skille: `demo-check`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 29 testów collectora; `POST /sources/:id/run` istnieje w api. Stos (ok. 07:22): usługi zdrowe, api/ai/web odpowiadają, 183 dokumenty (110 fetched, 64 processed, 8 failed), 38 findingów, tylko 1 `high` (syntetyczny M1), crawl_runs 11 ok / 2 partial.
+- Nie sprawdzone: czysty start od zera (świadomie pominięty, czeka na drugi laptop), toasty Socket.io, panel kalibracji i konsola w przeglądarce, `POST /sources/:id/run`. Collector nie ma healthchecka. Komentarz do #90 przygotowany, nie opublikowany.
