@@ -17,7 +17,7 @@ from app.llm import LLMError, OllamaClient
 from app.models import AnalyzeResult, Finding
 from app.preprocess.clean import clean_text
 from app.preprocess.dedup import dedup
-from app.preprocess.entity_match import Entity, load_entities
+from app.preprocess.entity_match import Entity, ensure_advertiser, load_entities
 from app.scoring import weights_from_config
 from app.storage import StorageError, get_html
 
@@ -105,6 +105,8 @@ async def _run_and_store(
         if run.finding is None:
             continue
         async with pool.acquire() as conn:
+            if run.advertiser and run.finding.advertiser_entity_id is None:
+                run.finding.advertiser_entity_id = await ensure_advertiser(conn, *run.advertiser)
             saved = await db.upsert_finding(conn, run.finding)
         findings.append(saved)
         if saved.risk_level == "high":

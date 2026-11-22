@@ -41,6 +41,7 @@ class ModuleRun:
     threshold: float = 0.0
     weights: dict[str, float] = field(default_factory=dict)
     ms: dict[str, int] = field(default_factory=dict)
+    advertiser: tuple[str, bool] | None = None  # (host or handle, is_social) of the M1 publisher
 
 
 def llm_reasons(outputs: list[CriterionLike], weights: dict[str, float]) -> list[Reason]:

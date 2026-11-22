@@ -62,7 +62,8 @@ async def run_m1(
 
     reasons = validate_reasons(_matcher_reasons(cand) + llm_reasons(out.criteria, CRITERION_WEIGHTS), text)
     run = ModuleRun(module=1, finding=None, rules=cand.rules_score, threshold=threshold,
-                    weights=weights, ms=ms)
+                    weights=weights, ms=ms,
+                    advertiser=(cand.advertiser, cand.advertiser_is_social) if cand.advertiser else None)
     if not reasons:
         return run
     t = time.monotonic()

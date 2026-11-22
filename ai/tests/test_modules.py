@@ -126,6 +126,8 @@ async def test_m1_sponsored_ad_without_profit_promises_reaches_threshold() -> No
     run = await m1.run_m1(FakeLLM(out), CONFIG, SPONSORED, [0.1], cands, 1, 0.6, W)  # type: ignore[arg-type]
     assert run.finding is not None and run.score >= 0.6
     assert run.finding.risk_level in ("medium", "high")
+    # The pipeline maps this to advertiser_entity_id via ensure_advertiser() (#83, empty "Reklamujący").
+    assert run.advertiser == ("kasa-na-gieldzie.example", False)
 
 
 @pytest.mark.asyncio
