@@ -1,6 +1,4 @@
-# InvestWatch CI (Issue #75). Ten plik ma trafić do .github/workflows/ci.yml.
-# Leży w infra/ci/, bo hook .githooks/pre-commit nie pozwala team/infra commitować w .github/.
-# Instalacja (lead, jednorazowo): mkdir -p .github/workflows && git mv infra/ci/ci.yml .github/workflows/ci.yml
+# InvestWatch CI (Issue #75).
 name: CI
 
 on:
@@ -37,12 +35,10 @@ jobs:
           cache: npm
           cache-dependency-path: ${{ matrix.service }}/package-lock.json
       - run: npm ci --ignore-scripts
-      # web nie ma jeszcze skryptu "lint" (issue #110, część 2).
       - name: Lint
-        if: matrix.service != 'web'
         run: npm run lint
       - run: npm run build
-      # collector nie ma skryptu "test", więc uruchamiamy node:test bezpośrednio (27 testów).
+      # collector nie ma skryptu "test", więc uruchamiamy node:test bezpośrednio.
       - name: Testy
         run: |
           if [ "${{ matrix.service }}" = "collector" ]; then
