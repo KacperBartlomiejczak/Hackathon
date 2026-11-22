@@ -52,10 +52,17 @@ test('503 twice then 200 retries', async () => {
   s.close();
 });
 
-test('502 is final, no retry', async () => {
-  const s = await serve([502]);
-  assert.equal(await postAnalyze(1, s.url, 5), false);
-  assert.equal(s.hits(), 1);
+test('502 then 200 retries once after the delay', async () => {
+  const s = await serve([502, 200]);
+  assert.equal(await postAnalyze(1, s.url, 5, undefined, 0), true);
+  assert.equal(s.hits(), 2);
+  s.close();
+});
+
+test('502 twice gives up after one retry', async () => {
+  const s = await serve([502, 502]);
+  assert.equal(await postAnalyze(1, s.url, 5, undefined, 0), false);
+  assert.equal(s.hits(), 2);
   s.close();
 });
 

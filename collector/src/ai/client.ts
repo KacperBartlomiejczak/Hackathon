@@ -25,21 +25,22 @@ function release(): void {
 }
 
 /** Triggers AI analysis of a document. Never throws; false = document stays `fetched`. */
-export async function postAnalyze(documentId: number, baseUrl: string = config.AI_URL, backoffMs = 1000, timeoutMs = TIMEOUT_MS): Promise<boolean> {
+export async function postAnalyze(documentId: number, baseUrl: string = config.AI_URL, backoffMs = 1000, timeoutMs = TIMEOUT_MS, retryDelayMs = config.AI_RETRY_DELAY_MS): Promise<boolean> {
   // Same document already queued/running (e.g. overlapping re-crawl): a second run would double the LLM work.
   if (inFlight.has(documentId)) return true;
   inFlight.add(documentId);
   await acquire();
   try {
-    return await analyze(documentId, baseUrl, backoffMs, timeoutMs);
+    return await analyze(documentId, baseUrl, backoffMs, timeoutMs, retryDelayMs);
   } finally {
     inFlight.delete(documentId);
     release();
   }
 }
 
-async function analyze(documentId: number, baseUrl: string, backoffMs: number, timeoutMs: number): Promise<boolean> {
+async function analyze(documentId: number, baseUrl: string, backoffMs: number, timeoutMs: number, retryDelayMs: number): Promise<boolean> {
   const started = Date.now();
+  let retried502 = false;
   let status: number | undefined;
   let err: unknown;
   let attempt = 0;
@@ -57,7 +58,15 @@ async function analyze(documentId: number, baseUrl: string, backoffMs: number, t
         logger.info({ documentId, status, durationMs: Date.now() - started }, 'analyze triggered');
         return true;
       }
-      // Only 503 (ai not ready) is retried; 502 = ai already marked the document failed.
+      // 503 (ai not ready) is retried with backoff; 502 = ai already marked the document failed (usually an LLM timeout), so retry once after a longer delay.
+      if (status === 502 && !retried502) {
+        retried502 = true;
+        attempt--; // does not consume the 503 attempts
+        logger.warn({ documentId, status }, 'analyze got 502, retrying once after delay');
+        // shortcut: holds the semaphore slot, so the queue stalls for the delay; release the slot during the wait if it matters.
+        await sleep(retryDelayMs);
+        continue;
+      }
       if (status !== 503) break;
     } catch (e) {
       status = undefined;

@@ -102,3 +102,6 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 - Zlecono: `X-Internal-Token` (z `INTERNAL_TOKEN`) w `fetch` `analyze()` w `collector/src/ai/client.ts` plus test z atrapą serwera; `git mv infra/ci/ci.yml .github/workflows/ci.yml` (prośba z PR #97, hook blokuje team/infra w `.github/`, commit z `ALLOW_FOREIGN=1`). Plan zaakceptowany przed zmianami.
 - Skille: brak nowych paczek.
 - Weryfikacja: `tsc`, `eslint`, 28 testów collectora. Nie sprawdzone: żywy stos z `AI_REQUIRE_TOKEN=true` (nie czytam ani nie zmieniam `.env`), pierwszy przebieg workflow na GitHubie, README nadal wskazuje `infra/ci/ci.yml`. Pierwszy komentarz w workflow też mówi jeszcze o `infra/ci` (do poprawy przez infra).
+## 2026-11-22 — issue #90 pkt 2: jednorazowy ponowny `/analyze` po 502
+- Zlecono: subagent Sonnet 5.5 (medium): w `collector/src/ai/client.ts` po HTTP 502 (ai oznaczyło dokument jako failed, zwykle timeout LLM) jedna powtórka po `AI_RETRY_DELAY_MS` (domyślnie 30 s, nowa zmienna w `config.ts`); nie zużywa prób 503, drugi 502 = rezygnacja. Timeout po stronie collectora nadal bez retry (ai mogło dalej liczyć).
+- Skrót: powtórka trzyma slot semafora, więc kolejka stoi na czas opóźnienia. Testy: 502→200 i 502→502 (2 wywołania). Nie dodano zmiennej do `.env.example` (należy do infra).
