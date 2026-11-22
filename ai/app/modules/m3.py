@@ -52,26 +52,39 @@ class M3Output(BaseModel):
 
 
 @lru_cache(maxsize=1)
-def _load_rules() -> tuple[str, list[tuple[str, float, re.Pattern[str]]]]:
+def _load_rules() -> tuple[str, list[tuple[str, float, re.Pattern[str]]], re.Pattern[str]]:
     data = yaml.safe_load((RULES_DIR / "m3.yaml").read_text(encoding="utf-8"))
     rules = [(r["id"], float(r["weight"]), re.compile(r["pattern"], re.IGNORECASE)) for r in data["rules"]]
-    return data["version"], rules
+    return data["version"], rules, re.compile(data["disclaimer"], re.IGNORECASE)
+
+
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def strip_disclaimers(text: str) -> str:
+    """Drop sentences that are legal 'not a recommendation' boilerplate; they say the opposite of advice."""
+    rx = _load_rules()[2]
+    return " ".join(s for s in _SENTENCE_END.split(text) if s and not rx.search(s))
+
+
+def _sentence_around(text: str, m: re.Match[str]) -> str:
+    a = max(text.rfind(c, 0, m.start()) for c in ".!?\n") + 1
+    ends = [i for c in ".!?\n" if (i := text.find(c, m.end())) != -1]
+    b = min(ends) + 1 if ends else len(text)
+    return text[a:b].strip()
 
 
 def rules_hits(text: str) -> tuple[float, list[Reason]]:
     """(rules score 0..1, one reason per matched rule with the matching sentence as the quote)."""
-    _, rules = _load_rules()
+    _, rules, disclaimer = _load_rules()
     total = 0.0
     reasons: list[Reason] = []
     for rule_id, weight, rx in rules:
-        m = rx.search(text)
+        m = next((m for m in rx.finditer(text) if not disclaimer.search(_sentence_around(text, m))), None)
         if m is None:
             continue
         total += weight
-        a = max(text.rfind(c, 0, m.start()) for c in ".!?\n") + 1
-        ends = [i for c in ".!?\n" if (i := text.find(c, m.end())) != -1]
-        b = min(ends) + 1 if ends else len(text)
-        quote = text[a:b].strip()[:SNIPPET_MAX] or m.group()
+        quote = _sentence_around(text, m)[:SNIPPET_MAX] or m.group()
         reasons.append(Reason(criterion=f"rule:{rule_id}", verdict="fail", quote=quote, weight=weight))
     return min(1.0, total), reasons
 
@@ -84,10 +97,12 @@ async def run_m3(
     rules, rule_reasons = rules_hits(text)
     t = time.monotonic()
     prompt = load_prompt(PROMPT_PATH)
-    out = await llm.generate(prompt.text, text[:MAX_DOC_CHARS], M3Output)
+    out = await llm.generate(prompt.text, strip_disclaimers(text)[:MAX_DOC_CHARS], M3Output)
     ms["llm"] = int((time.monotonic() - t) * 1000)
 
-    reasons = validate_reasons(llm_reasons(out.criteria, CRITERION_WEIGHTS) + rule_reasons, text)
+    disclaimer = _load_rules()[2]
+    reasons = [r for r in validate_reasons(llm_reasons(out.criteria, CRITERION_WEIGHTS) + rule_reasons, text)
+               if not disclaimer.search(r.quote)]
     run = ModuleRun(module=3, finding=None, rules=rules, threshold=threshold, weights=weights, ms=ms)
     if not reasons:
         return run

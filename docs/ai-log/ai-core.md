@@ -173,6 +173,11 @@
 - **#73:** skan Trivy: `python:3.12.12-slim-bookworm` 9C/133H → `3.12.16-slim-bookworm` 2C/99H (bez poprawek upstream) → `3.12.16-slim-trixie` **0C/51H**. Dockerfile przełączony na trixie, obraz zbudowany, import zależności i `uid=10001` sprawdzone, pytest 117 passed. Wynik w `ai/SECURITY.md`.
 - **Do sprawdzenia przez człowieka:** `docker compose up --build` z nowym obrazem `ai` (nie uruchamiano pełnego stosu z Ollamą na tej maszynie).
 
+## 2026-11-22 — #95 M3: zastrzeżenie „nie jest rekomendacją” jako dowód
+- **Zlecono:** finding 65 (XTB) cytował disclaimer jako dowód doradztwa. Skill: risk-classifier. Patch przygotowany na `team/ai-data`, zastosowany tutaj.
+- **Zmiana:** `rules/m3.yaml` (wzorzec `disclaimer`, reguły v4), `modules/m3.py` (reguły pomijają zdania z zastrzeżeniem, `strip_disclaimers()` przed LLM, reasons z cytatem-zastrzeżeniem odrzucane), prompt `m3-v4`, 3 testy. Pytest 120 passed.
+- **Do sprawdzenia przez człowieka:** reanaliza dokumentu 99 na żywym stosie i `/findings/65`. Starsze findings M3 zostają na v3 do reanalizy.
+
 ## 2026-11-22 — #83 (M1 reklamujący i score) i #90 (analyze failed)
 - **Zlecono:** przejrzeć otwarte PR-y (Haiku, przegląd wydajności PR #93), domknąć #83 po stronie ai-core, przejrzeć lokalne zmiany i wystawić PR. Skill: `risk-classifier`.
 - **Zmiany:** `db.resolve_advertiser()` (lookup + insert w jednej transakcji pod `pg_advisory_xact_lock`, normalizacja host/handle, encja `advertiser`/`finfluencer` z `is_authorized=false`) wołane z `pipeline` dla findingów M1; błąd bazy nie gubi findingu. Prompt `m1-v2` (jawne sygnały reklamy: link partnerski, wpis sponsorowany, #reklama), wagi M1 0.7/0.2/0.1. `OllamaClient` z semaforem `llm.max_concurrency` (= `OLLAMA_NUM_PARALLEL`), `AnalysisFailed.category` zamiast tekstu wyjątku w odpowiedzi, crash jednego modułu nie zabija pozostałych, cytaty > 600 znaków przycinane zamiast odrzucać moduł. Testy: `test_m1_advertiser.py`, `test_analysis_budget.py`; pytest 126 passed, ruff czysty.
