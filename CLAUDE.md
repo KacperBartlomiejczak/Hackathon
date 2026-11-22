@@ -116,6 +116,7 @@ Wyjątek: drobna poprawka wskazana przez człowieka wprost (literówka, jedna li
 | Osoba | Branch | Katalogi (tylko tu commitujesz) | Plik roli |
 |---|---|---|---|
 | Kacper (lead) | `team/lead-collector` | `collector/`, `CLAUDE.md`, `.claude/`, `.githooks/`, `docs/team/` | `docs/team/1-lead-collector.md` |
+| kazzaccy (lead #2) | `team/lead-collector` (wspólny z Kacprem) | jak Kacper + wyjątek lead-a (`ALLOW_FOREIGN=1`) | `docs/team/1-lead-collector.md` |
 | Python #1 | `team/ai-core` | `ai/app/*.py` (bez `embeddings.py`, `eval.py`), `ai/app/modules/`, `ai/prompts/`, `ai/rules/`, `ai/config.yaml`, `ai/pyproject.toml`, `ai/Dockerfile` | `docs/team/2-ai-core.md` |
 | mnichu443 (pomocnik AI core) | `team/ai-core` (wspólny z Python #1) | jak Python #1 | `docs/team/2-ai-core.md` |
 | Osoba #3 | `team/ai-data` | `ai/app/preprocess/`, `ai/app/embeddings.py`, `ai/app/eval.py`, `ai/eval/`, `ai/seed/` | `docs/team/3-ai-data.md` |
@@ -123,6 +124,7 @@ Wyjątek: drobna poprawka wskazana przez człowieka wprost (literówka, jedna li
 | Osoba #5 | `team/web` | `web/` | `docs/team/5-web.md` |
 | Osoba #6 | `team/infra` | `docker-compose.yml`, `infra/` (bez `infra/db/`), `README.md`, `.env.example`, `docs/` (bez `contracts.md` i `team/`), `presentation/` | `docs/team/6-infra-pitch.md` |
 
+`team/lead-collector` dzielą Kacper i kazzaccy (team leader #2): mają te same uprawnienia lead-a, w tym edycję `CLAUDE.md`, `.claude/`, `.githooks/`, `docs/team/` i (za zgodą, `ALLOW_FOREIGN=1`) cudzych plików. Dzielą zadania na kanale i nie edytują tych samych plików naraz; przed pushem `git fetch origin && git merge origin/team/lead-collector`. Kazzaccy merguje PR-y w oknach merge razem z Kacprem. Logi AI kazzaccy idą do `docs/ai-log/lead-collector-kazzaccy.md`.
 `team/ai-core` dzielą Python #1 i mnichu443: dzielą zadania na kanale i nie edytują tych samych plików naraz. Przed pushem `git fetch origin && git merge origin/team/ai-core`. Logi AI mnichu443 idą do `docs/ai-log/ai-core-mnichu.md`.
 Zmiany pat-dem w plikach infry idą w PR z `team/api` z dopiskiem „wymaga akceptu infra”. Przed zmianą README albo compose pat-dem pisze do Osoby #6, żeby nie było konfliktów.
 Pliki wspólne w `ai/` (`ai/app/main.py`, `ai/app/models.py`, `ai/pyproject.toml`) należą do **Python #1**. Osoba #3 zgłasza mu zmiany albo dodaje je w PR-ze opisanym jako „wymaga akceptu ai-core”.

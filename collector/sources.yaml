@@ -62,3 +62,23 @@ sources:
     module_hint: null
     enabled: true
     cron: '0 */6 * * *'
+  # Facebook (best effort): only public pages without login. Page = og:title + og:description, posts only when a permalink is visible.
+  # Pages that need login (e.g. xtbpolska, dmbossa) end as an error in crawl_runs, so they are not listed.
+  - kind: facebook
+    name: Bankier.pl (Facebook)
+    start_url: https://www.facebook.com/Bankier.pl
+    module_hint: null
+    enabled: true
+    cron: '0 */6 * * *'
+  - kind: facebook
+    name: Strefa Inwestorów (Facebook)
+    start_url: https://www.facebook.com/strefainwestorow
+    module_hint: null
+    enabled: true
+    cron: '0 */6 * * *'
+  - kind: facebook
+    name: StockWatch.pl (Facebook)
+    start_url: https://www.facebook.com/Stockwatch.pl
+    module_hint: null
+    enabled: true
+    cron: '0 */6 * * *'
