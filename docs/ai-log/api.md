@@ -163,3 +163,8 @@
 - Skill used: `data-contract` (by hand): `docs/contracts.md` describes the `from`/`to` day rule, the date range, NUL and the 502 case. No DB change.
 - Verified: `npm test` 53/53 (new `test/validation.test.ts`), typecheck, lint; the 113 integration tests 113/113 after the fix. Scratch containers removed.
 - Left for web: days are counted in UTC; a new issue asks web to send local-day boundaries as full timestamps and group the trend by local day.
+
+## 2026-11-22: API section in README (Issue #81)
+- Asked Claude to: put the README API section prepared in Issue #81 into `README.md` (after "Serwisy i porty"). README belongs to team/infra; the lead allowed team/api to help with infra files in `CLAUDE.md` (2ee7f4c), so the change goes in a PR marked "wymaga akceptu infra".
+- Claude pasted the text unchanged and checked every listed route against `api/src` (all 15 exist, including `/export`). The `ADMIN_TOKEN` sentence stays, because `.env.example` now has `ADMIN_TOKEN`.
+- Verified: only `README.md` and this log changed; no code or DB change.
