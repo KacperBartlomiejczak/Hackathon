@@ -83,3 +83,7 @@ Zweryfikowane: `tsc`, `eslint`, 7 testów klienta. Nie sprawdzone: test pipeline
 ## 2026-11-21 — healthcheck `web` (z #49, #43)
 - Zlecono: naprawa healthchecka `web` w `docker-compose.yml` (używał `node`, którego nie ma w `nginx:alpine`) → `wget` na `127.0.0.1:5173` (nginx słucha tylko IPv4). Plik infra, zmiana jednej linijki za zgodą człowieka; do powiadomienia osoby #6.
 - Weryfikacja: `docker compose up -d --no-deps web` → `healthy` po 25 s (wcześniej `unhealthy`). Nie sprawdzone: czysty start od zera (`down -v` + `up --build`).
+## 2026-11-22 — issue #74: blokada SSRF w adapterze web
+- Zlecono: plan zaakceptowany przed zmianami. `src/adapters/ssrf.ts`: `isBlockedUrl` (tylko http/https, DNS + `net.BlockList`: loopback, sieci prywatne, link-local, CGNAT, IPv6 ULA, mapowane IPv4). `context.route('**/*')` w `fetchOne` odrzuca każde żądanie do adresu wewnętrznego, także po przekierowaniu, więc item kończy się błędem i nic nie trafia do S3. Ten sam test dla `startUrl` w discovery.
+- Skille: `scraper-adapter`; zero nowych paczek.
+- Weryfikacja: `tsc`, `eslint`, 21 testów (nowe: 127.0.0.1, 169.254.169.254, localhost, ::1, 10/8, ftp, file). Nie sprawdzone na żywo: źródło przekierowujące na `ollama:11434` w compose. Znany limit: okno DNS rebinding (komentarz shortcut).
