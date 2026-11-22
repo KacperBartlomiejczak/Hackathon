@@ -51,7 +51,10 @@ flowchart LR
 - **GPU / CPU dla Ollama:**
   - Zalecane GPU NVIDIA >= 8 GB VRAM (uruchamiane opcjonalnym nadpisaniem `infra/docker-compose.gpu.yml`).
   - W trybie CPU inferencja LLM jest wolniejsza; reguły i dopasowanie embeddingów działają niezależnie.
-- **Równoległość Ollamy:** `OLLAMA_NUM_PARALLEL` w `.env` (domyślnie `1`). Przy `1` moduły M1 i M3 jednego dokumentu czekają na siebie (pomiar ai-core: ok. 82 s na dokument). `2` pozwala liczyć je równolegle kosztem drugiego KV cache, więc wymaga więcej RAM/VRAM.
+- **Równoległość Ollamy i collectora:**
+  - `OLLAMA_NUM_PARALLEL` w `.env` (domyślnie `1`). Przy `1` moduły jednego dokumentu czekają na siebie w Ollamie (ok. 82 s przy M1+M3); `2` pozwala liczyć je równolegle kosztem drugiego KV cache (więcej RAM/VRAM).
+  - `ANALYZE_CONCURRENCY` w `.env` (domyślnie `1`, zalecane `1–2`) — ogranicza liczbę równoległych wywołań `/analyze` z `collector` do jednego lokalnego Bielika (`AI_ANALYZE_TIMEOUT_MS=600000` wobec budżetu AI `240 s`).
+- **Zmierzone czasy na GPU (RTX 3060 12 GB, Bielik 11B Q4_K_M + `bge-m3`):** na ciepło ok. 3,4–5,8 s (M1/M3), 9–10,5 s (M2), < 0,15 s bez modułu; zimny start do ~30 s na GPU (na CPU > 60 s).
 - **Dysk:** minimum **25 GB** wolnego miejsca (modele `SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M` i `bge-m3` to łącznie **~7–8 GB**, do tego obrazy Docker oraz przeglądarka Chromium dla Playwrighta).
 - **Czas pierwszego uruchomienia (zimny start):** pierwsze uruchomienie pobiera obrazy oraz ~7–8 GB modeli Ollamy (`ollama-init`), a samo załadowanie Bielika 11B Q4 trwa **> 60 s**. Serwisy `ai` i `collector` czekają na zakończenie inicjalizacji (`s3-init`, `ollama-init`) — postęp sprawdzisz przez `docker compose logs -f ollama-init`.
 
@@ -84,25 +87,41 @@ curl -s http://localhost:8000/health
 curl -s http://localhost:3000/health
 ```
 
+4. Po aktualizacji repo na **istniejącym wolumenie** Postgresa pliki `infra/db/*.sql` nie uruchomią się ponownie (działają tylko na pustym wolumenie). Zastosuj nowe migracje ręcznie (są idempotentne), np.:
+
+```bash
+docker compose exec -T postgres sh -c 'psql -U "${POSTGRES_USER:-investwatch}" -d "${POSTGRES_DB:-investwatch}"' < infra/db/004_seen_tracking.sql
+```
+
+   Objaw braku migracji: `GET /findings` zwraca 500 (`column ... does not exist`). Nie używaj `docker compose down -v`: kasuje też wolumen `ollama_data` (kilka GB modeli) i bazę.
+
 ## Serwisy i porty
+
+`postgres`, `valkey`, `seaweedfs`, `ollama` i `ai` są dostępne tylko z hosta (`127.0.0.1`); z sieci zewnętrznej widoczne są wyłącznie `web` (5173) i `api` (3000).
+
 
 | Serwis | Technologia | Port | Rola |
 |---|---|---|---|
 | `web` | React + Vite + TS (Nginx) | `5173` | Dashboard analityka UKNF, filtry, trendy, kalibracja, toasty alertów |
-| `api` | Node 22 + Fastify + Drizzle + Socket.io | `3000` | REST API, eksport, `X-Internal-Token`, eventy real-time |
-| `ai` | Python 3.12 + FastAPI | `8000` | Czyszczenie tekstu, dedup, tokenizacja i embeddingi `bge-m3`, moduły M1/M2/M3, `/eval` |
+| `api` | Node 22 + Fastify + Drizzle + Socket.io | `3000` | REST API, agregator wyników M1/M2/M3 (`GET /documents`), śledzenie widoczności M1 (`first_seen_at`/`last_seen_at`/`isActive`), eksport, `X-Internal-Token`, eventy real-time |
+| `ai` | Python 3.12 + FastAPI | `127.0.0.1:8000` | Czyszczenie tekstu, dedup, tokenizacja i embeddingi `bge-m3`, moduły M1/M2/M3, `/eval` |
 | `collector` | Node 22 + TypeScript + Playwright + BullMQ | — | Harmonogram i wykonywanie crawli, zapis HTML/screenshotów do S3 |
-| `postgres` | `pgvector/pgvector:0.8.7-pg16` | `5432` | Dane relacyjne i wektory `vector(1024)` (init z `infra/db/`) |
-| `valkey` | `valkey/valkey:8.1.12-alpine` | `6379` | Broker kolejek BullMQ (`crawl-source`) |
-| `seaweedfs` | `chrislusf/seaweedfs:3.96` | `8333` | Object storage kompatybilny z S3 (bucket inicjowany przez `s3-init`) |
-| `ollama` | `ollama/ollama:0.40.17` | `11434` | Lokalna inferencja LLM i embeddingów (modele pobiera `ollama-init`) |
+| `postgres` | `pgvector/pgvector:0.8.7-pg16` | `127.0.0.1:5432` | Dane relacyjne i wektory `vector(1024)` (init z `infra/db/`) |
+| `valkey` | `valkey/valkey:8.1.12-alpine` | `127.0.0.1:6379` | Broker kolejek BullMQ (`crawl-source`) |
+| `seaweedfs` | `chrislusf/seaweedfs:4.52` | `127.0.0.1:8333` | Object storage kompatybilny z S3, z kluczami (bucket inicjowany przez `s3-init`) |
+| `ollama` | `ollama/ollama:0.40.17` | `127.0.0.1:11434` | Lokalna inferencja LLM i embeddingów (modele pobiera `ollama-init`) |
 
 ## Konfiguracja i dokumentacja
 
 Wszystkie zmienne środowiskowe oraz ich opisy znajdują się w [.env.example](.env.example). Sekrety są przekazywane do kontenerów wyłącznie przez `env_file: [.env]` — pliku `.env` nie wolno commitować do repozytorium.
-Najważniejsze zmienne: `OLLAMA_LLM_MODEL`, `OLLAMA_EMBED_MODEL`, `S3_PUBLIC_ENDPOINT` (adres S3 widziany z przeglądarki), `WEB_ORIGIN`, `VITE_API_URL`.
+Najważniejsze zmienne: `OLLAMA_LLM_MODEL`, `OLLAMA_EMBED_MODEL`, `OLLAMA_NUM_PARALLEL`, `ANALYZE_CONCURRENCY`, `AI_REQUIRE_TOKEN`, `S3_PUBLIC_ENDPOINT` (adres S3 widziany z przeglądarki), `WEB_ORIGIN`, `VITE_API_URL`.
+
+**Tokeny (opcjonalne).** `ADMIN_TOKEN` (api) razem z `VITE_ADMIN_TOKEN` (web) włączają wymóg `Authorization: Bearer` dla zapisów REST (PUT/PATCH/POST); oba muszą mieć tę samą wartość (min. 16 znaków), a po zmianie `VITE_ADMIN_TOKEN` trzeba przebudować `web`: `docker compose up -d --build web`. `AI_REQUIRE_TOKEN=true` wymusza nagłówek `X-Internal-Token` w serwisie `ai`; włączaj dopiero, gdy collector go wysyła. `AI_CONFIG` pozwala wskazać inny `config.yaml` dla `ai`.
+
+**CI.** Workflow GitHub Actions (`infra/ci/ci.yml`, docelowo `.github/workflows/ci.yml`) na PR do `main` buduje i testuje `api`, `collector`, `web`, uruchamia `ruff` i `pytest` w `ai`, audyty `npm audit` i `pip-audit` oraz `docker compose config -q`.
 
 - Kontrakt schematu DB i API: [docs/contracts.md](docs/contracts.md)
 - Bezpieczeństwo i skany obrazów/paczek: [docs/SECURITY.md](docs/SECURITY.md)
 - Wykaz bibliotek, narzędzi i licencji: [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md)
 - Standaryzowany proces pracy z AI: [docs/AI_PROCESS.md](docs/AI_PROCESS.md)
+- Prezentacja PDF i opis zgłoszeniowy: [presentation/InvestWatch.pdf](presentation/InvestWatch.pdf), [presentation/PROJECT_DESCRIPTION.md](presentation/PROJECT_DESCRIPTION.md)

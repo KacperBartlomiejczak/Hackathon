@@ -56,11 +56,12 @@ class M1Candidate:
     quote: str  # exact substring of the input text
     anchors: tuple[str, ...]
     advertiser: str | None  # host (web) or handle (social); None when unknown
-    advertiser_entity_id: int | None  # filled by ai-core
+    advertiser_entity_id: int | None  # filled by the pipeline via ensure_advertiser()
     url: str
     rules_score: float  # 0..1, rules part only
     official_channels_known: bool
     reasons: list[dict[str, Any]] = field(default_factory=list)  # contracts.md shape, verdict fail|unclear
+    advertiser_is_social: bool = False
 
 
 async def load_entities(conn: asyncpg.Connection) -> list[Entity]:
@@ -72,6 +73,22 @@ async def load_entities(conn: asyncpg.Connection) -> list[Entity]:
                tuple(r["official_domains"] or ()), tuple(r["social_handles"] or ()))
         for r in rows
     ]
+
+
+async def ensure_advertiser(conn: asyncpg.Connection, advertiser: str, is_social: bool) -> int:
+    """Entity id of the third-party publisher (host or handle); created as type 'advertiser' on first sight."""
+    row = await conn.fetchrow(
+        "SELECT id FROM entities WHERE type = 'advertiser' AND $1 = ANY(official_domains || social_handles) LIMIT 1",
+        advertiser,
+    )
+    if row:
+        return int(row["id"])
+    domains, handles = ([], [advertiser]) if is_social else ([advertiser], [])
+    return int(await conn.fetchval(
+        "INSERT INTO entities (name, type, official_domains, social_handles) "
+        "VALUES ($1, 'advertiser', $2, $3) RETURNING id",
+        advertiser, domains, handles,
+    ))
 
 
 # --- publisher ---------------------------------------------------------------------------------
@@ -222,7 +239,7 @@ def match_entities(
         )
         candidates.append(
             M1Candidate(ent.id, ent.name, text[s:e], quote, tuple(anchors), advertiser, None, url,
-                        round(score, 2), channels_known, reasons)
+                        round(score, 2), channels_known, reasons, social)
         )
 
     log.info("m1 match document_id=%s url=%s candidates=%d", document_id, url, len(candidates))

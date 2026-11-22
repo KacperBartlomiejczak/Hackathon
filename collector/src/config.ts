@@ -30,7 +30,7 @@ const schema = z.object({
       { message: 'PROXY_LIST: each entry must be an http(s):// or socks5:// URL' },
     ),
   SOURCES_FILE: z.string().default('sources.yaml'),
-  // Queue one crawl per enabled source at startup (demo trigger until POST /sources/:id/run exists).
+  // Queue one crawl per enabled source without cron at startup (sample data); cron sources wait for schedule or POST /sources/:id/run.
   CRAWL_ON_START: z
     .enum(['true', 'false'])
     .default('true')
