@@ -9,6 +9,7 @@ const schema = z.object({
   ANALYZE_CONCURRENCY: z.coerce.number().int().min(1).default(1),
   // Must stay above the ai per-document budget: M1+M2+M3 run sequentially, each LLM call up to llm.timeout_s (120 s) cold.
   AI_ANALYZE_TIMEOUT_MS: z.coerce.number().int().min(1000).default(600_000),
+  AI_RETRY_DELAY_MS: z.coerce.number().int().min(0).default(30_000),
   INTERNAL_TOKEN: z.string().default(''),
   S3_ENDPOINT: z.string().default('http://seaweedfs:8333'),
   S3_BUCKET: z.string().default('investwatch'),
