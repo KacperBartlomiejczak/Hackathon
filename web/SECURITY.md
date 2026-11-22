@@ -24,6 +24,8 @@ Kod wyjścia: 0.
 
 Wynik: 0 podatności (critical 0, high 0, moderate 0, low 0).
 
+Aktualizacja 2026-11-22: dodano `eslint`, `@eslint/js`, `typescript-eslint` (dev) i obniżono `typescript` do 5.9.3 (issue #110). Po zmianie `npm audit --audit-level=high` i pełny `npm audit`: found 0 vulnerabilities, kod wyjścia 0.
+
 ## Sekrety
 
 - W `web/` nie ma sekretów.

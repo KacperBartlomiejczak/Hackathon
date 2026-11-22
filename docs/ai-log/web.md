@@ -115,3 +115,10 @@
 - #44: the fix (`RUN apk upgrade --no-cache libxml2` in the nginx stage) and the `SECURITY.md` note were already on `main` (commit dd5d989), so nothing was added. Rebuilt `web` after merging `origin/main`: container `healthy`, `libxml2-2.13.9-r3`, nginx 1.30.7, Trivy 0.76.2 on the image 0 CRITICAL / 0 HIGH, and `/`, `/findings`, `/trends`, `/calibration`, `/sources` return 200.
 - #122: "Uruchom crawl" sends `POST /sources/1/run` (202) and shows the "Uruchomiono crawl" toast; `crawl:status` refreshes the sources list. Finding 74 details show the reasons with quotes and verdicts. Console: 0 errors and 0 warnings. Socket connects (api log "socket connected").
 - Not verified: a fresh `alert:new` toast from a live crawl. The sample source only re-reads already processed documents, so no new high finding was created; the toast path was checked earlier in #121 via a test POST to `/internal/alerts`.
+
+## ESLint with no-console in web (#110, part 2)
+- Asked Claude to: add ESLint with `no-console` and a `lint` script. Skill: `dependency-guard` (versions and licenses checked, all MIT, same versions as `api`).
+- Problem found: `web` used `typescript@7.0.2` (native compiler, no JS API), and `typescript-eslint` 8.73.0 needs `typescript <6.1.0`. Human chose to pin `typescript` to 5.9.3 (as in `api` and `collector`) instead of using another linter.
+- Changes: `eslint`, `@eslint/js`, `typescript-eslint` (dev, pinned), `web/eslint.config.mjs` copied from `api` (`no-console` and `no-explicit-any` as errors), `"lint": "eslint ."`. The only lint findings were literal BOM characters in `exportFormat.ts` and its test; replaced by the `﻿` escape (same value, tests unchanged).
+- Checked: `npm run lint` clean, a `console.log` probe in `src/` gives `no-console` error, `tsc` and `vite build` pass, 100 tests pass, `npm audit` 0 vulnerabilities, Docker image rebuilt (`npm ci` OK), container healthy, console 0 errors and 0 warnings on Findingi.
+- Human to do: lead removes `if: matrix.service != 'web'` from the Lint step in `.github/workflows/ci.yml` (web cannot commit there), then a PR with a `console.log` in `web/src` should have red CI.
