@@ -937,7 +937,7 @@
             <li><strong>Aktywne adaptery (MVP):</strong>
               <code>sample</code> (dane offline + syntetyki gold set), <code>web</code> (Chromium, discovery z głębokości 1, rotacja <strong>23 User-Agentów</strong> i <code>PROXY_LIST</code>, limit 2/host, jitter), <code>youtube</code> (publiczny RSS kanałów) oraz <code>tiktok</code> (pojedyncze filmy przez oEmbed + fallback JSON, #51).</li>
             <li><strong>Zakres social i ochrona SSRF (#74):</strong> adaptery FB/IG pozostają poza obecnym MVP (gotowy interfejs <code>Adapter</code>; filtr UI ukrywa nieaktywne typy z <code>GET /sources</code>). W <code>ssrf.ts</code> (<code>isBlockedUrl</code> + <code>context.route</code>) blokowane są żądania na loopback, sieci prywatne, link-local i usługi Compose.</li>
-            <li><strong>Harmonogram i odporność:</strong> <code>upsertJobScheduler</code> wg <code>sources.cron</code> (<code>Europe/Warsaw</code>), semafor <code>ANALYZE_CONCURRENCY=1</code>, timeout <code>600 s</code>, deduplikacja w locie i status <code>partial</code> przy błędzie analizy (#90).</li>
+            <li><strong>Harmonogram i odporność:</strong> <code>upsertJobScheduler</code> wg <code>sources.cron</code> (<code>Europe/Warsaw</code>), semafor <code>ANALYZE_CONCURRENCY=1</code>, timeout <code>600 s</code>, deduplikacja w locie, status <code>partial</code> przy błędzie analizy oraz jednorazowy retry po HTTP 502 (<code>AI_RETRY_DELAY_MS</code>, #90).</li>
             <li><strong>Zabezpieczenie dowodów:</strong> HTML + screenshot PNG w SeaweedFS S3, <code>upsert</code> w <code>documents</code> po <code>url_hash</code>, triggery <code>first_seen_at</code> / <code>last_seen_at</code>.</li>
           </ul>
         </div>
@@ -947,7 +947,7 @@
           <ul class="clean">
             <li><strong>Agregator M1/M2/M3 (<code>GET /documents</code>, <code>GET /documents/:id</code>):</strong> składa osobne rekordy z <code>findings</code> w jeden ujednolicony obiekt dokumentu (<code>modules: {"1","2","3"}</code> + podsumowanie <code>overall</code>: <code>maxScore</code>, <code>riskLevel</code>, <code>flaggedModules</code>).</li>
             <li><strong>Śledzenie widoczności reklam M1 (<code>004_seen_tracking.sql</code>):</strong> triggery bazy utrzymują <code>first_seen_at</code> i <code>last_seen_at</code>, a API wylicza <code>isActive</code> (flaga <code>false</code> po późniejszym pełnym przebiegu <code>ok</code> z karencją 1 h, który nie znalazł URL-a).</li>
-            <li><strong>Wyszukiwanie, audyt, kalibracja i zapisy:</strong> filtry z <code>pg_trgm</code>, dynamiczne przeliczanie poziomu ryzyka wg progu (#84, <code>risk.ts</code>), <code>PATCH /findings/:id/status</code> z <code>SELECT ... FOR UPDATE</code>, presigned URL (15 min) i opcjonalny <code>ADMIN_TOKEN</code> (#71).</li>
+            <li><strong>Wyszukiwanie, audyt, kalibracja i zapisy:</strong> filtry z <code>pg_trgm</code>, zapis progu (<code>PUT /settings/modules/:module</code>) wywołujący <code>POST /recompute-risk?module=</code> w <code>ai</code> (#84), <code>PATCH /findings/:id/status</code> z <code>SELECT ... FOR UPDATE</code>, presigned URL (15 min) i opcjonalny <code>ADMIN_TOKEN</code> (#71).</li>
             <li><strong>Real-time &amp; eksport:</strong> Socket.io (<code>alert:new</code>, <code>finding:updated</code>, <code>crawl:status</code>) oraz eksport CSV/JSON dla polskiego Excela (<code>;</code>, przecinek dziesiętny, BOM UTF-8, limit 10 000 wierszy).</li>
           </ul>
         </div>
@@ -988,9 +988,9 @@
         <div class="card">
           <div class="card-title"><span>Trzy moduły analityczne (na <code>main</code>)</span><span class="pill pill-blue">Budżet 240 s</span></div>
           <ul class="clean">
-            <li><strong>M1 (Finfluencerzy):</strong> wykrywa wzmiankę o podmiocie z rejestru KNF (86 firm w <code>entities.csv</code>, polskie końcówki fleksyjne i anchory ±200 znaków) publikowaną spoza <code>official_domains</code> / <code>social_handles</code>.</li>
-            <li><strong>M2 (Informacja o ryzyku):</strong> ewolucja od 4 kryteriów (<code>m2-v1</code>), przez 8 kryteriów (<code>m2-v3</code>, MiFID II art. 44 / rozporządzenie 2017/565), do <strong>16 kryteriów tekstowych (<code>m2-v4</code>, PR #76 na <code>main</code>)</strong> zmapowanych na reguły tekstowe 1, 2, 3, 6, 9–12b, 14–18 z załącznika UKNF. <em>5 reguł układu graficznego (4, 5, 7, 8, 13) wymaga HTML/screenshotu i jest poza zakresem tekstowym.</em></li>
-            <li><strong>M3 (Shadow advisory):</strong> nielicencjonowane doradztwo i zarządzanie portfelem wg definicji z <strong>art. 76</strong> ustawy o obrocie instrumentami finansowymi (<code>m3-v3</code>, <code>rules/m3.yaml</code> + embeddingi <code>bge-m3</code> + ocena LLM).</li>
+            <li><strong>M1 (Finfluencerzy):</strong> wzmianka o firmie KNF (86 w <code>entities.csv</code>, polskie końcówki i anchory ±200 znaków) spoza <code>official_domains</code>/<code>social_handles</code>; prompt <code>m1-v3</code> (wagi <code>0.7/0.2/0.1</code> na promocję, linki partnerskie/sponsorowane) + encja reklamującego <code>advertiser_entity_id</code> (<code>resolve_advertiser</code>, #83).</li>
+            <li><strong>M2 (Informacja o ryzyku):</strong> ewolucja od 4 (<code>m2-v1</code>) i 8 kryteriów (<code>m2-v3</code>) do <strong>16 kryteriów tekstowych (<code>m2-v5</code></strong> + pełna lista w schemacie JSON <code>minItems</code>/<code>maxItems</code>) zmapowanych na reguły 1, 2, 3, 6, 9–12b, 14–18 załącznika UKNF. <em>5 reguł układu graficznego (4, 5, 7, 8, 13) jest poza zakresem tekstowym.</em></li>
+            <li><strong>M3 (Shadow advisory):</strong> nielicencjonowane doradztwo i zarządzanie portfelem wg <strong>art. 76</strong> ustawy o obrocie (<strong><code>m3-v5</code> + <code>m3-rules-v4</code></strong>, #95) z filtrowaniem klauzul disclaimerów (<code>strip_disclaimers()</code> po spójnikach przeciwstawnych — zastrzeżenie nie jest dowodem, lecz ukryta porada obok niego zostaje wykryta).</li>
           </ul>
         </div>
 
@@ -1030,7 +1030,7 @@
             <li><strong>Findingi:</strong> tabela incydentów z filtrami (moduł, ryzyko, status, dynamiczne źródło z <code>GET /sources</code>, zakres dat w czasie lokalnym <code>Europe/Warsaw</code> #88, wyszukiwarka pełnotekstowa <code>q</code> z debounce 300 ms) i paginacją.</li>
             <li><strong>Szczegóły findingu:</strong> pełny tekst po czyszczeniu, lista kryteriów z etykietami per moduł (M1/M3: „wykryto”/„nie wykryto”; M2: checklista), <strong>dosłownym cytatem</strong>, podglądem PNG z S3 i historią statusów.</li>
             <li><strong>Trendy i raportowanie:</strong> kafelki podsumowania (<code>/stats/summary</code>), wykres incydentów grupowany po dniu lokalnym (<code>bucket=hour</code>) i eksport CSV/JSON pod polski Excel (<code>;</code>, przecinek dziesiętny, BOM UTF-8, neutralizacja <code>= + - @</code>).</li>
-            <li><strong>Kalibracja, alerty i źródła:</strong> toasty <code>alert:new</code> przez Socket.io, suwak progu z licznikiem <strong>„Oznaczone flagą”</strong> (<code>tp + fp</code>), zapis progu i wag (opcjonalny <code>VITE_ADMIN_TOKEN</code>, #71) oraz przycisk <strong>„Uruchom crawl”</strong>.</li>
+            <li><strong>Kalibracja, alerty i źródła:</strong> toasty <code>alert:new</code> przez Socket.io, suwak progu z licznikiem <strong>„Oznaczone flagą”</strong> (<code>tp + fp</code>), zapis progu i wag (opcjonalny <code>VITE_ADMIN_TOKEN</code>, #71) z odświeżeniem list i kafelków (#84) oraz przycisk <strong>„Uruchom crawl”</strong>.</li>
           </ul>
         </div>
 
@@ -1071,7 +1071,7 @@
         <div class="card">
           <div class="card-title"><span>Zero halucynacji</span><span class="pill pill-blue">rapidfuzz ≥ 90</span></div>
           <ul class="clean">
-            <li>Pole <code>CriterionResult.quote</code> jest wymagane w schemacie JSON (Pydantic <code>format</code>, <code>temperature: 0</code>).</li>
+            <li>Pole <code>CriterionResult.quote</code> i komplet kryteriów (<code>minItems</code>/<code>maxItems</code>) wymagane w schemacie JSON (Pydantic <code>format</code>, <code>temperature: 0</code>).</li>
             <li><code>quotes.py</code> odrzuca każdy cytat bez pokrycia w treści dokumentu (dla cytatów wielozdaniowych sprawdza każde zdanie osobno).</li>
             <li><strong>Fail-closed:</strong> błąd Ollamy / timeout = status <code>failed</code> (HTTP 502), nigdy zmyślony wynik.</li>
           </ul>
@@ -1089,9 +1089,9 @@
         <div class="card">
           <div class="card-title"><span>Kalibracja FP vs FN</span><span class="pill pill-slate">rubric.md</span></div>
           <ul class="clean">
-            <li>Progi: <code>high ≥ 0.8</code> (alert Socket.io), <code>medium ≥ próg</code>, <code>low &lt; próg</code>.</li>
-            <li>Suwak w panelu wywołuje <code>GET /eval</code> i przelicza <code>precision</code>, <code>recall</code>, <code>TP</code>, <code>FP</code>, <code>FN</code>, <code>TN</code> oraz licznik flag.</li>
-            <li><strong>120-wierszowy <code>gold.csv</code> (40/40/40 po kluczu URL)</strong> oznaczony wg <code>ai/eval/rubric.md</code>, zapis przez <code>PUT /settings/modules/:m</code>.</li>
+            <li>Progi: <code>high ≥ max(0.8, próg)</code> (alert Socket.io), <code>medium ≥ próg</code>, <code>low &lt; próg</code> — przeliczane w <code>ai</code> przez <code>/recompute-risk</code> (#84).</li>
+            <li>Suwak wywołuje <code>GET /eval</code> (<code>tp</code>, <code>fp</code>, <code>fn</code>, <code>tn</code>, <code>precision</code>, <code>recall</code>, <code>total</code>, <code>missingFindings</code> #112).</li>
+            <li><strong>120-wierszowy <code>gold.csv</code> (40/40/40 po URL)</strong> wg <code>rubric.md</code> + <code>load_gold.py</code>, <code>analyze_gold.py</code>, <code>calibration_table.py</code>, <code>METHODOLOGY.md</code>.</li>
           </ul>
         </div>
       </div>
@@ -1293,7 +1293,7 @@
         <div class="card">
           <div class="card-title"><span>Hardening produkcyjny i skalowanie GPU</span><span class="pill pill-green">Skalowanie</span></div>
           <ul class="clean">
-            <li><strong>Pełne uwierzytelnienie AI:</strong> włączenie <code>AI_REQUIRE_TOKEN=true</code> po zmergowaniu nagłówka <code>X-Internal-Token</code> w <code>collector/src/ai/client.ts</code> (#70, PR #105) oraz wystawienie wyłącznie portów <code>web</code> i <code>api</code> za reverse proxy z TLS.</li>
+            <li><strong>Pełny hardening HTTP/TLS:</strong> wystawienie wyłącznie portów <code>web</code> i <code>api</code> za reverse proxy z TLS oraz opcjonalnym <code>ADMIN_TOKEN</code> (<code>AI_REQUIRE_TOKEN=true</code> działa już domyślnie w <code>.env.example</code>, #70/#105).</li>
             <li><strong>Ciągłe strojenie jakości:</strong> rozbudowa zbioru <code>gold.csv</code> przez analityków UKNF wg <code>ai/eval/rubric.md</code> i okresowa re-ewaluacja starszych dokumentów przez <code>POST /reanalyze</code>.</li>
             <li><strong>Wydajność inferencji:</strong> skalowanie <code>OLLAMA_NUM_PARALLEL &gt; 1</code> na wielu GPU oraz rozproszona pula workerów <code>collector</code> (z przypinaniem IP w proxy przeciw DNS rebindingowi).</li>
           </ul>

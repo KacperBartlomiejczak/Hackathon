@@ -104,3 +104,8 @@
 ## #84: refresh findings after saving the threshold
 - Asked Claude to: make the web part of #84. Changes: after "Zapisz próg" the `findings`, `summary`, `trend` and `finding` queries are invalidated, so list and tiles refetch.
 - Not enough alone: `findings.risk_level` is stored by ai, and api does not call `ai /reanalyze` on `PUT /settings/modules/:module`. That part belongs to api (team/api).
+
+## Browser verification (issue #121)
+- Asked Claude to: check in the live browser (Docker stack, built-in browser) Socket.io toasts, calibration panel, status change, CSV export, trend chart and console. No new skill, no new dependencies, no code changes.
+- Result: `alert:new` (test POST to `/internal/alerts` for existing finding 4) shows the toast with "Zobacz" opening the finding, and the nav badge counts it off `/findings`; title `null` and firm `null` render fine. Status change PATCH 200, history shows the transition. Calibration slider matches `/eval` for M1, M2, M3 (precision, recall, FP, FN, total); "Zapisz próg" PUT 200 and the stored value was restored to 0.60. CSV export 200 with `;` separator and BOM. Trend matches `/stats/summary`. Console: 0 errors and 0 warnings on Findingi, details, Trendy, Kalibracja, Źródła and the empty list state; list keys checked in code (prod image does not print React key warnings).
+- Human to know: finding 4 stays `in_review` in the local DB (transition is one-way). M2/M3 barely react to the threshold because most gold docs have no finding (#89, ai-data). "analyze failed" on Źródła is #90. Metrics update 2-3 s after moving the slider with no loading hint (not changed).
