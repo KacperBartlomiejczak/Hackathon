@@ -218,3 +218,9 @@
 - **Zmiana:** `OllamaClient.warmup()` zwraca bool, `app.state.llm_ready` ustawiany po warmupie, `/health` ma pole `llm` (`ok` / `loading` / `error`). Pole informacyjne: `status` i kod 503 zależą jak dotąd od Ollamy i Postgresa, więc healthcheck w compose się nie zmienia. Pytest 439 passed.
 - **Nie zrobione:** fail-fast po nieudanym warmupie (świadomie, na CPU model może się ładować dłużej niż timeout).
 - **Do sprawdzenia przez człowieka:** `curl localhost:8000/health` na żywym stosie; `docs/contracts.md` nie opisuje pola `llm` (zmiana przez team/api). `ruff check` zgłasza 2 × E501 w `ai/app/preprocess/entity_match.py` (plik ai-data) — zgłosić.
+
+## 2026-11-22 — #83 merge main i test po poprawkach M1
+- **Issue #83:** M1 dawał score 0.31 dla oczywistej reklamy finfluencera, puste „Reklamujący” i mylące „niespełnione”. Poprawki są już w PR #102: wagi M1 0.7/0.2/0.1, prompt `m1-v2` (linki partnerskie i oznaczenia sponsorowane liczą się jako promocja), `db.resolve_advertiser` wypełnia `findings.advertiser_entity_id`, w web `verdictLabel` pokazuje „wykryto” dla M1/M3.
+- **Ta sesja:** merge `origin/main` bez konfliktów, ruff czysty, pytest 445 passed / 8 skipped / 1 xfailed, push do PR #102. Do zrobienia po merge: weryfikacja na żywo (przebudować ai, `/reanalyze?module=1`).
+- **Dla ai-data:** `ensure_advertiser()` w `entity_match.py` dubluje `db.resolve_advertiser` i nie jest używane przez pipeline.
+- **Proces:** plan zaakceptowany przez człowieka, issue przeczytał subagent Haiku, wykonanie przez subagenta Sonnet.
