@@ -171,7 +171,7 @@ CREATE TABLE module_settings (
 **CORS:** dozwolony tylko origin `WEB_ORIGIN` (domyślnie `http://localhost:5173`). Przeglądarka może odczytać nagłówki `Content-Disposition` i `X-Export-Truncated` (`Access-Control-Expose-Headers`).
 
 `GET /findings` — parametry (wszystkie opcjonalne, błędna wartość → 400):
-`module` 1|2|3, `risk` low|medium|high, `status` new|in_review|confirmed|dismissed, `source` = `documents.source_kind` (web|facebook|instagram|tiktok|youtube|sample), `from`/`to` = data ISO, filtr po `findings.created_at`, `q` (1–200 znaków; `ILIKE` po tytule i `text_clean` dokumentu), `page` (domyślnie 1), `pageSize` (domyślnie 20, max 100). Sortowanie: `created_at` malejąco.
+`module` 1|2|3, `risk` low|medium|high, `status` new|in_review|confirmed|dismissed, `source` = `documents.source_kind` (web|facebook|instagram|tiktok|youtube|sample), `from`/`to` = data albo znacznik czasu ISO, filtr po `findings.created_at` (włącznie). Sama data w `to` (`2026-11-20`, jak z `<input type="date">`) obejmuje cały dzień do `23:59:59.999Z`; sama data w `from` = `00:00:00Z`. Dni liczone w UTC; kto chce dni w czasie lokalnym, wysyła pełne znaczniki czasu z przesunięciem. Zakres lat 1970–9999, inaczej `400`. `q` (1–200 znaków, bez znaku NUL; `ILIKE` po tytule i `text_clean` dokumentu), `page` (domyślnie 1), `pageSize` (domyślnie 20, max 100). Sortowanie: `created_at` malejąco.
 
 `GET /findings` — odpowiedź (bez `reasons` i tekstu dokumentu):
 ```json
@@ -263,12 +263,12 @@ Moduły zapisują wyniki osobno (`findings`, max jeden wiersz na dokument i modu
 ```json
 { "status": "in_review", "changedBy": "anna", "note": "sprawdzam źródło" }
 ```
-`status` wymagane (`in_review|confirmed|dismissed`); `changedBy` opcjonalny string (1–100 znaków, domyślnie `null`); `note` opcjonalny string (max 500 znaków) — tylko logowany, **nie zapisywany** w bazie. Dozwolone przejścia (bez re-open): `new → in_review`, `in_review → confirmed | dismissed`. Wszystko inne (też ten sam status) → `409 {error:"invalid_transition"}`. Brak findingu → `404 {error:"not_found"}`, zły body → `400`. Zapis `findings.status` + wpis do `finding_status_history` w jednej transakcji. Odpowiedź `200`:
+`status` wymagane (`in_review|confirmed|dismissed`); `changedBy` opcjonalny string (1–100 znaków, domyślnie `null`); `note` opcjonalny string (max 500 znaków) — tylko logowany, **nie zapisywany** w bazie. Znak NUL w `changedBy`/`note` → `400`. Dozwolone przejścia (bez re-open): `new → in_review`, `in_review → confirmed | dismissed`. Wszystko inne (też ten sam status) → `409 {error:"invalid_transition"}`. Brak findingu → `404 {error:"not_found"}`, zły body → `400`. Zapis `findings.status` + wpis do `finding_status_history` w jednej transakcji. Odpowiedź `200`:
 ```json
 { "id": 7, "status": "in_review", "oldStatus": "new", "changedAt": "2026-11-21T18:30:00.000Z" }
 ```
 
-`GET /stats/trend?module=&bucket=&from=&to=` — `module` 1|2|3 (opcjonalny = wszystkie), `bucket` `day|hour` (domyślnie `day`), `from`/`to` = data ISO po `findings.created_at` (opcjonalne). Błędna wartość → 400. Grupowanie `date_trunc(bucket, created_at)`; **bez wypełniania luk** (bucket'y bez findingów nie występują), sortowane rosnąco:
+`GET /stats/trend?module=&bucket=&from=&to=` — `module` 1|2|3 (opcjonalny = wszystkie), `bucket` `day|hour` (domyślnie `day`), `from`/`to` jak w `GET /findings` (sama data w `to` = cały dzień UTC; opcjonalne). Błędna wartość → 400. Grupowanie `date_trunc(bucket, created_at)`; **bez wypełniania luk** (bucket'y bez findingów nie występują), sortowane rosnąco:
 ```json
 { "bucket": "day", "module": null, "points": [{ "bucket": "2026-11-21T00:00:00.000Z", "module": 2, "count": 5 }] }
 ```
@@ -318,7 +318,7 @@ api **nie** emituje `crawl:status` — robi to collector przez `/internal/crawl-
 ```
 `threshold` i każda waga 0–1, `weights` dokładnie `llm|rules|emb` (inne klucze → `400`), suma wag = 1 (±0.01), inaczej `400`. Odpowiedź `200` jak w GET. `weights.llm|rules|emb` odpowiadają `w_llm|w_rules|w_emb` z `ai/config.yaml`.
 
-`GET /eval?module=&threshold=` — `module` 1|2|3, `threshold` 0–1 (oba wymagane, inaczej `400`). api przekazuje zapytanie do `${AI_URL}/eval` i zwraca status i body z ai 1:1 (np. `501`, dopóki ai nie ma implementacji). ai nieosiągalne / timeout (`EVAL_TIMEOUT_MS`, domyślnie 30 s) → `502 {error:"ai_unavailable"}`. Odpowiedź `200` (= `EvalResult` z `ai/app/models.py`):
+`GET /eval?module=&threshold=` — `module` 1|2|3, `threshold` 0–1 (oba wymagane, pusty `threshold=` też → `400`). api przekazuje zapytanie do `${AI_URL}/eval` i zwraca status i body z ai 1:1 (np. `501`, dopóki ai nie ma implementacji). ai nieosiągalne / timeout (`EVAL_TIMEOUT_MS`, domyślnie 30 s) / zerwane połączenie w trakcie odpowiedzi → `502 {error:"ai_unavailable"}`. Odpowiedź `200` (= `EvalResult` z `ai/app/models.py`):
 ```json
 { "module": 2, "threshold": 0.7, "tp": 5, "fp": 1, "fn": 2, "tn": 10, "precision": 0.83, "recall": 0.71 }
 ```

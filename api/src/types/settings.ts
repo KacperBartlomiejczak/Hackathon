@@ -18,7 +18,8 @@ export const settingsBodySchema = z.object({
 
 export const evalQuerySchema = z.object({
   module: moduleSchema,
-  threshold: z.coerce.number().min(0).max(1),
+  // `?threshold=` would coerce to 0 (Number("") === 0); treat it as missing instead.
+  threshold: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.coerce.number().min(0).max(1)),
 });
 
 export type ModuleSettings = {
