@@ -12,7 +12,7 @@ from app import db
 from app.alerts import send_alert
 from app.analysis import Settings, run_modules
 from app.embeddings import embed, to_pgvector
-from app.llm import LLMError, LLMInvalidResponse, LLMUnavailable, OllamaClient
+from app.llm import LLMError, LLMInvalidResponse, LLMUnavailable, OllamaClient, background_priority
 from app.models import AnalyzeResult, Finding
 from app.modules import m1
 from app.preprocess.clean import clean_text
@@ -192,7 +192,8 @@ async def reanalyze_batch(
     ok = failed = 0
     for document_id in document_ids:
         try:
-            await reanalyze_document(pool, llm, config, document_id, module)
+            with background_priority():
+                await reanalyze_document(pool, llm, config, document_id, module)
             ok += 1
         except (DocumentNotFound, AnalysisFailed) as exc:
             failed += 1

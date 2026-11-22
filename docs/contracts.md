@@ -322,8 +322,9 @@ Po zapisie api woła `POST ${AI_URL}/recompute-risk?module=<N>` (nagłówek `X-I
 
 `GET /eval?module=&threshold=` — `module` 1|2|3, `threshold` 0–1 (oba wymagane, pusty `threshold=` też → `400`). api przekazuje zapytanie do `${AI_URL}/eval` i zwraca status i body z ai 1:1 (np. `501`, dopóki ai nie ma implementacji). ai nieosiągalne / timeout (`EVAL_TIMEOUT_MS`, domyślnie 30 s) / zerwane połączenie w trakcie odpowiedzi → `502 {error:"ai_unavailable"}`. Odpowiedź `200` (= `EvalResult` z `ai/app/models.py`):
 ```json
-{ "module": 2, "threshold": 0.7, "tp": 5, "fp": 1, "fn": 2, "tn": 10, "precision": 0.83, "recall": 0.71 }
+{ "module": 2, "threshold": 0.7, "tp": 5, "fp": 1, "fn": 2, "tn": 10, "precision": 0.83, "recall": 0.71, "total": 18, "missingFindings": 3 }
 ```
+`total` = liczba wierszy gold dla modułu (`tp+fp+fn+tn`). `missingFindings` = wiersze gold bez findingu; liczą się jako nieoznaczone (score 0), więc wchodzą do `fn`/`tn`. Gdy `missingFindings` jest bliskie `total`, metryki oznaczają „brak danych”, a nie „model nic nie flaguje” (#89).
 
 `GET /export?format=csv|json&module=&risk=&status=&source=&from=&to=&q=` — `format` **wymagany** (`csv|json`). Pozostałe filtry działają dokładnie jak w `GET /findings`: te same wartości i ta sama walidacja, bez `page`/`pageSize`. Błędna albo brakująca wartość → `400`. Sortowanie: `created_at` malejąco. Limit **10 000 wierszy**. Przy większej liczbie trafień eksport jest obcinany, odpowiedź ma nagłówek `X-Export-Truncated: true`, a w JSON `truncated: true`.
 

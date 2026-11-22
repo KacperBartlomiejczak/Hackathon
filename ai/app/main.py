@@ -97,11 +97,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.llm = None
     app.state.llm_ready = None  # None = warmup pending, True/False = model answered or not
     app.state.reanalyze_task = None
+    app.state.rewarm_task = None
     try:
         llm_cfg = app.state.config.get("llm", {})
         app.state.llm = OllamaClient(timeout_s=float(llm_cfg.get("timeout_s", 60)),
                                      retries=int(llm_cfg.get("retries", 1)),
-                                     max_concurrency=int(llm_cfg.get("max_concurrency", 1)))
+                                     max_concurrency=int(llm_cfg.get("max_concurrency", 1)),
+                                     num_predict=int(llm_cfg["num_predict"]) if llm_cfg.get("num_predict")
+                                     else None)
     except LLMError as exc:
         logger.error("llm client init failed: %s", exc)
     warm = asyncio.create_task(_warmup(app)) if app.state.llm is not None else None
@@ -112,6 +115,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             warm.cancel()
         if app.state.reanalyze_task is not None:
             app.state.reanalyze_task.cancel()
+        if app.state.rewarm_task is not None:
+            app.state.rewarm_task.cancel()
         if app.state.llm is not None:
             await app.state.llm.aclose()
         await app.state.http.aclose()
@@ -146,6 +151,36 @@ async def _check_ollama(client: httpx.AsyncClient) -> bool:
     return True
 
 
+def _same_model(a: str, b: str) -> bool:
+    """Ollama names are equal when identical or differing only by an implicit ':latest' tag."""
+    def norm(n: str) -> str:
+        return n if ":" in n else f"{n}:latest"
+    return norm(a) == norm(b)
+
+
+async def _model_loaded(client: httpx.AsyncClient, model: str) -> bool | None:
+    """Whether `model` is resident in Ollama memory (GET /api/ps); None when that cannot be determined."""
+    base = os.getenv("OLLAMA_URL")
+    if not base:
+        return None
+    try:
+        resp = await client.get(f"{base.rstrip('/')}/api/ps")
+        resp.raise_for_status()
+        loaded = resp.json().get("models", [])
+        return any(_same_model(model, str(m.get(k, ""))) for m in loaded for k in ("name", "model"))
+    except (httpx.HTTPError, ValueError, AttributeError) as exc:
+        logger.warning("ollama /api/ps failed: %r", exc)
+        return None
+
+
+def _ensure_rewarm(app: FastAPI) -> None:
+    """Start a background re-warmup unless one is already running."""
+    task: asyncio.Task[None] | None = app.state.rewarm_task
+    if task is None or task.done():
+        logger.info("llm model not loaded in ollama, re-warming")
+        app.state.rewarm_task = asyncio.create_task(_warmup(app))
+
+
 async def _check_postgres(pool: asyncpg.Pool | None) -> bool:
     if pool is None:
         return False
@@ -170,6 +205,11 @@ async def health(response: Response) -> HealthStatus:
     ollama_ok = await _check_ollama(app.state.http)
     pg_ok = await _check_postgres(app.state.pool)
     ok = ollama_ok and pg_ok
+    llm_state = _llm_state(app.state.llm, app.state.llm_ready)
+    if ollama_ok and llm_state == "ok":
+        if await _model_loaded(app.state.http, app.state.llm.model) is False:
+            llm_state = "loading"
+            _ensure_rewarm(app)
     if not ok:
         response.status_code = 503
     logger.info("health ollama=%s postgres=%s took=%.3fs", ollama_ok, pg_ok, time.perf_counter() - started)
@@ -177,7 +217,7 @@ async def health(response: Response) -> HealthStatus:
         status="ok" if ok else "degraded",
         ollama="ok" if ollama_ok else "error",
         postgres="ok" if pg_ok else "error",
-        llm=_llm_state(app.state.llm, app.state.llm_ready),
+        llm=llm_state,
     )
 
 
