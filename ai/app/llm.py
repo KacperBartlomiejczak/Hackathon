@@ -117,19 +117,21 @@ class OllamaClient:
                     (time.monotonic() - started) * 1000)
         return result
 
-    async def _post_with_retry(self, payload: dict[str, object]) -> str:
+    async def _post_once(self, payload: dict[str, object]) -> httpx.Response:
+        """One chat call holding an Ollama slot; the httpx timeout starts only after the slot is taken."""
         queued = time.monotonic()
         async with self._slots:
             wait_ms = int((time.monotonic() - queued) * 1000)
             if wait_ms > 100:
                 logger.info("llm queue wait model=%s ms=%d", self.model, wait_ms)
-            return await self._post(payload)
+            return await self._client.post(f"{self.base_url}/api/chat", json=payload)
 
-    async def _post(self, payload: dict[str, object]) -> str:
+    async def _post_with_retry(self, payload: dict[str, object]) -> str:
+        """Retries connect errors and 5xx; the backoff sleep happens outside the slot."""
         last: Exception | None = None
         for attempt in range(self._retries + 1):
             try:
-                resp = await self._client.post(f"{self.base_url}/api/chat", json=payload)
+                resp = await self._post_once(payload)
                 if resp.status_code >= 500:
                     raise httpx.HTTPStatusError("server error", request=resp.request, response=resp)
                 resp.raise_for_status()

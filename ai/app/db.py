@@ -146,7 +146,9 @@ SELECT id FROM entities
 WHERE ($1::text IS NOT NULL AND EXISTS (
         SELECT 1 FROM unnest(social_handles) h WHERE lower(ltrim(h, '@')) = $1))
    OR ($2::text IS NOT NULL AND EXISTS (
-        SELECT 1 FROM unnest(official_domains) d WHERE regexp_replace(lower(d), '^www\.', '') = $2))
+        SELECT 1 FROM unnest(official_domains) d  -- same normalisation as entity_match._norm_domain
+        WHERE regexp_replace(split_part(regexp_replace(lower(btrim(d)), '^[a-z]+://', ''), '/', 1),
+                             '^www\.', '') = $2))
 ORDER BY id LIMIT 1
 """
 

@@ -227,7 +227,9 @@ async def analyze_text(req: AnalyzeTextRequest) -> AnalyzeTextResult:
         timings["modules"] = int((time.monotonic() - t) * 1000)
     except (LLMError, httpx.HTTPError, ValueError) as exc:
         logger.error("analyze-text failed: %r", exc)
-        raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"analysis failed: {pipeline.failure_category(exc)}"
+        ) from exc
     timings["total"] = int((time.monotonic() - started) * 1000)
     logger.info("analyze-text route=%s ms=%d", route.modules, timings["total"])
     return AnalyzeTextResult(

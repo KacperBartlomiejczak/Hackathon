@@ -22,7 +22,7 @@ llm:
   max_concurrency: 1  # = OLLAMA_NUM_PARALLEL
 
 analysis:
-  # Wall-clock budget per document for all modules together; must stay below the collector timeout (300 s).
+  # Wall-clock budget per document for all modules together; must stay below the collector timeout (AI_ANALYZE_TIMEOUT_MS, default 600 s).
   # Modules run concurrently; one that misses the budget or fails is skipped (no invented score).
   budget_s: 240
 
