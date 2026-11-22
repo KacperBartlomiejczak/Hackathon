@@ -96,3 +96,7 @@
 
 ## 2026-11-22 — label review
 - The human reviewed and approved all agent-proposed labels (16 demo fixtures, tms.pl, 17 M2, 2 M1/M3); notes in `label_sheet.csv` now say "zatwierdzona przez czlowieka 22.11". gold.csv unchanged (120 rows, 40 per module).
+
+## 2026-11-22 — calibration table and methodology
+- Added `ai/eval/calibration_table.py` (+ `ai/tests/test_calibration_table.py`): runs `evaluate()` for thresholds 0.3-0.9 per module and writes a Markdown table for the calibration slide. Added `ai/eval/METHODOLOGY.md` (how the gold set was labelled, metrics, limits). Test and ruff pass.
+- Not run with real numbers: the `ai` container image is stale (`eval/gold.csv` has only the header), so every cell is 0. Rebuild the image (`docker compose up --build ai`), score the gold documents, then run `DATABASE_URL=... python eval/calibration_table.py` and paste the table into the slides.
