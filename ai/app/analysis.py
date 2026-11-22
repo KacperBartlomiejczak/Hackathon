@@ -10,10 +10,10 @@ from typing import Any
 
 from app.llm import LLMError, LLMUnavailable, OllamaClient
 from app.models import FindingCreate, high_threshold, risk_level
-from app.modules.common import ModuleRun
+from app.modules.common import ModuleRun, llm_gate
 from app.modules.m1 import run_m1
 from app.modules.m2 import LABEL as M2_LABEL
-from app.modules.m2 import llm_score, m2_emb, run_m2, score_m2
+from app.modules.m2 import llm_score, m2_emb, m2_gate_passed, rules_score, run_m2, score_m2
 from app.modules.m3 import run_m3
 from app.modules.quotes import validate_reasons
 from app.preprocess.entity_match import Entity
@@ -22,7 +22,7 @@ from app.scoring import weights_from_config
 
 logger = logging.getLogger("ai.analysis")
 
-DEFAULT_BUDGET_S = 240.0  # below the collector /analyze timeout (300 s)
+DEFAULT_BUDGET_S = 540.0  # below the collector /analyze timeout (600 s)
 
 Settings = dict[int, tuple[float, dict[str, float]]]  # module -> (threshold, weights)
 
@@ -36,6 +36,11 @@ async def _run_m2(
     llm: OllamaClient, config: dict[str, Any], text: str, document_id: int, firm_entity_id: int | None,
     threshold: float, weights: dict[str, float], doc_vector: list[float] | None,
 ) -> ModuleRun:
+    if not m2_gate_passed(text, config):
+        rules = rules_score(text)
+        logger.info("module=2 llm skipped gate rules=%.2f gate=%.2f document_id=%s",
+                    rules, llm_gate(config, 2), document_id)
+        return ModuleRun(module=2, finding=None, rules=rules, threshold=threshold, weights=weights)
     t = time.monotonic()
     res = await run_m2(llm, text)
     run = ModuleRun(module=2, finding=None, rules=res.rules, threshold=threshold, weights=weights,

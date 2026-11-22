@@ -22,6 +22,7 @@ from app.modules.common import (
     ModuleRun,
     QuoteStr,
     emb_score,
+    llm_gate,
     llm_reasons,
     llm_score,
 )
@@ -138,6 +139,11 @@ async def run_m3(
 ) -> ModuleRun:
     ms: dict[str, int] = {}
     rules, rule_reasons = rules_hits(text)
+    gate = llm_gate(config, 3)
+    if rules < gate:
+        logger.info("module=%d llm skipped gate rules=%.2f gate=%.2f document_id=%s",
+                    3, rules, gate, document_id)
+        return ModuleRun(module=3, finding=None, rules=rules, threshold=threshold, weights=weights, ms={})
     t = time.monotonic()
     prompt = load_prompt(PROMPT_PATH)
     out = await llm.generate(prompt.text, strip_disclaimers(text)[:MAX_DOC_CHARS], M3Output)

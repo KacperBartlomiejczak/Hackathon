@@ -231,3 +231,9 @@
 - Kontrakt: `/recompute-risk` jest już opisany w PR #106 (team/api). Do #4 poszła prośba o dopisanie formatu 502 z kategorią, `/health.llm`, tokena `/analyze-text` i parametrów `/reanalyze` (skill `data-contract`: zmienia tylko właściciel).
 - Advertiser: zostaje jedna ścieżka, `db.resolve_advertiser`. ai-data usuwa nieużywany `ensure_advertiser`. Opis PR #102 przepisany (Closes #83, #84, #95; refs #90).
 - Człowiek wkleja opis PR i wiadomości (brak gh). Na żywo nadal niesprawdzone: /findings/65, dok. 99, bossa-ranking, do zrobienia po merge'u.
+
+## 2026-11-22 — wydajność LLM na CPU (issue leada: failed / over budget)
+- Zlecono: plan naprawy leada (budżety, retry, priorytet kolejki, plan B, /health). Diagnozę sprawdził Claude (Opus), implementacja przez 2 subagentów Sonnet (medium) na rozłącznych plikach, review i spięcie przez Opus. Plan zaakceptowany przez człowieka.
+- Zmiany: `llm.timeout_s` 240, `analysis.budget_s` 540 (< 600 s collectora), `num_predict` 512; jedna powtórka po timeoucie; kolejka priorytetowa (`/analyze` przed batchem `/reanalyze`, contextvar `background_priority`); bramka LLM `analysis.llm_gate` (M1/M3 0.3, M2 wyłączona); `/health` sprawdza `/api/ps` i dogrzewa model, gdy Ollama go wyrzuciła.
+- Poprawka człowieka/Opus do planu: bramka 0.3 dla M2 odcinała 12/15 pozytywów gold (M2 wykrywa BRAK informacji o ryzyku, frazy tego nie widzą), więc M2 bez bramki.
+- Testy: pytest 461 passed / 8 skipped / 1 xfailed, ruff czysty. Na żywo niesprawdzone: logi `llm skipped gate` dla M1/M3 na gold secie, czasy na moduł, backlog `/reanalyze` batchami (gold → demo → reszta).

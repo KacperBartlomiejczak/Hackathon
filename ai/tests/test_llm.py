@@ -35,7 +35,7 @@ def test_structured_request_and_parse() -> None:
     assert seen["messages"][1]["content"].startswith("<document>")
 
 
-def test_timeout_is_not_retried() -> None:
+def test_timeout_retried_once() -> None:
     calls = 0
 
     def handler(req: httpx.Request) -> httpx.Response:
@@ -45,6 +45,13 @@ def test_timeout_is_not_retried() -> None:
 
     with pytest.raises(LLMUnavailable):
         asyncio.run(_client(handler).generate("s", "d", Out))
+    assert calls == 2
+
+    calls = 0
+    client = OllamaClient(base_url="http://ollama.test", model="m", transport=httpx.MockTransport(handler),
+                          backoff_s=0, retries=0)
+    with pytest.raises(LLMUnavailable):
+        asyncio.run(client.generate("s", "d", Out))
     assert calls == 1
 
 
