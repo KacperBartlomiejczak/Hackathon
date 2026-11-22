@@ -1,0 +1,143 @@
+diff --git a/ai/app/modules/m3.py b/ai/app/modules/m3.py
+index c94bd2d..8bc1601 100644
+--- a/ai/app/modules/m3.py
++++ b/ai/app/modules/m3.py
+@@ -44,26 +44,39 @@ class M3Output(BaseModel):
+ 
+ 
+ @lru_cache(maxsize=1)
+-def _load_rules() -> tuple[str, list[tuple[str, float, re.Pattern[str]]]]:
++def _load_rules() -> tuple[str, list[tuple[str, float, re.Pattern[str]]], re.Pattern[str]]:
+     data = yaml.safe_load((RULES_DIR / "m3.yaml").read_text(encoding="utf-8"))
+     rules = [(r["id"], float(r["weight"]), re.compile(r["pattern"], re.IGNORECASE)) for r in data["rules"]]
+-    return data["version"], rules
++    return data["version"], rules, re.compile(data["disclaimer"], re.IGNORECASE)
++
++
++_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
++
++
++def strip_disclaimers(text: str) -> str:
++    """Drop sentences that are legal 'not a recommendation' boilerplate; they say the opposite of advice."""
++    rx = _load_rules()[2]
++    return " ".join(s for s in _SENTENCE_END.split(text) if s and not rx.search(s))
++
++
++def _sentence_around(text: str, m: re.Match[str]) -> str:
++    a = max(text.rfind(c, 0, m.start()) for c in ".!?\n") + 1
++    ends = [i for c in ".!?\n" if (i := text.find(c, m.end())) != -1]
++    b = min(ends) + 1 if ends else len(text)
++    return text[a:b].strip()
+ 
+ 
+ def rules_hits(text: str) -> tuple[float, list[Reason]]:
+     """(rules score 0..1, one reason per matched rule with the matching sentence as the quote)."""
+-    _, rules = _load_rules()
++    _, rules, disclaimer = _load_rules()
+     total = 0.0
+     reasons: list[Reason] = []
+     for rule_id, weight, rx in rules:
+-        m = rx.search(text)
++        m = next((m for m in rx.finditer(text) if not disclaimer.search(_sentence_around(text, m))), None)
+         if m is None:
+             continue
+         total += weight
+-        a = max(text.rfind(c, 0, m.start()) for c in ".!?\n") + 1
+-        ends = [i for c in ".!?\n" if (i := text.find(c, m.end())) != -1]
+-        b = min(ends) + 1 if ends else len(text)
+-        quote = text[a:b].strip()[:SNIPPET_MAX] or m.group()
++        quote = _sentence_around(text, m)[:SNIPPET_MAX] or m.group()
+         reasons.append(Reason(criterion=f"rule:{rule_id}", verdict="fail", quote=quote, weight=weight))
+     return min(1.0, total), reasons
+ 
+@@ -76,10 +89,12 @@ async def run_m3(
+     rules, rule_reasons = rules_hits(text)
+     t = time.monotonic()
+     prompt = load_prompt(PROMPT_PATH)
+-    out = await llm.generate(prompt.text, text[:MAX_DOC_CHARS], M3Output)
++    out = await llm.generate(prompt.text, strip_disclaimers(text)[:MAX_DOC_CHARS], M3Output)
+     ms["llm"] = int((time.monotonic() - t) * 1000)
+ 
+-    reasons = validate_reasons(llm_reasons(out.criteria, CRITERION_WEIGHTS) + rule_reasons, text)
++    disclaimer = _load_rules()[2]
++    reasons = [r for r in validate_reasons(llm_reasons(out.criteria, CRITERION_WEIGHTS) + rule_reasons, text)
++               if not disclaimer.search(r.quote)]
+     run = ModuleRun(module=3, finding=None, rules=rules, threshold=threshold, weights=weights, ms=ms)
+     if not reasons:
+         return run
+diff --git a/ai/prompts/m3-shadow-advisory/system.md b/ai/prompts/m3-shadow-advisory/system.md
+index 6c3c2b8..b1bcd04 100644
+--- a/ai/prompts/m3-shadow-advisory/system.md
++++ b/ai/prompts/m3-shadow-advisory/system.md
+@@ -1,4 +1,4 @@
+-version: m3-v3
++version: m3-v4
+ 
+ Jesteś analitykiem nadzoru rynku finansowego. Oceniasz, czy autor materiału, który nie jest firmą inwestycyjną z rejestru KNF, świadczy lub oferuje doradztwo inwestycyjne albo zarządzanie portfelem (usługi regulowane).
+ 
+@@ -13,6 +13,8 @@ KRYTERIA (oceń każde z 3 dokładnie raz; fail = wykryto problem)
+ 2. portfolio_management — czy autor oferuje zarządzanie cudzym kapitałem lub portfelem, „prowadzenie” klienta, inwestowanie w jego imieniu. fail = tak.
+ 3. paid_advisory_offer — czy autor oferuje odpłatnie doradztwo, płatne sygnały, subskrypcję, grupę premium lub mentoring z indywidualnymi wskazówkami inwestycyjnymi. fail = tak.
+ 
++ZASTRZEŻENIA I NEGACJE: zdanie zaprzeczające („nie jest rekomendacją inwestycyjną”, „materiał edukacyjny”, „nie stanowi porady”) NIGDY nie jest dowodem fail ani cytatem do żadnego kryterium. Takie zdania ignoruj; bez innego dowodu ustaw pass lub unclear.
++
+ POLE quote
+ - Dla każdego kryterium podaj DOSŁOWNY fragment treści dokumentu skopiowany 1:1 (bez zmian i parafraz), maksymalnie 300 znaków.
+ - Dla fail: fragment będący dowodem problemu. Dla pass: fragment pokazujący brak problemu.
+diff --git a/ai/rules/m3.yaml b/ai/rules/m3.yaml
+index 5c0271d..9f361b6 100644
+--- a/ai/rules/m3.yaml
++++ b/ai/rules/m3.yaml
+@@ -1,5 +1,7 @@
+ # M3 phrase rules: regex (case-insensitive, Polish inflection tolerant) -> weight. rules score = min(1, sum of distinct hits).
+-version: m3-rules-v3
++version: m3-rules-v4
++# Sentences matching `disclaimer` (legal "not a recommendation" boilerplate) are never evidence: rules skip them, the LLM never sees them.
++disclaimer: 'nie (?:jest|stanowi|są|należy traktować)\b[^.!?\n]{0,80}(?:rekomendacj|porad|doradztw|ofert|zachęt)|informacyjn\w+ i edukacyjn\w+|nie (?:udzielamy|udzielam|świadczymy|świadczę) (?:porad|doradztw)'
+ rules:
+   - {id: advisory_offer, weight: 0.35, pattern: 'doradz\w+ inwestycyjn\w+|doradc\w+ inwestycyjn\w+|indywidualn\w+ doradztw\w+|rekomendacj\w+ inwestycyjn\w+|indywidualn\w+ rekomendacj\w+'}
+   - {id: portfolio_management, weight: 0.4, pattern: 'zarządza\w* (?:tw\w+ )?(?:portfel\w*|kapitał\w*|aktyw\w*|pieniędz\w*)|prowadzę (?:tw\w+ )?portfel\w*'}
+diff --git a/ai/tests/test_modules.py b/ai/tests/test_modules.py
+index 0ac3b38..86a06e4 100644
+--- a/ai/tests/test_modules.py
++++ b/ai/tests/test_modules.py
+@@ -78,6 +78,30 @@ def test_m3_rules_noun_forms_and_plural_dm() -> None:
+     assert score >= 0.8
+ 
+ 
++DISC_NEG = "Nie jest rekomendacją inwestycyjną ani informacją rekomendującą strategię inwestycyjną."
++DISCLAIMER = "Ta publikacja handlowa jest informacyjna i edukacyjna. " + DISC_NEG
++
++
++def test_m3_rules_ignore_disclaimer() -> None:
++    assert m3.rules_hits(DISCLAIMER) == (0.0, [])
++    score, reasons = m3.rules_hits(DISCLAIMER + " " + ADVICE)
++    assert score > 0 and all("Nie jest rekomendacją" not in r.quote for r in reasons)
++
++
++def test_m3_strip_disclaimers() -> None:
++    assert m3.strip_disclaimers(DISCLAIMER + " Dziś omawiamy rynek.") == "Dziś omawiamy rynek."
++
++
++@pytest.mark.asyncio
++async def test_m3_disclaimer_quote_gives_no_finding() -> None:
++    quote = DISC_NEG
++    out = m3.M3Output(criteria=[m3.CriterionResult(criterion="individual_recommendations", verdict="fail",
++                                                   quote=quote, confidence=0.9)])
++    weights = {"llm": 0.5, "rules": 0.3, "emb": 0.2}
++    run = await m3.run_m3(FakeLLM(out), CONFIG, DISCLAIMER, [0.1], 1, 0.6, weights)  # type: ignore[arg-type]
++    assert run.finding is None
++
++
+ def test_m3_rules_quiet_text() -> None:
+     assert m3.rules_hits("Dziś ładna pogoda, idziemy na spacer.")[0] == 0.0
+ 
+@@ -118,7 +142,7 @@ async def test_m3_shadow_advisory() -> None:
+     run = await m3.run_m3(FakeLLM(out), CONFIG, ADVICE, [0.1], 1, 0.6,  # type: ignore[arg-type]
+                           {"llm": 0.6, "rules": 0.25, "emb": 0.15})
+     assert run.finding is not None and run.finding.module == 3 and run.finding.label == "shadow_advisory"
+-    assert run.finding.prompt_version.startswith("m3-v3")
++    assert run.finding.prompt_version.startswith("m3-v4")
+     assert run.score >= 0.6
+ 
+ 
