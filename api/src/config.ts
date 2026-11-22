@@ -6,6 +6,11 @@ const schema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
   INTERNAL_TOKEN: z.string().min(16),
+  // Optional token for write endpoints (Authorization: Bearer). Empty or unset = writes stay open.
+  ADMIN_TOKEN: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().min(16).optional(),
+  ),
   DATABASE_URL: z
     .string()
     .url()

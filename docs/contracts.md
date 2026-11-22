@@ -160,6 +160,10 @@ CREATE TABLE module_settings (
 | POST | `/internal/crawl-status` | tylko z collectora (nagłówek `X-Internal-Token`) → emit `crawl:status` |
 | GET | `/sources` | lista źródeł + ostatni `crawl_run` każdego |
 
+**Token admina dla zapisów (issue #71):** gdy w `.env` api jest ustawiony `ADMIN_TOKEN` (min. 16 znaków), każda metoda inna niż `GET`/`HEAD`/`OPTIONS` (dziś: `PUT /settings/modules/:module`, `PATCH /findings/:id/status`, `POST /sources/:id/run`) wymaga nagłówka `Authorization: Bearer <ADMIN_TOKEN>`. Brak albo zły token → `401 {error:"unauthorized"}`. Puste lub nieustawione `ADMIN_TOKEN` = zapisy bez tokenu (jak dotąd, domyślnie w demo). `/internal/*` tego nie używa (ma `X-Internal-Token`), odczyty i Socket.io też nie. web wysyła `VITE_ADMIN_TOKEN` (ta sama wartość) w `web/src/lib/api.ts`.
+
+**api → ai:** proxy `GET /eval` wysyła do ai nagłówek `X-Internal-Token: <INTERNAL_TOKEN>`, więc działa także przy `AI_REQUIRE_TOKEN=true` (issue #70).
+
 **Błędy (wszystkie endpointy):** odpowiedź błędu to zawsze JSON `{ "error": "<kod>", "message": "<opis>" }`, bez stack trace'ów i szczegółów bazy. Przy walidacji `400` dochodzi `issues: [{ path, message }]`. Kody: `400 bad_request`, `401 unauthorized`, `404 not_found` (także nieznana trasa), `409 invalid_transition`, `413 payload_too_large`, `415 unsupported_media_type`, `429 rate_limited`, `500 internal`, `502 ai_unavailable`, `503 queue_unavailable`. Jedyny wyjątek to `GET /eval`, który przekazuje błąd z ai 1:1.
 
 **Rate limit:** 300 żądań/min na IP, `GET /export` 10/min. `/internal/*` i `/health` są bez limitu. Po przekroczeniu `429 {error:"rate_limited"}` z nagłówkiem `Retry-After`. Odpowiedzi mają nagłówki `x-ratelimit-limit|remaining|reset`.

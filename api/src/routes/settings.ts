@@ -9,9 +9,9 @@ import {
   type ModuleSettings,
 } from "../types/settings.js";
 
-type Deps = { db: Db; aiUrl: string; evalTimeoutMs: number };
+type Deps = { db: Db; aiUrl: string; internalToken: string; evalTimeoutMs: number };
 
-export const settingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, aiUrl, evalTimeoutMs }) => {
+export const settingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, aiUrl, internalToken, evalTimeoutMs }) => {
   app.get("/settings/modules/:module", async (request, reply) => {
     const { module } = moduleParamsSchema.parse(request.params);
     const [row] = await db.select().from(moduleSettings).where(eq(moduleSettings.module, module));
@@ -47,7 +47,11 @@ export const settingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, aiUrl,
 
     let res: Response;
     try {
-      res = await fetch(url, { signal: AbortSignal.timeout(evalTimeoutMs) });
+      // ai checks X-Internal-Token once AI_REQUIRE_TOKEN is on (issue #70).
+      res = await fetch(url, {
+        headers: { "X-Internal-Token": internalToken },
+        signal: AbortSignal.timeout(evalTimeoutMs),
+      });
     } catch (err) {
       request.log.error({ err, module: query.module, ms: Date.now() - started }, "ai eval unreachable");
       return reply.code(502).send({ error: "ai_unavailable", message: "AI service unreachable" });
