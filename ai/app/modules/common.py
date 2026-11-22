@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Annotated, Any, Protocol
 
 import numpy as np
 import yaml
+from pydantic import AfterValidator, Field
 
 from app.embeddings import embed
 from app.models import FindingCreate, Reason
@@ -17,6 +18,19 @@ logger = logging.getLogger("ai.modules")
 
 RULES_DIR = Path(__file__).resolve().parent.parent.parent / "rules"
 MAX_DOC_CHARS = 8000  # head of the document goes to the LLM; quotes are validated against the full text
+
+MAX_QUOTE_CHARS = 600
+
+
+def _truncate_quote(value: str) -> str:
+    """A prefix of a verbatim quote is still verbatim, so cut instead of rejecting the whole module."""
+    return value[:MAX_QUOTE_CHARS].rstrip() if len(value) > MAX_QUOTE_CHARS else value
+
+
+# maxLength stays in the JSON schema as a hint for the model; validation never fails on length.
+QuoteStr = Annotated[
+    str, Field(json_schema_extra={"maxLength": MAX_QUOTE_CHARS}), AfterValidator(_truncate_quote)
+]
 
 _anchor_cache: dict[int, np.ndarray] = {}
 

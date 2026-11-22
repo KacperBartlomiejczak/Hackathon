@@ -1,5 +1,6 @@
 import asyncio
 import json
+import time
 
 import httpx
 import pytest
@@ -34,7 +35,7 @@ def test_structured_request_and_parse() -> None:
     assert seen["messages"][1]["content"].startswith("<document>")
 
 
-def test_timeout_retries_once_then_raises() -> None:
+def test_timeout_is_not_retried() -> None:
     calls = 0
 
     def handler(req: httpx.Request) -> httpx.Response:
@@ -44,7 +45,41 @@ def test_timeout_retries_once_then_raises() -> None:
 
     with pytest.raises(LLMUnavailable):
         asyncio.run(_client(handler).generate("s", "d", Out))
+    assert calls == 1
+
+
+def test_connect_error_is_retried() -> None:
+    calls = 0
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        raise httpx.ConnectError("down")
+
+    with pytest.raises(LLMUnavailable):
+        asyncio.run(_client(handler).generate("s", "d", Out))
     assert calls == 2
+
+
+def test_queue_wait_not_counted_in_timeout() -> None:
+    """Two concurrent calls, one slot, each 0.3 s: they are serialized (queue wait is not a timeout)."""
+
+    async def handler(req: httpx.Request) -> httpx.Response:
+        await asyncio.sleep(0.3)
+        return httpx.Response(200, json={"message": {"content": '{"verdict":"a","score":1}'}})
+
+    async def run() -> list[Out]:
+        # real per-request timeout enforcement needs a real transport; MockTransport has none, so the
+        # slot ordering is what is asserted: calls must not overlap.
+        client = OllamaClient(base_url="http://ollama.test", model="m",
+                              transport=httpx.MockTransport(handler), backoff_s=0, timeout_s=0.5,
+                              max_concurrency=1)
+        return list(await asyncio.gather(client.generate("s", "d", Out), client.generate("s", "d", Out)))
+
+    started = time.monotonic()
+    results = asyncio.run(run())
+    assert [r.verdict for r in results] == ["a", "a"]
+    assert time.monotonic() - started >= 0.6  # serialized
 
 
 def test_retry_recovers() -> None:

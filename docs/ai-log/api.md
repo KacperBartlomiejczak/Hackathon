@@ -170,6 +170,7 @@
 - Verified: only `README.md` and this log changed; no code or DB change.
 
 ## 2026-11-22: Threshold change recomputes flags (Issue #84)
+<<<<<<< HEAD
 - Asked Claude to: make "Zapisz próg" visibly change the flags in the findings list. `/reanalyze` re-runs the LLM per document and re-sends alerts, so api derives the level instead.
 - Claude added `api/src/db/risk.ts` (SQL: score >= 0.8 high, >= module threshold medium, else low) and used it in `/findings`, `/findings/:id`, `/documents`, `/export`, `/stats/summary` and the `?risk=` filter. `docs/contracts.md` describes it (skill `data-contract`, by hand; no DB change).
 - The first edits were made before the plan was approved (against CLAUDE.md); the human then approved the plan.
@@ -181,3 +182,9 @@
 - Claude compared `ai/app/models.py` (`EvalResult`) and `ai/app/eval.py` with the contract, then added both fields to the example and a short description in `docs/contracts.md` (skill `data-contract`, by hand). The example numbers were chosen so that `total = tp+fp+fn+tn`.
 - Verified: only `docs/contracts.md` and this log changed; field names match the `ai` model.
 - Left for ai-core: the `TODO(contracts)` comment in `ai/app/models.py` can be removed.
+=======
+- Asked Claude to: make "Zapisz próg" change the flags in the findings list. First attempt: api derived `riskLevel` in SQL from score and the current threshold (commit 9ca702e). Verified on a scratch Postgres, but ai-core's `/recompute-risk` (PR #102, persists `risk_level`) and web's refetch (PR #103) were already the agreed design, and the api rule (`score >= 0.8`) differed from ai's `max(0.8, threshold)`. The human accepted a plan to revert it and follow the ai design.
+- Now: `PUT /settings/modules/:module` calls `POST ${AI_URL}/recompute-risk?module=` with `X-Internal-Token` after the upsert, logs `updated`, and answers `recomputed: true|false`. A failing ai does not fail the save. `docs/contracts.md` (skill `data-contract`, by hand): the `riskLevel` rule, the ai endpoint table and the PUT response.
+- The first edits of the earlier attempt were made before the plan was approved (against CLAUDE.md).
+- Verified: `npm test` 57/57 (new `test/settings-recompute.test.ts`: token, module, ai 404, ai unreachable), typecheck, lint. Not run against a real ai: `/recompute-risk` exists only on `team/ai-core` until PR #102 merges.
+>>>>>>> origin/main

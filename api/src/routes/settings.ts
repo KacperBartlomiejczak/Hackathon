@@ -7,6 +7,7 @@ import {
   moduleParamsSchema,
   settingsBodySchema,
   type ModuleSettings,
+  type SettingsSaved,
 } from "../types/settings.js";
 
 type Deps = { db: Db; aiUrl: string; internalToken: string; evalTimeoutMs: number };
@@ -34,7 +35,35 @@ export const settingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, aiUrl,
       })
       .returning();
     request.log.info({ module, threshold: body.threshold, weights: body.weights }, "module settings saved");
-    const result: ModuleSettings = row ?? { module, ...body };
+    const settings: ModuleSettings = row ?? { module, ...body };
+
+    // Issue #84: ai re-derives findings.risk_level from the saved threshold (no LLM, no alerts).
+    // The save has already succeeded; an ai failure only means the flags stay as they were.
+    const started = Date.now();
+    const url = new URL("/recompute-risk", aiUrl);
+    url.searchParams.set("module", String(module));
+    let recomputed = false;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "X-Internal-Token": internalToken },
+        signal: AbortSignal.timeout(evalTimeoutMs),
+      });
+      const data: unknown = await res.json().catch(() => null);
+      if (res.ok) {
+        recomputed = true;
+        const updated = (data as { updated?: unknown } | null)?.updated;
+        request.log.info(
+          { module, updated: typeof updated === "number" ? updated : null, ms: Date.now() - started },
+          "risk levels recomputed",
+        );
+      } else {
+        request.log.error({ module, aiStatus: res.status, ms: Date.now() - started }, "ai recompute-risk rejected");
+      }
+    } catch (err) {
+      request.log.error({ err, module, ms: Date.now() - started }, "ai recompute-risk unreachable");
+    }
+    const result: SettingsSaved = { ...settings, recomputed };
     return result;
   });
 
