@@ -70,3 +70,13 @@
 - Asked Claude to: review the dashboard in the browser (mock mode) for console errors and Issues, then fix them. No new skill.
 - Changes: `web/public/favicon.svg` + `<link rel="icon">` (removes the favicon.ico 404); `name` attribute on all filter inputs/selects, `ModuleSelect` and `StatusSelect` (removes the "form field has neither id nor name" Issue).
 - Human checked: console on the findings list in Chrome with DevTools. Still to check by hand: Trendy, Kalibracja, Źródła, finding details, loading/empty states, projector view.
+
+## Docker build arg for admin token, vitest smoke tests (issues #71, #75)
+- Asked Claude to: pass `VITE_ADMIN_TOKEN` into the web Docker build and add `npm test` to web. Skill: dependency-guard (vitest).
+- Changes: `ARG`/`ENV VITE_ADMIN_TOKEN` (no default) in `web/Dockerfile`; threshold save error now uses `apiErrorMessage` (401 hint); `vitest@5.1.0` (MIT, accepts vite 8; 5.1.1 skipped, only 4 days old) with 8 tests for `exportFormat` and `apiError`; `web/SECURITY.md` and `web/DEPENDENCIES.md` updated. `npm run build`, `npm test` (8/8) and `npm audit` (0) pass.
+- Human to verify (needs Docker, not done on the machine used here):
+  1. `docker build --build-arg VITE_ADMIN_TOKEN=<test-token> -t iw-web-check ./web`, then `docker run --rm iw-web-check sh -c "grep -rl <test-token> /usr/share/nginx/html/assets"` finds a .js file.
+  2. `docker build -t iw-web-check-empty ./web`, same grep finds nothing. Then `docker image rm iw-web-check iw-web-check-empty`.
+  3. `docker compose up -d --build` (never `down -v`), then /calibration for M1, M2, M3: sliders change precision/recall/FP/FN, not all zeros. If zeros: `curl "http://localhost:3000/eval?module=1&threshold=0.5"`; zeros from api/ai are an ai-data issue.
+  4. Console 0 errors/warnings on Findingi, finding details, Trendy, Kalibracja, Źródła, loading and empty states, at 1280 px.
+  5. Screenshots (1920x1080 or 1280x720) of those screens, saved outside the repo, for person #6.
