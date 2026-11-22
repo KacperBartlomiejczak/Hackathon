@@ -111,3 +111,8 @@
 - Added `ai/eval/analyze_gold.py` (+ `ai/tests/test_analyze_gold.py`): lists gold URLs missing from `documents` (collector must load them) and queues `/reanalyze` for the rest, then waits. Tests and ruff pass.
 - NOT verified on the live stack: `docker compose up --build ai api` failed locally (`.env` has `OLLAMA_LLM_MODEL=bielik:latest`, which does not exist in Ollama, and an `INTERNAL_TOKEN` shorter than 16 characters). Fix `.env` per `.env.example`, rebuild, run the script, then `calibration_table.py`.
 - Verified 22.11 on the live stack (after fixing local `.env`): `docker compose exec ai python eval/analyze_gold.py` -> gold urls=115, in_db=0, missing=115. `/eval` now sees the 120-row gold (total 40 per module) but `missingFindings` is 40 for every module. Blocked on collector loading `gold_urls_to_load.csv` (76 crawl URLs, 25 + 2 synthetic, 16 fixtures) into `documents`; then rerun the script and `calibration_table.py`.
+
+## 2026-11-22 — #95 M3 disclaimer cited as evidence (done on ai-core's behalf, user-approved)
+- Asked: finding 65 (XTB) cited "Nie jest rekomendacją inwestycyjną..." as proof of advice. Skill: risk-classifier.
+- `ai/rules/m3.yaml` (`disclaimer` pattern, rules v4), `ai/app/modules/m3.py` (rules skip disclaimer sentences, `strip_disclaimers()` before the LLM, reasons quoting a disclaimer dropped), prompt `m3-v4` (negation is never evidence), tests in `test_modules.py`. Full `ai/tests` pass.
+- NOT verified on the live stack: reanalyze document 99 and open `/findings/65`. Prompt/rules version bump means older M3 findings keep v3 until reanalyzed.
