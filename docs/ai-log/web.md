@@ -82,3 +82,8 @@
 - Changes: `utils.test.ts`, `api.test.ts` (mock mode, real mode with stubbed `fetch`, admin token, export, trend gap filling), extended `apiError.test.ts` and `exportFormat.test.ts`. 94 tests; `npm test` and `npm run build` pass.
 - Found 4 real bugs, kept as `it.fails` with `KNOWN BUG` comments (remove the marker when fixing): negative page returns items from the end; plain-object lookups resolve `constructor` (labels, `apiErrorMessage`); CSV formula guard prefixes legitimate `@handle` advertiser names with `'`.
 - Human to decide: fix the 4 bugs (small changes in `web/src/lib`).
+
+## Local-day date filters and trend (issue #88)
+- Asked Claude to: implement #88 in web only. No new skill.
+- Changes: `lib/dates.ts` (`toLocalDay`, local-day boundaries); `from`/`to` go to the api as local-day UTC timestamps (list and export); mock filter and trend group by local day; trend asks the api for `bucket=hour` and sums hours into local days. `lib/dates.test.ts` pins `Europe/Warsaw`. Build, `npm test` (also under another TZ) and audit pass.
+- Human to verify: finding created 2026-11-20T23:30Z shows for from=to=21.11 and not for 20.11; trend counts it on 21.11.
