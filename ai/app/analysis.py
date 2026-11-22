@@ -85,7 +85,8 @@ async def run_modules(
 
     A module that fails or misses the budget is logged and left out of the result (never a made-up
     score); the others are kept. If nothing finished, the first failure is raised (LLMError), so the
-    document ends up `failed`. `only_module` restricts the run to one module (used by /reanalyze).
+    document ends up `failed`
+    (a non-LLM crash is raised as is). `only_module` restricts the run to one module (used by /reanalyze).
     """
     route = route_document(text, url, author_handle, entities, document_id)
     if only_module is not None:
@@ -108,10 +109,12 @@ async def run_modules(
                          document_id, module, budget_s)
             first_error = first_error or LLMUnavailable(f"module {module} exceeded budget {budget_s:.0f}s")
         elif (exc := task.exception()) is not None:
-            if not isinstance(exc, LLMError):
-                raise exc
-            logger.error("analyze document_id=%s module=%d failed partial=true error=%s",
-                         document_id, module, exc)
+            if isinstance(exc, LLMError):
+                logger.error("analyze document_id=%s module=%d failed partial=true error=%s",
+                             document_id, module, exc)
+            else:  # a bug in one module must not take the others down
+                logger.error("analyze document_id=%s module=%d crashed partial=true", document_id, module,
+                             exc_info=exc)
             first_error = first_error or exc
         else:
             runs.append(task.result())

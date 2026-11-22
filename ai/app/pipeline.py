@@ -7,14 +7,14 @@ import time
 from typing import Any
 
 import asyncpg
-import httpx
 
 from app import db
 from app.alerts import send_alert
 from app.analysis import Settings, run_modules
 from app.embeddings import embed, to_pgvector
-from app.llm import LLMError, OllamaClient
+from app.llm import LLMError, LLMInvalidResponse, LLMUnavailable, OllamaClient
 from app.models import AnalyzeResult, Finding
+from app.modules import m1
 from app.preprocess.clean import clean_text
 from app.preprocess.dedup import dedup
 from app.preprocess.entity_match import Entity, load_entities
@@ -29,7 +29,46 @@ class DocumentNotFound(Exception):
 
 
 class AnalysisFailed(Exception):
-    """Document was marked `failed`; the cause is in the message (and in the logs)."""
+    """Document was marked `failed`; `category` is the short reason, details are in the logs."""
+
+    def __init__(self, category: str) -> None:
+        super().__init__(category)
+        self.category = category
+
+
+def failure_category(exc: BaseException) -> str:
+    """timeout | llm_invalid | llm_unavailable | no_text | storage | db | other."""
+    if isinstance(exc, LLMInvalidResponse):
+        return "llm_invalid"
+    if isinstance(exc, LLMUnavailable):
+        msg = str(exc).lower()
+        return "timeout" if "timeout" in msg or "budget" in msg else "llm_unavailable"
+    if isinstance(exc, LLMError):
+        return "llm_unavailable"
+    if isinstance(exc, NoText):
+        return "no_text"
+    if isinstance(exc, StorageError):
+        return "storage"
+    if isinstance(exc, db.DatabaseError):
+        return "db"
+    return "other"
+
+
+class NoText(ValueError):
+    """Document has no html_key or no text could be extracted."""
+
+
+async def _fail(
+    pool: asyncpg.Pool, verb: str, document_id: int, started: float, exc: Exception
+) -> AnalysisFailed:
+    category = failure_category(exc)
+    logger.error("%s document_id=%s result=failed category=%s ms=%d error=%r", verb, document_id, category,
+                 (time.monotonic() - started) * 1000, exc, exc_info=category == "other")
+    try:
+        await db.set_document_status(pool, document_id, "failed")
+    except Exception as inner:  # noqa: BLE001 - marking failed is best effort
+        logger.error("%s document_id=%s could not mark failed: %r", verb, document_id, inner)
+    return AnalysisFailed(category)
 
 
 async def analyze_document(
@@ -41,14 +80,8 @@ async def analyze_document(
         raise DocumentNotFound(document_id)
     try:
         result = await _analyze(pool, llm, config, doc)
-    except (StorageError, db.DatabaseError, LLMError, httpx.HTTPError, ValueError, KeyError) as exc:
-        logger.error("analyze document_id=%s result=failed ms=%d error=%s",
-                     document_id, (time.monotonic() - started) * 1000, exc)
-        try:
-            await db.set_document_status(pool, document_id, "failed")
-        except db.DatabaseError as inner:
-            logger.error("analyze document_id=%s could not mark failed: %s", document_id, inner)
-        raise AnalysisFailed(str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - every failure must mark the document and get a category
+        raise await _fail(pool, "analyze", document_id, started, exc) from exc
     logger.info("analyze document_id=%s result=%s findings=%d ms=%d", document_id, result.status,
                 len(result.findings), (time.monotonic() - started) * 1000)
     return result
@@ -59,10 +92,10 @@ async def _analyze(
 ) -> AnalyzeResult:
     document_id = int(doc["id"])
     if not doc.get("html_key"):
-        raise ValueError("document has no html_key")
+        raise NoText("document has no html_key")
     text = clean_text(await get_html(doc["html_key"]))
     if not text:
-        raise ValueError("no text extracted from html")
+        raise NoText("no text extracted from html")
 
     async with pool.acquire() as conn:
         dd = await dedup(conn, document_id, text)
@@ -105,6 +138,11 @@ async def _run_and_store(
         if run.finding is None:
             continue
         async with pool.acquire() as conn:
+            if run.module == 1:
+                try:
+                    await m1.attach_advertiser(conn, run.finding, doc["url"], doc.get("author_handle"))
+                except db.DatabaseError as exc:  # missing advertiser must not lose the finding
+                    logger.warning("analyze document_id=%s advertiser not resolved: %s", document_id, exc)
             saved = await db.upsert_finding(conn, run.finding)
         findings.append(saved)
         if saved.risk_level == "high":
@@ -139,14 +177,8 @@ async def reanalyze_document(
         async with pool.acquire() as conn:
             entities = await load_entities(conn)
         result = await _run_and_store(pool, llm, config, doc, text, vector, entities, module)
-    except (db.DatabaseError, LLMError, httpx.HTTPError, ValueError, KeyError) as exc:
-        logger.error("reanalyze document_id=%s result=failed ms=%d error=%s",
-                     document_id, (time.monotonic() - started) * 1000, exc)
-        try:
-            await db.set_document_status(pool, document_id, "failed")
-        except db.DatabaseError as inner:
-            logger.error("reanalyze document_id=%s could not mark failed: %s", document_id, inner)
-        raise AnalysisFailed(str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - see analyze_document
+        raise await _fail(pool, "reanalyze", document_id, started, exc) from exc
     logger.info("reanalyze document_id=%s module=%s result=%s findings=%d ms=%d", document_id, module,
                 result.status, len(result.findings), (time.monotonic() - started) * 1000)
     return result
