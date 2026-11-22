@@ -199,3 +199,11 @@
 - **Człowiek zdecydował:** endpoint w ai zamiast UPDATE w api (reguła w jednym miejscu), alerty bez wycofywania. Wymagania dla api (#4) i web (#5) wklejone ręcznie w #84.
 - **Review:** brak blokerów. Notatka: score i próg są `real` (float4), więc finding leżący dokładnie na granicy może zmienić pasmo po przeliczeniu. Wynik zgodny z `/eval`.
 - **Do sprawdzenia przez człowieka:** UPDATE na prawdziwym Postgresie w compose (SQL testowany w SQLite).
+
+## 2026-11-22 — gold set lokalnie, LLM zwracał pustą listę kryteriów (llm = 0)
+- **Zlecono (lead):** przebudować ai z nowym `gold.csv`, dokończyć `/analyze`, porównać `/eval?module=2` przy 0.4 i 0.8. Orchestrator (Opus): Haiku (high) przeszukał repo. Skill: `risk-classifier`.
+- **Środowisko:** merge `origin/main` (fast-forward), cały stos lokalnie na Docker Desktop z `infra/docker-compose.gpu.yml` (RTX 3060). Załadowane tylko 43 dokumenty z fixtures `sample`; 77 URL-i `crawl` z `gold_urls_to_load.csv` nie ma w `sources.yaml` (pytanie do leada).
+- **Bug:** we wszystkich modułach Bielik odpowiadał `{"criteria":[]}` (8 tokenów, ~350 ms), więc składowa llm = 0 i każdy score ≤ 0.32. Progi 0.4 i 0.8 dawały identyczne `/eval` (tp=0).
+- **Zmiana:** `minItems`/`maxItems` = liczba kryteriów w schemacie JSON dla Ollamy (`json_schema_extra`, walidacja zostaje łagodna) w M1/M2/M3; `m1-v3`, `m2-v5`, `m3-v5`; test `test_llm_schema_items.py`. Koszt: ~45–50 s na dokument M2 na GPU zamiast ~0.4 s.
+- **Wynik (43 dokumenty, żywy Bielik):** M2 0.4 → TP 2, FN 15; 0.8 → TP 1, FN 16. M1 0.4 → TP 5; 0.8 → TP 2. M3 0.4 → TP 2; 0.8 → TP 0. FP = 0 wszędzie. pytest 440 passed.
+- **Do zrobienia przez innych:** ai-data — fikcyjna firma `przykladowy-broker.example` z gold setu M2 nie jest w seedzie jako podmiot z rejestru, więc 25 syntetycznych dokumentów M2 nie trafia do M2 (`route=[]`). Lead — sposób załadowania 77 URL-i `crawl`.

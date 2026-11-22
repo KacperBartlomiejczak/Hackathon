@@ -211,7 +211,7 @@ async def test_m3_shadow_advisory() -> None:
     run = await m3.run_m3(FakeLLM(out), CONFIG, ADVICE, [0.1], 1, 0.6,  # type: ignore[arg-type]
                           {"llm": 0.6, "rules": 0.25, "emb": 0.15})
     assert run.finding is not None and run.finding.module == 3 and run.finding.label == "shadow_advisory"
-    assert run.finding.prompt_version.startswith("m3-v4")
+    assert run.finding.prompt_version.startswith("m3-v5")
     assert run.score >= 0.6
 
 

@@ -46,7 +46,9 @@ class CriterionResult(BaseModel):
 
 
 class M2Output(BaseModel):
-    criteria: list[CriterionResult]
+    # minItems/maxItems only in the JSON schema sent to Ollama: without them Bielik answers `[]` and llm = 0.
+    criteria: list[CriterionResult] = Field(json_schema_extra={
+        "minItems": len(CRITERION_WEIGHTS), "maxItems": len(CRITERION_WEIGHTS)})
 
 
 @dataclass(frozen=True)
