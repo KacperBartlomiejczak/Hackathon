@@ -142,8 +142,6 @@ CREATE TABLE module_settings (
 ```
 `riskLevel`: high ≥ 0.8, medium ≥ próg modułu, low < próg.
 
-W odpowiedziach api (`/findings`, `/findings/:id`, `/documents`, `/export`, `/stats/summary`, filtr `?risk=`, payload `finding:updated`) `riskLevel` jest liczony na żywo ze `score` i aktualnego progu z `module_settings` (brak wiersza = 0.6). Po `PUT /settings/modules/:module` flagi zmieniają się od razu, bez `/reanalyze`. Kolumna `findings.risk_level` zostaje wartością z chwili analizy i steruje tylko alertami (`/internal/alerts`).
-
 ## API (api/, port 3000)
 | Metoda | Ścieżka | Opis |
 |---|---|---|
