@@ -4,12 +4,12 @@ interface ThresholdControlProps {
   dirty: boolean;
   saving: boolean;
   saveSucceeded: boolean;
-  saveFailed: boolean;
+  saveError: string | null;
   onChange: (value: number) => void;
   onSave: () => void;
 }
 
-export function ThresholdControl({ threshold, saved, dirty, saving, saveSucceeded, saveFailed, onChange, onSave }: ThresholdControlProps) {
+export function ThresholdControl({ threshold, saved, dirty, saving, saveSucceeded, saveError, onChange, onSave }: ThresholdControlProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
@@ -52,7 +52,7 @@ export function ThresholdControl({ threshold, saved, dirty, saving, saveSucceede
       </div>
       <div aria-live="polite" className="text-sm">
         {saveSucceeded && <p className="text-emerald-700">Próg został zapisany.</p>}
-        {saveFailed && <p className="text-red-600">Nie udało się zapisać progu.</p>}
+        {saveError && <p className="text-red-600">{saveError}</p>}
       </div>
     </div>
   );
