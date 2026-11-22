@@ -129,6 +129,21 @@ async def test_m1_sponsored_ad_without_profit_promises_reaches_threshold() -> No
 
 
 @pytest.mark.asyncio
+async def test_m1_low_confidence_promotion_stays_below_threshold() -> None:
+    """Borderline: promotes_firm=fail with low confidence (0.4) must not be flagged by the raised weight."""
+    out = m1.M1Output(criteria=[
+        _crit("promotes_firm", "fail", "Wpis sponsorowany.", 0.4),
+        _crit("profit_promises", "pass", "zero prowizji", 0.7),
+        _crit("impersonation", "pass", "Wpis sponsorowany.", 0.7),
+    ])
+    cands = _m1_cands(SPONSORED, "https://kasa-na-gieldzie.example/wpis/bossa-ranking", "@kasa_na_gieldzie")
+    run = await m1.run_m1(FakeLLM(out), CONFIG, SPONSORED, [0.1], cands, 1, 0.6, W)  # type: ignore[arg-type]
+    assert run.finding is not None
+    assert run.llm == pytest.approx(0.7 * 0.4)
+    assert run.score < 0.6
+
+
+@pytest.mark.asyncio
 async def test_m1_neutral_mention_stays_below_threshold() -> None:
     out = m1.M1Output(criteria=[
         _crit("promotes_firm", "pass", "opublikował wyniki", 0.9),
