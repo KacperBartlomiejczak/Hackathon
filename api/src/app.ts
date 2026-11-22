@@ -77,8 +77,10 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     exposedHeaders: ["Content-Disposition", "X-Export-Truncated"],
   });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
-  // After the rate limit, so guessing the admin token is rate limited too.
-  app.addHook("onRequest", adminAuthHook(config.ADMIN_TOKEN));
+  // preHandler, not onRequest: rate-limit hooks are route-level onRequest hooks and run after
+  // instance-level onRequest hooks. As preHandler the auth check runs after the rate limit, so
+  // guessing the admin token is rate limited too.
+  app.addHook("preHandler", adminAuthHook(config.ADMIN_TOKEN));
   if (!config.ADMIN_TOKEN) app.log.warn("ADMIN_TOKEN not set: write endpoints accept requests without a token");
 
   app.get("/health", { config: { rateLimit: false } }, async () => ({ status: "ok" }));

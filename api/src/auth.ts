@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { onRequestAsyncHookHandler } from "fastify";
+import type { preHandlerAsyncHookHandler } from "fastify";
 
 /** Methods that only read; everything else counts as a write. */
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -17,8 +17,11 @@ export function bearerToken(header: string | undefined): string {
  * Optional admin token for write endpoints (issue #71). With `adminToken` unset every request
  * passes, as before. With it set, every non-read method needs `Authorization: Bearer <token>`.
  * `/internal/*` is skipped (it has its own X-Internal-Token) and unknown routes keep their 404.
+ * Register it as a `preHandler`: @fastify/rate-limit adds route-level `onRequest` hooks, which run
+ * after instance-level `onRequest` hooks, so an `onRequest` here would answer 401 before the rate
+ * limit counts the request and token guessing would never hit 429.
  */
-export function adminAuthHook(adminToken: string | undefined): onRequestAsyncHookHandler {
+export function adminAuthHook(adminToken: string | undefined): preHandlerAsyncHookHandler {
   // Hash both sides so timingSafeEqual always gets equal-length buffers.
   const expected = adminToken ? sha256(adminToken) : null;
 

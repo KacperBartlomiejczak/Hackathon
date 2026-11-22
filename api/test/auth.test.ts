@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { createServer, type IncomingHttpHeaders } from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
+import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { adminAuthHook, bearerToken } from "../src/auth.js";
 import { loadConfig } from "../src/config.js";
@@ -14,7 +15,7 @@ const ADMIN_BEARER = randomBytes(16).toString("hex");
 
 async function buildTestApp(adminToken: string | undefined): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
-  app.addHook("onRequest", adminAuthHook(adminToken));
+  app.addHook("preHandler", adminAuthHook(adminToken));
   app.get("/findings", async () => ({ ok: true }));
   app.put("/settings/modules/:module", async () => ({ ok: true }));
   app.patch("/findings/:id/status", async () => ({ ok: true }));
@@ -93,6 +94,27 @@ describe("adminAuthHook — ADMIN_TOKEN unset", () => {
     const app = await buildTestApp(undefined);
     const res = await app.inject({ method: "PUT", url: "/settings/modules/2" });
     assert.equal(res.statusCode, 200);
+    await app.close();
+  });
+});
+
+describe("adminAuthHook — runs after the rate limit", () => {
+  it("wrong tokens are counted and end in 429", async () => {
+    const app = Fastify({ logger: false });
+    await app.register(rateLimit, { max: 3, timeWindow: "1 minute" });
+    app.addHook("preHandler", adminAuthHook(ADMIN_BEARER));
+    app.put("/settings/modules/:module", async () => ({ ok: true }));
+    await app.ready();
+    const codes: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const res = await app.inject({
+        method: "PUT",
+        url: "/settings/modules/2",
+        headers: { authorization: "Bearer wrong-token" },
+      });
+      codes.push(res.statusCode);
+    }
+    assert.deepEqual(codes, [401, 401, 401, 429, 429]);
     await app.close();
   });
 });
