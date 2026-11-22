@@ -200,6 +200,14 @@
 - **Review:** brak blokerów. Notatka: score i próg są `real` (float4), więc finding leżący dokładnie na granicy może zmienić pasmo po przeliczeniu. Wynik zgodny z `/eval`.
 - **Do sprawdzenia przez człowieka:** UPDATE na prawdziwym Postgresie w compose (SQL testowany w SQLite).
 
+## 2026-11-22 — gold set lokalnie, LLM zwracał pustą listę kryteriów (llm = 0)
+- **Zlecono (lead):** przebudować ai z nowym `gold.csv`, dokończyć `/analyze`, porównać `/eval?module=2` przy 0.4 i 0.8. Orchestrator (Opus): Haiku (high) przeszukał repo. Skill: `risk-classifier`.
+- **Środowisko:** merge `origin/main` (fast-forward), cały stos lokalnie na Docker Desktop z `infra/docker-compose.gpu.yml` (RTX 3060). Załadowane tylko 43 dokumenty z fixtures `sample`; 77 URL-i `crawl` z `gold_urls_to_load.csv` nie ma w `sources.yaml` (pytanie do leada).
+- **Bug:** we wszystkich modułach Bielik odpowiadał `{"criteria":[]}` (8 tokenów, ~350 ms), więc składowa llm = 0 i każdy score ≤ 0.32. Progi 0.4 i 0.8 dawały identyczne `/eval` (tp=0).
+- **Zmiana:** `minItems`/`maxItems` = liczba kryteriów w schemacie JSON dla Ollamy (`json_schema_extra`, walidacja zostaje łagodna) w M1/M2/M3; `m1-v3`, `m2-v5`, `m3-v5`; test `test_llm_schema_items.py`. Koszt: ~45–50 s na dokument M2 na GPU zamiast ~0.4 s.
+- **Wynik (43 dokumenty, żywy Bielik):** M2 0.4 → TP 2, FN 15; 0.8 → TP 1, FN 16. M1 0.4 → TP 5; 0.8 → TP 2. M3 0.4 → TP 2; 0.8 → TP 0. FP = 0 wszędzie. pytest 440 passed.
+- **Do zrobienia przez innych:** ai-data — fikcyjna firma `przykladowy-broker.example` z gold setu M2 nie jest w seedzie jako podmiot z rejestru, więc 25 syntetycznych dokumentów M2 nie trafia do M2 (`route=[]`). Lead — sposób załadowania 77 URL-i `crawl`.
+
 ## 2026-11-22 — #95 domknięcie: zdanie „zastrzeżenie + prawdziwa rada”
 - **Luka:** „To nie jest rekomendacja, ale kupuj akcje ABC, cena docelowa 50 zł.” było w całości traktowane jak zastrzeżenie (reguły pomijały zdanie, LLM go nie widział, powód z cytatem był odrzucany), więc formułka mogła ukryć realną poradę.
 - **Zmiana (`m3.py`):** zastrzeżenie liczy się na poziomie klauzuli (podział na „ale/jednak/natomiast/lecz”, średnik, myślnik): `strip_disclaimers` usuwa tylko klauzulę z formułką, reguły pomijają dopasowania tylko w klauzuli-zastrzeżeniu, powód z cytatem jest odrzucany, gdy po usunięciu zastrzeżeń nie zostaje żaden sygnał doradztwa (`is_disclaimer_quote`). Czyste zastrzeżenie (dok. 99) działa jak wcześniej. 2 nowe testy, pytest 438 passed.
@@ -211,8 +219,15 @@
 - **Nie zrobione:** fail-fast po nieudanym warmupie (świadomie, na CPU model może się ładować dłużej niż timeout).
 - **Do sprawdzenia przez człowieka:** `curl localhost:8000/health` na żywym stosie; `docs/contracts.md` nie opisuje pola `llm` (zmiana przez team/api). `ruff check` zgłasza 2 × E501 w `ai/app/preprocess/entity_match.py` (plik ai-data) — zgłosić.
 
-## 2026-11-22 — uwagi do #102: M3 przecinek
-- **Zlecono:** naprawa uwag z przeglądu (tylko ai-core/ai-data).
-- **Zmiana:** `_CLAUSE_SPLIT` w M3 dzieli też po przecinku ("Kupuj X, to nie jest rekomendacja" zachowuje poradę), test w `test_modules.py`. Pytest 441 passed.
-- **Nie zrobione (pliki ai-data, niescommitowane):** usunięcie martwego `ensure_advertiser` w `entity_match.py`, loader `ai/eval/load_gold.py`. Poza tym `docs/contracts.md` (team/api), opis PR #102, `analyze_gold.py` (Ollama na 7,75 GiB RAM daje timeouty).
-- **Do sprawdzenia przez człowieka:** dzielenie po przecinku może zostawić fragment długiego zastrzeżenia.
+## 2026-11-22 — #83 merge main i test po poprawkach M1
+- **Issue #83:** M1 dawał score 0.31 dla oczywistej reklamy finfluencera, puste „Reklamujący” i mylące „niespełnione”. Poprawki są już w PR #102: wagi M1 0.7/0.2/0.1, prompt `m1-v2` (linki partnerskie i oznaczenia sponsorowane liczą się jako promocja), `db.resolve_advertiser` wypełnia `findings.advertiser_entity_id`, w web `verdictLabel` pokazuje „wykryto” dla M1/M3.
+- **Ta sesja:** merge `origin/main` bez konfliktów, ruff czysty, pytest 445 passed / 8 skipped / 1 xfailed, push do PR #102. Do zrobienia po merge: weryfikacja na żywo (przebudować ai, `/reanalyze?module=1`).
+- **Dla ai-data:** `ensure_advertiser()` w `entity_match.py` dubluje `db.resolve_advertiser` i nie jest używane przez pipeline.
+- **Proces:** plan zaakceptowany przez człowieka, issue przeczytał subagent Haiku, wykonanie przez subagenta Sonnet.
+
+## #102 — uwagi leada przed merge'em (kontrakt, advertiser, M3 przecinek)
+- Zlecono: odblokować PR #102 według review leada. Plan zaakceptowany przez człowieka; kod czytał Claude (Opus), implementacja przez subagenta Sonnet (medium).
+- M3 (#95): `_CLAUSE_SPLIT` dzieli zdanie z zastrzeżeniem także po przecinku, więc „Kupuj akcje X teraz, to nie jest rekomendacja.” daje trafienie `direct_recommendation`. Zrobione metodą test-first: 4 nowe testy, 3 padały przed poprawką (commit 06ba7f0). ruff czysto, pytest 449 passed, 8 skipped, 1 xfailed.
+- Kontrakt: `/recompute-risk` jest już opisany w PR #106 (team/api). Do #4 poszła prośba o dopisanie formatu 502 z kategorią, `/health.llm`, tokena `/analyze-text` i parametrów `/reanalyze` (skill `data-contract`: zmienia tylko właściciel).
+- Advertiser: zostaje jedna ścieżka, `db.resolve_advertiser`. ai-data usuwa nieużywany `ensure_advertiser`. Opis PR #102 przepisany (Closes #83, #84, #95; refs #90).
+- Człowiek wkleja opis PR i wiadomości (brak gh). Na żywo nadal niesprawdzone: /findings/65, dok. 99, bossa-ranking, do zrobienia po merge'u.

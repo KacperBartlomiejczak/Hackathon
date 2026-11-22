@@ -211,7 +211,7 @@ async def test_m3_shadow_advisory() -> None:
     run = await m3.run_m3(FakeLLM(out), CONFIG, ADVICE, [0.1], 1, 0.6,  # type: ignore[arg-type]
                           {"llm": 0.6, "rules": 0.25, "emb": 0.15})
     assert run.finding is not None and run.finding.module == 3 and run.finding.label == "shadow_advisory"
-    assert run.finding.prompt_version.startswith("m3-v4")
+    assert run.finding.prompt_version.startswith("m3-v5")
     assert run.score >= 0.6
 
 
@@ -395,11 +395,24 @@ def test_m3_pure_disclaimer_quote_is_dropped() -> None:
     assert not m3.is_disclaimer_quote("Zarządzam Twoim portfelem.")
 
 
-def test_m3_advice_before_comma_disclaimer_is_still_advice() -> None:
-    """Review of #102: "kupuj X, to nie jest rekomendacja" must keep the advice clause."""
-    text = "Kupuj akcje ABC, to nie jest rekomendacja inwestycyjna."
-    score, reasons = m3.rules_hits(text)
-    assert [r.criterion for r in reasons] == ["rule:direct_recommendation"]
-    assert score > 0
-    stripped = m3.strip_disclaimers(text)
-    assert "Kupuj akcje ABC" in stripped and "rekomendacja" not in stripped
+def test_m3_comma_split_keeps_advice_before_disclaimer() -> None:
+    """Issue #95 follow-up: "Kupuj X, to nie jest rekomendacja." must keep the advice clause."""
+    assert "Kupuj akcje X teraz" in m3.strip_disclaimers("Kupuj akcje X teraz, to nie jest rekomendacja.")
+    assert "rekomendacja" not in m3.strip_disclaimers("Kupuj akcje X teraz, to nie jest rekomendacja.")
+
+
+def test_m3_comma_split_keeps_advice_after_disclaimer() -> None:
+    assert "kupuj akcje X teraz" in m3.strip_disclaimers("To nie jest rekomendacja, kupuj akcje X teraz.")
+
+
+def test_m3_comma_split_plain_disclaimers_still_removed() -> None:
+    assert m3.strip_disclaimers("To nie jest rekomendacja inwestycyjna.") == ""
+    _, reasons = m3.rules_hits(m3.strip_disclaimers("Nie stanowi to porady, ani rekomendacji."))
+    assert reasons == []
+    _, reasons = m3.rules_hits("Nie stanowi to porady, ani rekomendacji.")
+    assert reasons == []
+
+
+def test_m3_rules_hit_advice_before_comma_disclaimer() -> None:
+    _, reasons = m3.rules_hits("Kupuj akcje X teraz, to nie jest rekomendacja.")
+    assert "rule:direct_recommendation" in {r.criterion for r in reasons}

@@ -53,7 +53,7 @@ async def test_sponsored_ad_scores_above_threshold(monkeypatch: pytest.MonkeyPat
     run = await m1.run_m1(FakeLLM(_out()), CONFIG, AD, [0.1], cands, 1, 0.6, WEIGHTS)  # type: ignore[arg-type]
     assert run.finding is not None
     assert run.score >= 0.6
-    assert run.finding.prompt_version == "m1-v2"
+    assert run.finding.prompt_version == "m1-v3"
     assert all(r.quote in AD for r in run.finding.reasons)
 
 
