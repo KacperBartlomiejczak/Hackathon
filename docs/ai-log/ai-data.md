@@ -100,3 +100,8 @@
 ## 2026-11-22 — calibration table and methodology
 - Added `ai/eval/calibration_table.py` (+ `ai/tests/test_calibration_table.py`): runs `evaluate()` for thresholds 0.3-0.9 per module and writes a Markdown table for the calibration slide. Added `ai/eval/METHODOLOGY.md` (how the gold set was labelled, metrics, limits). Test and ruff pass.
 - Not run with real numbers: the `ai` container image is stale (`eval/gold.csv` has only the header), so every cell is 0. Rebuild the image (`docker compose up --build ai`), score the gold documents, then run `DATABASE_URL=... python eval/calibration_table.py` and paste the table into the slides.
+
+## 2026-11-22 — #83 advertiser entity (wymaga akceptu ai-core)
+- Zlecono: puste „Reklamujący” w M1. Przyczyna: nikt nie wypełniał `advertiser_entity_id`.
+- Skill: risk-classifier. `ensure_advertiser()` w `entity_match.py` tworzy/znajduje encję `advertiser`; `ModuleRun.advertiser` + wywołanie w `pipeline.py` (pliki ai-core).
+- Do sprawdzenia ręcznie: nowy crawl/reanalyze M1 → `advertiser` w findingu; score 0.31 nie ruszony (brak logów LLM do strojenia wag).
