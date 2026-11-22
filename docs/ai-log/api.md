@@ -141,3 +141,25 @@
 - #44: `docs/DEPENDENCIES.md` and `docs/SECURITY.md` show the new web images and Trivy results; `OLLAMA_NUM_PARALLEL=1` in `.env.example` with a README note (2 = M1 and M3 in parallel, more RAM/VRAM; not tested, so default stays 1).
 - Verified: web Docker build (tsc + vite) OK; scratch Postgres with sources web/youtube/sample + local api: filter shows exactly those 3, `?source=tiktok` keeps tiktok selected, api down → full list. Browser console clean while the api was up. Scratch containers removed.
 - Not done: clean start from zero (skipped by the human), GitHub Actions (`.github/` is outside the team/api hook).
+
+## 2026-11-22: Issues #71 (write auth) and #70 (api part: token for /eval)
+- Asked Claude to: check the open api issues and handle them. It found #71 and #70 (both `team:api`), wrote a plan per CLAUDE.md, and the human accepted it ("ok — zatwierdzam plan").
+- Skill used: `data-contract` (followed by hand): `docs/contracts.md` describes `ADMIN_TOKEN` and the `X-Internal-Token` header api sends to ai. No DB change.
+- #71: `api/src/auth.ts` adds a `preHandler` hook. With `ADMIN_TOKEN` set (min. 16 chars), every method other than GET/HEAD/OPTIONS needs `Authorization: Bearer <token>`, otherwise `401 {error:"unauthorized"}`. `/internal/*` is skipped (it has X-Internal-Token) and unknown routes keep their 404. The hook runs after the rate limit. Empty or unset token = writes stay open as before, and api logs a warning at start. web already sends `VITE_ADMIN_TOKEN` (271bf89).
+- #70: the `GET /eval` proxy sends `X-Internal-Token`, so ai can turn on `AI_REQUIRE_TOKEN`.
+- Verified:
+  - typecheck, lint, `grep console.` empty, `npm test` 43/43 (new `test/auth.test.ts`: 401 without a token, with a wrong token and with another scheme for each write route; correct token passes; GET, `/internal/*` and 404 untouched; token off = open; config rejects a short token; `/eval` forwards the header to a stub ai).
+  - Local api on a scratch `pgvector/pgvector:0.8.7-pg16` with `infra/db` and a stub ai: PUT/PATCH/POST without a token → 401; PUT with the token → 200 and saved; GET without a token → 200; CORS preflight allows `authorization`; `/eval` → stub accepted the token (200); the token value does not appear in the log. Scratch container and processes removed.
+- PR review (2026-11-22, CVE and performance pass before merge): the hook was first registered as `onRequest`, but @fastify/rate-limit 11 adds route-level `onRequest` hooks, which Fastify runs after instance-level ones, so wrong tokens got 401 forever and never 429 (checked with `inject`: 6 bad PUTs at `max: 3` → all 401). Moved to `preHandler` and added a test (3 wrong tokens → 401, then 429). `npm audit`: 0 vulnerabilities, no dependency changes; the added per-request cost is one SHA-256 on writes only.
+- Left for others: infra puts `ADMIN_TOKEN=` / `VITE_ADMIN_TOKEN=` (same value) and `AI_REQUIRE_TOKEN=true` in `.env.example` and README; lead adds `X-Internal-Token` in `collector/src/ai/client.ts`. `AI_REQUIRE_TOKEN` can go on only after that.
+
+## 2026-11-22: Edge-case test pass and bugfixes (after freeze)
+- Asked Claude to: check the api part and test edge cases. It ran the existing suite (44/44, typecheck, lint) and wrote 113 integration tests run against the real `buildApp` on a scratch `pgvector/pgvector:0.8.7-pg16` (with `infra/db`) + Valkey + a stub ai. 108 passed. The human accepted the fix plan ("ok").
+- Found and fixed:
+  - `to=YYYY-MM-DD` (what web's `<input type="date">` sends) meant 00:00 UTC, so the chosen day was left out (from=to=today → empty list). A bare date in `to` now means 23:59:59.999Z. Same in `/stats/trend`.
+  - `from`/`to` outside 1970–9999 → 400 (was 500 from Postgres).
+  - NUL byte in `q`, `changedBy`, `note` → 400 (was 500 from Postgres).
+  - `/eval?threshold=` coerced to 0 → now 400. `/eval` reads the ai body inside the try, so a dropped connection gives 502, not 500.
+- Skill used: `data-contract` (by hand): `docs/contracts.md` describes the `from`/`to` day rule, the date range, NUL and the 502 case. No DB change.
+- Verified: `npm test` 53/53 (new `test/validation.test.ts`), typecheck, lint; the 113 integration tests 113/113 after the fix. Scratch containers removed.
+- Left for web: days are counted in UTC; a new issue asks web to send local-day boundaries as full timestamps and group the trend by local day.

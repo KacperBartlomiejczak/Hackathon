@@ -54,6 +54,7 @@ class OllamaClient:
         backoff_s: float = BACKOFF_S,
         timeout_s: float = TIMEOUT_S,
         retries: int = RETRIES,
+        max_concurrency: int = 1,
     ) -> None:
         self.base_url = (base_url or os.getenv("OLLAMA_URL") or "").rstrip("/")
         self.model = model or os.getenv("OLLAMA_LLM_MODEL") or ""
@@ -64,12 +65,18 @@ class OllamaClient:
         self._backoff_s = backoff_s
         self._retries = retries
         self._client = httpx.AsyncClient(timeout=timeout_s, transport=transport)
+        # Ollama (OLLAMA_NUM_PARALLEL) serves N chats at once; more would only queue inside Ollama and
+        # burn the httpx timeout while waiting. Queue here instead: the timeout starts after the slot.
+        self._slots = asyncio.Semaphore(max(1, max_concurrency))
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
     async def warmup(self) -> None:
-        """Load the model into memory (best effort, long timeout). Failure is logged, never raised."""
+        """Load the model into memory (best effort, long timeout). Failure is logged, never raised.
+
+        Bypasses the semaphore on purpose: it runs once at startup, before any document arrives.
+        """
         started = time.monotonic()
         payload = {
             "model": self.model, "stream": False, "keep_alive": KEEP_ALIVE,
@@ -111,6 +118,14 @@ class OllamaClient:
         return result
 
     async def _post_with_retry(self, payload: dict[str, object]) -> str:
+        queued = time.monotonic()
+        async with self._slots:
+            wait_ms = int((time.monotonic() - queued) * 1000)
+            if wait_ms > 100:
+                logger.info("llm queue wait model=%s ms=%d", self.model, wait_ms)
+            return await self._post(payload)
+
+    async def _post(self, payload: dict[str, object]) -> str:
         last: Exception | None = None
         for attempt in range(self._retries + 1):
             try:
@@ -123,6 +138,10 @@ class OllamaClient:
                 if not isinstance(content, str):
                     raise LLMInvalidResponse("message.content is not a string")
                 return content
+            except httpx.TimeoutException as exc:
+                # The model was still computing; a retry would only double the load on a CPU box.
+                logger.error("llm timeout (no retry): %r", exc)
+                raise LLMUnavailable(f"ollama timeout: {exc!r}") from exc
             except (httpx.TransportError, httpx.HTTPStatusError) as exc:
                 last = exc
                 if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code < 500:

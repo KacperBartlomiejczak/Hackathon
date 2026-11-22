@@ -74,7 +74,7 @@ export default function CalibrationPage() {
             dirty={dirty}
             saving={save.isPending}
             saveSucceeded={save.isSuccess}
-            saveFailed={save.isError}
+            saveError={save.isError ? apiErrorMessage(save.error, "Nie udało się zapisać progu.") : null}
             onChange={changeThreshold}
             onSave={() => save.mutate(threshold)}
           />

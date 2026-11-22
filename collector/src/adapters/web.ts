@@ -3,6 +3,7 @@ import { chromium, type Browser, type Page } from 'playwright';
 import { logger } from '../logger.js';
 import { htmlKey, screenshotKey, urlHash } from '../storage/s3.js';
 import { extractLinks } from './discovery.js';
+import { isBlockedUrl } from './ssrf.js';
 import type { CollectedDocument, CrawlContext, DiscoveredItem, SourceAdapter } from './types.js';
 
 // Fix these at night when a site's markup differs.
@@ -18,7 +19,7 @@ const DISCOVERY_TIMEOUT_MS = 15_000;
 
 let browserPromise: Promise<Browser> | null = null;
 
-async function getBrowser(): Promise<Browser> {
+export async function getBrowser(): Promise<Browser> {
   if (browserPromise) {
     const existing = await browserPromise.catch(() => null);
     if (existing?.isConnected()) return existing;
@@ -76,6 +77,15 @@ async function fetchOne(item: DiscoveredItem, ctx: CrawlContext): Promise<Collec
     ...(proxy ? { proxy: { server: proxy } } : {}),
   });
   try {
+    await context.route('**/*', async (route) => {
+      const url = route.request().url();
+      if (await isBlockedUrl(url)) {
+        logger.warn({ url, item: item.url }, 'blocked request to internal address');
+        await route.abort('blockedbyclient');
+      } else {
+        await route.continue();
+      }
+    });
     const page = await context.newPage();
     const response = await page.goto(item.url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT_MS });
     const status = response?.status() ?? 0;
@@ -129,6 +139,10 @@ export const webAdapter: SourceAdapter = {
       logger.warn({ source: ctx.source.name, startUrl }, 'invalid or missing startUrl, nothing to discover');
       return;
     }
+    if (await isBlockedUrl(startUrl)) {
+      logger.warn({ source: ctx.source.name, startUrl }, 'startUrl points to an internal address, skipping');
+      return;
+    }
     yield { url: startUrl };
     // shortcut: plain fetch without JS, so JS-rendered sites yield few links; use Playwright here if needed.
     try {
@@ -136,6 +150,7 @@ export const webAdapter: SourceAdapter = {
         headers: { 'User-Agent': ctx.nextUserAgent(), 'Accept-Language': 'pl-PL,pl;q=0.9' },
         signal: AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
       });
+      if (await isBlockedUrl(res.url || startUrl)) throw new Error('discovery redirected to an internal address');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const links = extractLinks(await res.text(), res.url || startUrl);
       logger.info({ source: ctx.source.name, startUrl, links: links.length }, 'web discovery done');

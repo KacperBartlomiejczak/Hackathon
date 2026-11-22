@@ -177,3 +177,9 @@
 - **Zlecono:** finding 65 (XTB) cytował disclaimer jako dowód doradztwa. Skill: risk-classifier. Patch przygotowany na `team/ai-data`, zastosowany tutaj.
 - **Zmiana:** `rules/m3.yaml` (wzorzec `disclaimer`, reguły v4), `modules/m3.py` (reguły pomijają zdania z zastrzeżeniem, `strip_disclaimers()` przed LLM, reasons z cytatem-zastrzeżeniem odrzucane), prompt `m3-v4`, 3 testy. Pytest 120 passed.
 - **Do sprawdzenia przez człowieka:** reanaliza dokumentu 99 na żywym stosie i `/findings/65`. Starsze findings M3 zostają na v3 do reanalizy.
+
+## 2026-11-22 — #83 (M1 reklamujący i score) i #90 (analyze failed)
+- **Zlecono:** przejrzeć otwarte PR-y (Haiku, przegląd wydajności PR #93), domknąć #83 po stronie ai-core, przejrzeć lokalne zmiany i wystawić PR. Skill: `risk-classifier`.
+- **Zmiany:** `db.resolve_advertiser()` (lookup + insert w jednej transakcji pod `pg_advisory_xact_lock`, normalizacja host/handle, encja `advertiser`/`finfluencer` z `is_authorized=false`) wołane z `pipeline` dla findingów M1; błąd bazy nie gubi findingu. Prompt `m1-v2` (jawne sygnały reklamy: link partnerski, wpis sponsorowany, #reklama), wagi M1 0.7/0.2/0.1. `OllamaClient` z semaforem `llm.max_concurrency` (= `OLLAMA_NUM_PARALLEL`), `AnalysisFailed.category` zamiast tekstu wyjątku w odpowiedzi, crash jednego modułu nie zabija pozostałych, cytaty > 600 znaków przycinane zamiast odrzucać moduł. Testy: `test_m1_advertiser.py`, `test_analysis_budget.py`; pytest 126 passed, ruff czysty.
+- **Odstępstwo od skilla:** timeout Ollamy bez retry (na CPU retry tylko podwaja obciążenie); inne błędy transportu nadal z 1 retry.
+- **Do sprawdzenia przez człowieka:** `/reanalyze?module=1` na gold secie przed/po na żywym Bieliku (brak Ollamy na tej maszynie). PR #93 (ai-data) dodaje `ensure_advertiser()`, który dubluje `resolve_advertiser()` — do uzgodnienia z ai-data.

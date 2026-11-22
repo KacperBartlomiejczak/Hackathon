@@ -1,5 +1,6 @@
 """Calibration metrics for /eval: stored finding scores vs. the hand-labelled gold set. No LLM calls."""
 import csv
+import hashlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,31 +34,36 @@ def parse_module(module: str | int) -> int:
     return value
 
 
-def load_gold(module: int, path: Path = GOLD_PATH) -> dict[int, bool]:
-    """document_id -> label for one module. Empty dict for a header-only or missing file."""
+def url_hash(url: str) -> str:
+    """Same key the collector stores in documents.url_hash (sha256 of the raw URL)."""
+    return hashlib.sha256(url.encode()).hexdigest()
+
+
+def load_gold(module: int, path: Path = GOLD_PATH) -> dict[str, bool]:
+    """url -> label for one module. Empty dict for a header-only or missing file."""
     if not path.exists():
         log.warning("gold set %s does not exist", path)
         return {}
-    gold: dict[int, bool] = {}
+    gold: dict[str, bool] = {}
     with path.open(newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             if parse_module(row["module"]) != module:
                 continue
-            doc_id, label = int(row["document_id"]), row["label"].strip()
+            url, label = row["url"].strip(), row["label"].strip()
             if label not in ("0", "1"):
-                raise ValueError(f"gold label must be 0 or 1, got {label!r} for document {doc_id}")
-            if gold.setdefault(doc_id, label == "1") != (label == "1"):
-                raise ValueError(f"conflicting gold labels for document {doc_id}, module {module}")
+                raise ValueError(f"gold label must be 0 or 1, got {label!r} for {url}")
+            if gold.setdefault(url, label == "1") != (label == "1"):
+                raise ValueError(f"conflicting gold labels for {url}, module {module}")
     return gold
 
 
-def compute_metrics(
-    module: int, threshold: float, gold: dict[int, bool], scores: dict[int, float]
+def compute_metrics[K](
+    module: int, threshold: float, gold: dict[K, bool], scores: dict[K, float]
 ) -> EvalResult:
     """Flagged means score >= threshold. A document without a score counts as not flagged."""
     tp = fp = fn = tn = 0
-    for doc_id, positive in gold.items():
-        flagged = scores.get(doc_id, 0.0) >= threshold
+    for key, positive in gold.items():
+        flagged = scores.get(key, 0.0) >= threshold
         if flagged and positive:
             tp += 1
         elif flagged:
@@ -83,22 +89,27 @@ def compute_metrics(
 async def evaluate(
     conn: asyncpg.Connection, module: str | int, threshold: float, gold_path: Path = GOLD_PATH
 ) -> EvalResult:
-    """Metrics for `module` at `threshold` from gold.csv and the highest stored finding score per document."""
+    """Metrics for `module` at `threshold` from gold.csv and the highest stored finding score per document.
+
+    Gold rows are matched to documents by url_hash, so labels survive a re-seed of the database.
+    """
     if not 0.0 <= threshold <= 1.0:
         raise ValueError(f"threshold must be in [0, 1], got {threshold}")
     mod = parse_module(module)
     gold = load_gold(mod, gold_path)
+    by_hash = {url_hash(u): u for u in gold}
     rows = (
         await conn.fetch(
-            "SELECT document_id, max(score) AS score FROM findings "
-            "WHERE module = $1 AND document_id = ANY($2::bigint[]) GROUP BY document_id",
+            "SELECT d.url_hash, max(f.score) AS score FROM findings f "
+            "JOIN documents d ON d.id = f.document_id "
+            "WHERE f.module = $1 AND d.url_hash = ANY($2::text[]) GROUP BY d.url_hash",
             mod,
-            list(gold),
+            list(by_hash),
         )
         if gold
         else []
     )
-    result = compute_metrics(mod, threshold, gold, {r["document_id"]: float(r["score"]) for r in rows})
+    result = compute_metrics(mod, threshold, gold, {by_hash[r["url_hash"]]: float(r["score"]) for r in rows})
     if not gold:
         log.warning("eval module=%d: no gold rows, all metrics are zero", mod)
     elif result.missing_findings:

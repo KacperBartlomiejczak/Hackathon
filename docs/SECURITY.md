@@ -1,6 +1,6 @@
 # Bezpieczeństwo i audyt zależności — InvestWatch
 
-Ostatnia aktualizacja: 2026-11-21
+Ostatnia aktualizacja: 2026-11-22
 
 ## 1. Architektura bezpieczeństwa stosu
 
@@ -40,14 +40,14 @@ Skan wykonany 2026-11-21 narzędziem **`docker scout` `v1.28.0`** (`trivy` i `os
 
 | Obraz | Serwis | Digest | Podatności (C / H / M / L / ?) | Health score / Status | Uwagi / zalecenia |
 |---|---|---|---|---|---|
-| `pgvector/pgvector:0.8.7-pg16` | `postgres` | `018b4a92e634` | `4C / 50H / 52M / 68L / 6?` | `D (50%)` | fixable `4C 30H` (Debian Bookworm) |
-| `valkey/valkey:8.1.12-alpine` | `valkey` | `bba7a8ff03d3` | `1C / 5H / 1M / 0L` | `D (50%)` | fixable `1C 5H` (Alpine 3) |
-| `chrislusf/seaweedfs:3.96` | `seaweedfs` | `3ce80bed9e8a` | `23C / 92H / 71M / 10L / 1?` | `E (17%)` | `1C` high-profile, baza wykryta jako `alpine:latest`; monitorować nowsze wydanie |
-| `curlimages/curl:8.23.0` | `s3-init`, `ollama-init` | `3fb7e13e5d17` | `1C / 12H / 9M / 0L / 6?` | `C (56%)` | kontener jednorazowy init (`restart: "no"`), bez ekspozycji sieciowej |
+| `pgvector/pgvector:0.8.7-pg16` | `postgres` | `484e838076e0` | `4C / 139H` (Trivy 0.76.2, 2026-11-22) | — | najnowszy patch linii pg16 (0.8.7, 2026-11-12); fixable `26`, wszystkie w pakietach Debian Bookworm. Zostaje na PG16 i bookworm, zob. sekcja 4 |
+| `valkey/valkey:8.1.12-alpine` | `valkey` | `9971099af41c` | `0C / 0H` (Trivy, 2026-11-22) | — | tag bez zmian, ale obraz przebudowany 2026-11-19 na Alpine 3.24 (poprzedni skan Scout: `1C / 5H`) |
+| `chrislusf/seaweedfs:4.52` | `seaweedfs` | `57877e32bb90` | `0C / 1H` (Trivy, 2026-11-22) | — | podbite z `3.96` (Trivy: `6C / 80H`, Alpine 3.22; Scout: `23C / 92H`). Baza Alpine 3.24; dane z wolumenu 3.96 odczytują się po podbiciu, `-s3.config` działa tak samo (Issue #73) |
+| `curlimages/curl:8.23.0` | `s3-init`, `ollama-init` | `3fb7e13e5d17` | `0C / 32H` (Trivy, 2026-11-22) | — | najnowszy 8.x; kontener jednorazowy (`restart: "no"`), bez ekspozycji sieciowej |
 | `ollama/ollama:0.40.17` | `ollama` | lokalny | niekompletny (`238` paczek) | brak pełnej oceny | `401 Unauthorized` na API obrazu bazowego (brak `docker login` w Scout CLI) |
 | `node:22.23.5-bookworm-slim` | `api`, `collector` (build) | `47725aca53d3` | `0C / 17H / 24M / 42L` | `D (39%)` | `0` Critical; `api` działa jako `USER node` |
 | `mcr.microsoft.com/playwright:v1.65.1-noble` | `collector` (runtime) | `766137e2d9ca` | `0C / 7H / 220M / 30L` | `D (50%)` | `0` Critical; działa jako `USER pwuser` |
-| `python:3.12.12-slim-bookworm` | `ai` | `2986c55feb36` | `8C / 58H / 57M / 61L / 6?` | `D (39%)` | działa jako `USER app` |
+| `python:3.12.16-slim-trixie` | `ai` | — | `0C / 51H` (Trivy, ai-core, Issue #73) | — | podbite z `3.12.12-slim-bookworm` (Scout: `8C / 58H`); pozostałe `51H` bez poprawki w Debianie (`ai/SECURITY.md`); działa jako `USER app` |
 | `node:22.23.5-alpine` | `web` (build) | — | `0C / 10H` (Trivy) | — | podbite z `node:22.12-alpine` (Scout: `10C / 75H`). Wszystkie `10H` w paczkach dołączonych do `npm`; etap build nie trafia do obrazu końcowego (`web/SECURITY.md`) |
 | `nginx:1.30.7-alpine` | `web` (runtime) | — | `0C / 0H` (Trivy, po `apk upgrade libxml2`) | — | podbite z `nginx:1.27.5-alpine` (Scout: `18C / 68H`); ostatnia `HIGH` (`libxml2 2.13.9-r2`) usunięta w `web/Dockerfile` (Issue #44) |
 
@@ -65,5 +65,12 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.
 
 ## 4. Znane ograniczenia (środowisko demo)
 
-- `postgres`, `valkey`, `seaweedfs` i `ollama` są wystawione na porty hosta dla wygody demo i debugowania. Na produkcji należy wystawiać wyłącznie `web` i `api`.
-- `seaweedfs` działa w trybie demo `-s3` bez pliku `-s3.config` (bez wymuszania podpisów S3 na porcie `8333`) — w produkcji należy włączyć konfigurację kluczy S3.
+- `postgres` (5432), `valkey` (6379), `seaweedfs` (8333), `ollama` (11434) i `ai` (8000) są mapowane wyłącznie na `127.0.0.1` hosta (Issue #72, #70), więc nie są widoczne z sieci Wi-Fi. Z zewnątrz dostępne są tylko `web` (5173) i `api` (3000). Port `8333` zostaje na localhost, bo przeglądarka pobiera screenshoty z presigned URL (`S3_PUBLIC_ENDPOINT`).
+- `web` (nginx) nie dostaje `env_file`: zmienne potrzebne przy budowie (`VITE_API_URL`, `VITE_ADMIN_TOKEN`) idą przez `build.args`, a w kontenerze nie ma żadnych sekretów z `.env`.
+- `seaweedfs` działa z `-s3.config` (`infra/seaweedfs/entrypoint.sh` generuje tożsamość z `S3_ACCESS_KEY` / `S3_SECRET_KEY`): żądania bez podpisu SigV4 dostają 403. Healthcheck używa `/healthz`, a `s3-init` podpisuje wywołania (`curl --aws-sigv4`). Domyślne klucze z `.env.example` są kluczami dev/demo i przed wdrożeniem trzeba je zmienić.
+- `ADMIN_TOKEN` (zapisy REST w `api`) jest opcjonalny: pusty oznacza zapis bez tokenu. Token wbudowany w bundle dashboardu (`VITE_ADMIN_TOKEN`) jest publiczny z definicji, więc chroni przed przypadkowymi zapisami, a nie przed użytkownikiem dashboardu.
+- `AI_REQUIRE_TOKEN` w serwisie `ai` zostaje domyślnie wyłączony do czasu, aż `collector` i `api` zaczną wysyłać `X-Internal-Token` (Issue #70).
+- **Obrazy z pozostałymi podatnościami (Issue #73, skan Trivy 0.76.2 z 2026-11-22):**
+  - `pgvector/pgvector:0.8.7-pg16` (`4C / 139H`): to najnowszy patch linii pg16, a krytyczne luki leżą w pakietach Debian Bookworm. Wariant `-trixie` zmienia glibc (2.36 → 2.41), co na istniejącym wolumenie `pg_data` grozi niezgodnością kolejności indeksów tekstowych (m.in. unikalny indeks `url_hash`), a przejście na PG17 psuje wolumen. Ryzyko zaakceptowane: port `5432` tylko na `127.0.0.1`, baza dostępna wyłącznie z hosta i z sieci Compose. Na świeżym wolumenie można rozważyć wariant `-trixie`.
+  - `curlimages/curl:8.23.0` (`0C / 32H`): najnowszy 8.x, kontener jednorazowy bez portów.
+  - `chrislusf/seaweedfs:4.52` (`0C / 1H`): zostaje, port `8333` tylko na `127.0.0.1`, S3 wymaga podpisu.

@@ -96,7 +96,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         llm_cfg = app.state.config.get("llm", {})
         app.state.llm = OllamaClient(timeout_s=float(llm_cfg.get("timeout_s", 60)),
-                                     retries=int(llm_cfg.get("retries", 1)))
+                                     retries=int(llm_cfg.get("retries", 1)),
+                                     max_concurrency=int(llm_cfg.get("max_concurrency", 1)))
     except LLMError as exc:
         logger.error("llm client init failed: %s", exc)
     warm = asyncio.create_task(_warmup(app)) if app.state.llm is not None else None
@@ -179,7 +180,7 @@ async def analyze(document_id: Annotated[int, PathParam(ge=1)]) -> AnalyzeResult
     except pipeline.DocumentNotFound:
         raise HTTPException(status_code=404, detail="document not found") from None
     except pipeline.AnalysisFailed as exc:
-        raise HTTPException(status_code=502, detail=f"analysis failed: {exc}") from exc
+        raise HTTPException(status_code=502, detail=f"analysis failed: {exc.category}") from exc
 
 
 @app.post(

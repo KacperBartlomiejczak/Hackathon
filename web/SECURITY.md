@@ -28,6 +28,7 @@ Wynik: 0 podatności (critical 0, high 0, moderate 0, low 0).
 
 - W `web/` nie ma sekretów.
 - Konfiguracja wyłącznie przez `VITE_API_URL` i `VITE_USE_MOCKS`. Są to wartości publiczne (trafiają do bundla), nie sekrety.
+- Opcjonalny `VITE_ADMIN_TOKEN` (issue #71) jest dołączany jako `Authorization: Bearer` do `PUT /settings`, `PATCH /findings/:id/status` i `POST /sources/:id/run`. Trafia do bundla, więc każdy, kto otworzy stronę, może go odczytać. To prosta blokada dla demo on-premise, a nie ochrona przed użytkownikiem panelu. Egzekwuje ją api, a przy 401/403 web pokazuje komunikat o braku uprawnień.
 - W Dockerfile nie ma `ENV`/`ARG` z sekretem.
 - Grep w `web/` (bez `node_modules` i `dist`, bez `package-lock.json`) na wzorce `api_key|secret|password|token=` (bez rozróżniania wielkości liter), 2026-11-21: wynik pusty (brak trafień).
 
@@ -51,3 +52,5 @@ Pozostałe podatności w nowych obrazach:
 Zmiana: node `22.12-alpine` → `22.23.5-alpine` (ta sama wersja Node co `api` i `collector`), nginx `1.27.5-alpine` → `1.30.7-alpine` (gałąź stable). Tagi przypięte, bez `latest`.
 
 Sprawdzono po zmianie: `docker compose ps web` pokazuje `healthy`, `nginx -v` zwraca 1.30.7, a `/`, `/findings`, `/trends`, `/calibration` i `/sources` zwracają 200 z aplikacją (routing SPA po odświeżeniu działa).
+
+Token administratora (`VITE_ADMIN_TOKEN`) jest wbudowywany w bundle w czasie budowania obrazu (`ARG VITE_ADMIN_TOKEN`), więc jest publiczny dla każdego, kto otworzy dashboard; to świadoma decyzja dla demo on-premise.

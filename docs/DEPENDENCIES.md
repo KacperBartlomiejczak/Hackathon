@@ -8,12 +8,12 @@ UKNF przejmuje prawa do kodu, więc cały stos używa wyłącznie licencji permi
 |---|---|---|---|
 | `postgres` | `pgvector/pgvector:0.8.7-pg16` | PostgreSQL License | Baza relacyjna PostgreSQL 16 + wektory `pgvector` |
 | `valkey` | `valkey/valkey:8.1.12-alpine` | BSD-3-Clause | Broker kolejek BullMQ (zamiast Redisa RSAL/SSPL) |
-| `seaweedfs` | `chrislusf/seaweedfs:3.96` | Apache-2.0 | Object storage kompatybilny z S3 (zamiast MinIO AGPL) |
+| `seaweedfs` | `chrislusf/seaweedfs:4.52` | Apache-2.0 | Object storage kompatybilny z S3 (zamiast MinIO AGPL) |
 | `ollama` | `ollama/ollama:0.40.17` | MIT | Lokalny silnik inferencji LLM i embeddingów |
 | `s3-init`, `ollama-init` | `curlimages/curl:8.23.0` | curl (MIT-like) | Jednorazowe utworzenie bucketa S3 i pobranie modeli Ollamy |
 | `api`, `collector` (build) | `node:22.23.5-bookworm-slim` | MIT (Node.js) | Środowisko Node 22 (build i runtime `api`) |
 | `collector` (runtime) | `mcr.microsoft.com/playwright:v1.65.1-noble` | Apache-2.0 | Runtime z preinstalowanym Chromium dla Playwrighta |
-| `ai` | `python:3.12.12-slim-bookworm` + `ghcr.io/astral-sh/uv:0.9.15` | PSF / MIT+Apache-2.0 | Środowisko Python 3.12 i menedżer pakietów `uv` |
+| `ai` | `python:3.12.16-slim-trixie` + `ghcr.io/astral-sh/uv:0.9.15` | PSF / MIT+Apache-2.0 | Środowisko Python 3.12 i menedżer pakietów `uv` |
 | `web` (build) | `node:22.23.5-alpine` | MIT (Node.js) | Build aplikacji Vite/React |
 | `web` (runtime) | `nginx:1.30.7-alpine` + `apk upgrade libxml2` | BSD-2-Clause | Serwowanie statycznego bundla SPA na porcie `5173` |
 

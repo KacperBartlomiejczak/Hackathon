@@ -19,6 +19,7 @@ llm:
   timeout_s: 120
   retries: 1
   temperature: 0
+  max_concurrency: 1  # = OLLAMA_NUM_PARALLEL
 
 analysis:
   # Wall-clock budget per document for all modules together; must stay below the collector timeout (300 s).
