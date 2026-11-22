@@ -1,0 +1,135 @@
+﻿nr;modul;typ_publikujacego;url;etykieta (1 lub 0);reguly_M2 (np. 3,6,14);notatka
+1;1;osoba trzecia o XTB;https://www.bankier.pl/smart/rachunek-maklerski-w-dm-xtb-opinie-analiza-recenzja-brokera-xtb;0;;decyzja uzytkownika
+2;1;osoba trzecia o XTB;https://moneteo.com/analizy/rachunek-forex-standard-xtb;0;;decyzja uzytkownika
+3;1;osoba trzecia o XTB;https://moneteo.com/analizy/rachunek-inwestycyjny-dom-maklerski-xtb;0;;decyzja uzytkownika
+4;1;osoba trzecia o XTB;https://invezz.com/pl/recenzje/xtb/;0;;blad 403, brak tekstu
+5;1;osoba trzecia o XTB;https://freenance.io/produkty/xtb-recenzja-opinie-2026/;1;;decyzja uzytkownika
+6;1;osoba trzecia o XTB;https://jakdorobic.pl/xtb-opinie/;1;;strona bez tresci (lista artykulow)
+7;1;osoba trzecia o XTB;https://tradingbeasts.com/pl/xtb-opinie/;0;;decyzja uzytkownika
+8;1;osoba trzecia o XTB;https://takeprofitapp.com/pl/learn/xtb-polski-broker-recenzja-2026;1;;decyzja uzytkownika
+9;1;osoba trzecia o XTB;https://www.interactivecrypto.com/pl/broker/xtb;0;;strona bez recenzji (placeholder)
+10;1;osoba trzecia o XTB;https://antyweb.pl/knf-uderza-20-milionow-zl-kary-to-jedna-z-najwiekszych-sankcji;0;;neutralny news o karze KNF
+11;2;XTB (domena oficjalna);https://www.xtb.com/pl/centrum-pomocy/program-partnerski-7/program-partnerski;0;;pelna deklaracja ryzyka CFD, brak obietnic zysku
+12;2;XTB (domena oficjalna);https://www.xtb.com/pl/centrum-pomocy/oplaty-i-platnosci-3;0;;tylko ciasteczka
+13;2;XTB (domena oficjalna);https://logos.xtb.com/press/Meet%20XTB_2025_pl.pdf;0;;PDF, brak wyciagnietego tekstu
+14;2;XTB (domena oficjalna);https://www.xtb.com/ro/de-ce-sa-investim-in-criptomonede-cfd-kb;0;;decyzja uzytkownika
+15;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/wig/;1;;decyzja uzytkownika
+16;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/wig20/;1;;decyzja uzytkownika
+17;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/pivotpoints/;1;;decyzja uzytkownika
+18;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/poland/;1;;decyzja uzytkownika
+19;3;podmiot spoza rejestru lub nieznany;https://comparic.pl/te-akcje-maja-ogromny-potencjal-pazdziernikowe-typy-marcina-podlackiego/;1;;403
+20;3;podmiot spoza rejestru lub nieznany;https://comparic.pl/te-akcje-maja-ogromny-potencjal-analityk-wskazuje-swoje-typy-na-grudzien-2025-r/;1;;403
+21;3;podmiot spoza rejestru lub nieznany;https://strefainwestorow.pl/wydarzenia/260112/w-co-inwestowac-typy-inwestycyjne-najlepsze-spolki-2026;0;;teaser platnego webinaru, brak tresci rekomendacji
+22;3;licencjonowane domy maklerskie (kontrola);https://www.money.pl/gielda/rekomendacje/;0;;rekomendacje licencjonowanych domow maklerskich
+23;3;licencjonowane domy maklerskie (kontrola);https://www.biznesradar.pl/rekomendacje/;0;;rekomendacje licencjonowanych domow maklerskich
+24;2;DM BOS (domena oficjalna);https://bossa.pl;0;;strona glowna, pelne ostrzezenie o ryzyku, brak obietnic zysku
+25;2;Capital.com (domena oficjalna);https://capital.com/pl;0;;ostrzezenie o ryzyku CFD widoczne na gorze
+26;2;eToro (domena oficjalna);https://www.etoro.com/pl/;0;;DO DECYZJI: 'Twoj kapital jest zagrozony' i ostrzezenie o wynikach historycznych sa, ale male i przy CopyTrader
+27;2;OANDA TMS (domena oficjalna);https://www.tms.pl;0;;ostrzezenie o ryzyku CFD (77% traci) w stopce, brak obietnic zysku; GRANICZNE (regula 6, stopka); strona sprawdzona 22.11, etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11
+28;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s01;1;3;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+29;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s02;1;6;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+30;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s03;1;14,12a;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+31;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s04;1;17,18;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+32;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s05;1;15;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+33;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s06;1;3,9;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+34;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s07;1;16;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+35;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s08;1;11;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+36;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s09;0;;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+37;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s10;0;;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+38;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s11;0;;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+39;2;BrokerTest Capital (syntetyczne);https://przykladowy-broker.example/m2-s12;0;;"SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl"
+40;1;osoba trzecia o firmie z rejestru;https://www.eupersonalfinance.eu/pl/articles/etoro-bonus;1;;afiliacyjny bonus eToro (decyzja: ja)
+41;1;osoba trzecia o firmie z rejestru;https://www.matchmybroker.com/articles/kod-promocyjny-etoro-polska;1;;link partnerski eToro (decyzja: ja)
+42;1;osoba trzecia o firmie z rejestru;https://tradingbeasts.com/pl/etoro-promo/;1;;partner eToro, promocja (decyzja: ja)
+43;1;osoba trzecia o firmie z rejestru;https://takeprofitapp.com/pl/learn/etoro-broker-recenzja-2026;1;;recenzja z linkami afiliacyjnymi (decyzja: ja)
+44;1;osoba trzecia o firmie z rejestru;https://moneteo.com/analizy/etoro;0;;recenzja informacyjna (decyzja: ja)
+45;1;osoba trzecia o firmie z rejestru;https://jakdorobic.pl/trading-212-darmowa-akcja-styczen-2024/;1;;kod polecajacy Trading 212 (decyzja: ja)
+46;1;osoba trzecia o firmie z rejestru;https://www.eupersonalfinance.eu/pl/articles/trading-212-promo-code;1;;kod promocyjny Trading 212, link sponsorowany (decyzja: ja)
+47;1;osoba trzecia o firmie z rejestru;https://moneteo.com/analizy/konto-maklerskie-ike-ikze-bm-mbank;0;;recenzja informacyjna mBank (decyzja: ja)
+48;1;osoba trzecia o firmie z rejestru;https://moneteo.com/analizy/konto-maklerskie-ike-ikze-bossa-dm-bos;POMIN;;DO DECYZJI: recenzja Bossa, 2x 'polecam'
+49;1;osoba trzecia o firmie z rejestru;https://moneteo.com/analizy/konto-maklerskie-dm-bossa;0;;recenzja informacyjna Bossa (decyzja: ja)
+50;1;osoba trzecia o firmie z rejestru;https://freenance.io/produkty/rachunek-maklerski-mbank/;0;;DO DECYZJI: analiza kosztow mBank, serwis afiliacyjny, bez wyraznego CTA
+51;1;osoba trzecia o firmie z rejestru;https://takeprofitapp.com/pl/learn/bossa-recenzja-2026;1;;DO DECYZJI: krotka recenzja Bossa (szablon takeprofit)
+52;1;osoba trzecia o firmie z rejestru;https://takeprofitapp.com/pl/learn/mbank-brokerage-recenzja-2026;1;;DO DECYZJI: krotka recenzja mBank (szablon takeprofit)
+53;1;osoba trzecia o firmie z rejestru;https://antyweb.pl/knf-influencerzy-finansowi;0;;komentarz o influencerach, bez promocji firmy (decyzja: ja)
+54;1;osoba trzecia o firmie z rejestru;https://www.infor.pl/prawo/nowosci-prawne/5416174,KNF-ostrzega-przed-poradami-inwestycyjnymi-influenserow.html;0;;news o ostrzezeniu KNF (decyzja: ja)
+55;1;osoba trzecia o firmie z rejestru;https://bezprawnik.pl/influencerzy-finansowi-porady/;0;;artykul o influencerach finansowych (decyzja: ja)
+56;3;podmiot spoza rejestru lub nieznany;https://strefainwestorow.pl/blog/podsumowanie-sesji/podsumowanie-tygodnia-wysyp-spolek-w-ciekawej-sytuacji-technicznej;0;;teaser platnego serwisu (decyzja: ja)
+57;3;podmiot spoza rejestru lub nieznany;https://j2t.com/pl/solutions/blogview/analiza-techniczna-forex-usd-eur-pln/;POMIN;;DO DECYZJI: edukacyjna analiza techniczna EUR/USD, 1x 'kupuj'
+58;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/forexfreesignal/;1;;prywatna analiza zlota, scenariusz spadkowy (decyzja: ja)
+59;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/xtradebroker/;1;;prywatna analiza XTB, kierunek wzrostowy (decyzja: ja)
+60;3;podmiot spoza rejestru lub nieznany;https://www.erste.pl/inwestor/analizy-i-rekomendacje/tydzien-na-gpw;0;;wideo licencjonowanego biura maklerskiego (Erste) (decyzja: ja)
+61;3;podmiot spoza rejestru lub nieznany;https://www.bankier.pl/wiadomosc/Wzrostowy-tydzien-na-GPW-Co-dalej-7510241.html;0;;news o typowaniu WIG na forum (decyzja: ja)
+62;1;osoba trzecia o firmie z rejestru;https://jakdorobic.pl/ranking-kont-maklerskich/;1;;serwis z reklamami/afiliacja, ranking brokerow (decyzja: ja)
+63;1;osoba trzecia o firmie z rejestru;https://jakdorobic.pl/freedom24-opinie/;1;;opinia Freedom24, sponsorowane/reklama (decyzja: ja)
+64;1;osoba trzecia o firmie z rejestru;https://inwestomat.eu/ranking-kont-maklerskich-do-inwestowania/;1;;ranking z linkami afiliacyjnymi (decyzja: ja)
+65;1;osoba trzecia o firmie z rejestru;https://inwestomat.eu/jakie-konto-do-etf-ow-ranking-kont-maklerskich/;1;;ranking ETF z linkami afiliacyjnymi (decyzja: ja)
+66;1;osoba trzecia o firmie z rejestru;https://www.financemagnates.com/forex/analysis/revolut-invest-crushes-34-polish-brokerages-but-cant-touch-xtbs-crown/;0;;news o rynku brokerow (decyzja: ja)
+67;1;osoba trzecia o firmie z rejestru;https://jakdorobic.pl/freedom24-czy-saxo-bank-sprawdz-porownanie-brokerow/;POMIN;;DO DECYZJI: porownanie Freedom24 vs Saxo, 4x 'polecam'
+68;1;osoba trzecia o firmie z rejestru;https://moneteo.com/analizy/freedom24;POMIN;;DO DECYZJI: recenzja Freedom24 (Moneteo), 2x 'polecam'
+69;1;osoba trzecia o firmie z rejestru;https://moneteo.com/analizy/lynx-rachunek-maklerski;POMIN;;DO DECYZJI: opis Lynx, bez wyraznej promocji
+70;1;osoba trzecia o firmie z rejestru;https://marciniwuc.com/ranking-ike-i-ikze-2024/;POMIN;;DO DECYZJI: podcast ranking IKE XTB/Bossa/mBank, afiliacja
+71;1;osoba trzecia o firmie z rejestru;https://www.eupersonalfinance.eu/pl/articles/najlepsi-brokerzy-etf;POMIN;;DO DECYZJI: ranking brokerow ETF, 1x polecam
+72;1;osoba trzecia o firmie z rejestru;https://freenance.io/porownania/xtb-vs-degiro-vs-bos-rachunek-maklerski/;POMIN;;DO DECYZJI: porownanie XTB/Degiro/BOS, serwis afiliacyjny
+73;1;osoba trzecia o firmie z rejestru;https://freenance.io/rankingi/najtansze-konta-maklerskie/;POMIN;;DO DECYZJI: ranking najtanszych kont, serwis afiliacyjny
+74;1;osoba trzecia o firmie z rejestru;https://takeprofitapp.com/pl/learn/konta-maklerskie-polska-porownanie-2026;POMIN;;DO DECYZJI: porownanie takeprofit, szablon
+75;1;osoba trzecia o firmie z rejestru;https://moneteo.com/rankingi/brokerzy-forex;POMIN;;DO DECYZJI: metodologia rankingu brokerow forex
+76;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/gielda/;1;;prywatna analiza KRUK, kierunek spadkowy (decyzja: ja)
+77;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/cryptocurrency/;1;;prywatna analiza krypto, long, take profit (decyzja: ja)
+78;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/bitcoin/;1;;prywatna analiza BTC, poziomy kup/sprzedaj/stop loss (decyzja: ja)
+79;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/btcusdlong/;1;;prywatna analiza BTC, poziomy kup/sprzedaj (decyzja: ja)
+80;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/satoshi/;1;;prywatna analiza, 'rynek gotowy na LONG' (decyzja: ja)
+81;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/mwig40/;POMIN;;DO DECYZJI: artykul o pozycji Polski, 2x 'long'
+82;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/btcusdtrading/;POMIN;;DO DECYZJI: BTC poziomy oporu i wsparcia, bez zalecenia
+83;3;podmiot spoza rejestru lub nieznany;https://www.bankier.pl/smart/etf-co-to-jest-i-jak-dzialaja-fundusze-etf;0;;edukacja o ETF (Bankier) (decyzja: ja)
+84;3;podmiot spoza rejestru lub nieznany;https://decodethefuture.org/czym-jest-etf-proste-wyjasnienie-dla-poczatkujacych/?amp=1;0;;edukacja o ETF (decyzja: ja)
+85;3;podmiot spoza rejestru lub nieznany;https://strefainwestorow.pl/rekomendacje/lista-rekomendacji;0;;rekomendacje licencjonowanych biur maklerskich (decyzja: ja)
+86;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/gpw/;1;;analiza spolki, long/cel (decyzja: ja)
+87;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/akcje/;1;;analiza Robinhood, kierunek wzrostowy (decyzja: ja)
+88;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/formacje/;POMIN;;instrument nieokreslony (decyzja: ja)
+89;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/pkn/;1;;analiza PKN, trend wzrostowy (decyzja: ja)
+90;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/eurusdlongsetup/;1;;pomysl na BUY EURUSD (decyzja: ja)
+91;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/eur-euro/;1;;EURCHF kierunek wzrostowy (decyzja: ja)
+92;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/gbpusd/;1;;long/short EURUSD GBPUSD (decyzja: ja)
+93;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/dax/;0;;komentarz o rynku, bez zalecenia (decyzja: ja)
+94;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/dax30long/;1;;DAX, long (decyzja: ja)
+95;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/ger30sell/;1;;DAX, wejscie na poziom (decyzja: ja)
+96;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/spx500/;1;;SPX/NASDAQ kupuj/short (decyzja: ja)
+97;3;podmiot spoza rejestru lub nieznany;https://pl.tradingview.com/ideas/ndx/;1;;SPX/NASDAQ short (decyzja: ja)
+98;3;podmiot spoza rejestru lub nieznany;https://direct.money.pl/artykuly/porady/jak-dziala-gielda;0;;edukacja o gieldzie (decyzja: ja)
+99;3;podmiot spoza rejestru lub nieznany;https://direct.money.pl/artykuly/porady/inwestowanie-na-gieldzie;0;;edukacja o inwestowaniu (decyzja: ja)
+100;1;demo fixture;https://inwestuj-z-marta.example/blog/jak-zaczac-z-cfd;1;;osoba trzecia o XTB, kod polecajacy (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+101;1;demo fixture;https://kasa-na-gieldzie.example/wpis/bossa-ranking;1;;osoba trzecia o BOS, link partnerski (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+102;1;demo fixture;https://mlody-inwestor.example/2026/11/mbank-emakler;1;;osoba trzecia o mBank, kod promocyjny (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+103;1;demo fixture;https://trader-tomek.example/posty/noble-ike;1;;osoba trzecia o Noble, link w bio (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+104;1;demo fixture;https://www.xtb.com/pl/synthetic/promocja-cfd;0;;publikuje sama firma (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+105;1;demo fixture;https://bossa.pl/synthetic/zimowa-promocja;0;;publikuje sama firma (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+106;1;demo fixture;https://noblesecurities.pl/synthetic/fundusz-plus;0;;publikuje sama firma (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+107;1;demo fixture;https://slownik-finansow.example/inflacja;0;;brak firmy z rejestru (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+108;1;demo fixture;https://historia-gieldy.example/gpw-1991;0;;brak firmy z rejestru (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+109;2;demo fixture, material firmy;https://www.xtb.com/pl/synthetic/promocja-cfd;0;;ostrzezenie o ryzyku, brak obietnicy zysku (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+110;2;demo fixture, material firmy;https://bossa.pl/synthetic/zimowa-promocja;1;;20% miesiecznie, pewny zysk, brak ostrzezenia (r. 3, 14) (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+111;2;demo fixture, material firmy;https://noblesecurities.pl/synthetic/fundusz-plus;1;;35% wyniku, gwarantowany wzrost, brak ostrzezenia (r. 3, 14) (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+112;3;demo fixture, podmiot spoza rejestru;https://zloty-portfel.example/oferta;1;;zarzadzanie portfelami i doradztwo, podmiot spoza rejestru (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+113;3;demo fixture, podmiot spoza rejestru;https://sygnaly-vip.example/kanal;1;;kupuj/sprzedaj XAU/USD, podmiot spoza rejestru (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+114;3;demo fixture, podmiot spoza rejestru;https://slownik-finansow.example/inflacja;0;;edukacja (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+115;3;demo fixture, podmiot spoza rejestru;https://historia-gieldy.example/gpw-1991;0;;edukacja (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+116;2;strona oficjalna firmy;https://www.xtb.com/pl;0;;strona glowna PL: pelne ostrzezenie CFD (79% traci), brak obietnic zysku; strona sprawdzona 22.11 (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+117;2;strona oficjalna firmy;https://www.cmcmarkets.com/pl-pl;0;;0% prowizji to cena, nie obietnica zysku; ostrzezenie CFD (70% traci) obecne; strona sprawdzona 22.11 (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+118;2;strona oficjalna firmy;https://www.tickmill.com/pl;0;;ostrzezenie CFD (74% traci) obecne, brak obietnic zysku; strona sprawdzona 22.11 (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+119;2;strona oficjalna firmy;https://www.ig.com/pl;0;;ostrzezenie CFD (74% traci) obecne, brak obietnic zysku; strona sprawdzona 22.11 (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+120;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s13;1;1;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+121;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s14;1;2;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+122;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s15;1;10;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+123;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s16;1;12b;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+124;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s17;1;3,6,7;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+125;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s18;1;15;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+126;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s19;1;17;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+127;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s20;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+128;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s21;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+129;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s22;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+130;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s23;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+131;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s24;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+132;2;syntetyczny, material firmy;https://przykladowy-broker.example/m2-s25;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m2.jsonl (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+133;1;syntetyczny;https://finfluencer-test.example/m1-s01;1;;SYNTETYCZNE; fixture w ai/eval/synthetic_m1_m3.jsonl: osoba trzecia o Trading 212, kod polecajacy (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
+134;3;syntetyczny;https://edukacja-test.example/m3-s01;0;;SYNTETYCZNE; fixture w ai/eval/synthetic_m1_m3.jsonl: edukacja, brak rekomendacji (etykieta zaproponowana przez agenta, zatwierdzona przez czlowieka 22.11)
