@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./infra/db:/docker-entrypoint-initdb.d:ro
@@ -26,7 +26,7 @@ services:
     env_file:
       - .env
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     command: ["valkey-server", "--appendonly", "yes"]
     volumes:
       - valkey_data:/data
@@ -39,16 +39,17 @@ services:
     restart: unless-stopped
 
   seaweedfs:
-    image: chrislusf/seaweedfs:3.96
+    image: chrislusf/seaweedfs:4.52
     env_file:
       - .env
-    command: ["server", "-dir=/data", "-s3", "-s3.port=8333", "-ip.bind=0.0.0.0"]
+    entrypoint: ["sh", "/seaweedfs-entrypoint.sh"]
     ports:
-      - "8333:8333"
+      - "127.0.0.1:8333:8333"
     volumes:
       - seaweedfs_data:/data
+      - ./infra/seaweedfs/entrypoint.sh:/seaweedfs-entrypoint.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status && wget -q -O /dev/null http://localhost:8333/"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9333/cluster/status && wget -q -O /dev/null http://localhost:8333/healthz"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -72,7 +73,7 @@ services:
     env_file:
       - .env
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
@@ -126,7 +127,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -171,8 +172,7 @@ services:
       context: ./web
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
-    env_file:
-      - .env
+        VITE_ADMIN_TOKEN: ${VITE_ADMIN_TOKEN:-}
     ports:
       - "5173:5173"
     depends_on:
