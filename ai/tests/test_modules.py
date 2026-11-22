@@ -393,3 +393,13 @@ def test_m3_pure_disclaimer_quote_is_dropped() -> None:
              "informacją rekomendującą lub sugerującą strategię inwestycyjną.")
     assert m3.is_disclaimer_quote(quote)
     assert not m3.is_disclaimer_quote("Zarządzam Twoim portfelem.")
+
+
+def test_m3_advice_before_comma_disclaimer_is_still_advice() -> None:
+    """Review of #102: "kupuj X, to nie jest rekomendacja" must keep the advice clause."""
+    text = "Kupuj akcje ABC, to nie jest rekomendacja inwestycyjna."
+    score, reasons = m3.rules_hits(text)
+    assert [r.criterion for r in reasons] == ["rule:direct_recommendation"]
+    assert score > 0
+    stripped = m3.strip_disclaimers(text)
+    assert "Kupuj akcje ABC" in stripped and "rekomendacja" not in stripped

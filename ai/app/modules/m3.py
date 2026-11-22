@@ -60,7 +60,7 @@ def _load_rules() -> tuple[str, list[tuple[str, float, re.Pattern[str]]], re.Pat
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
 # "To nie jest rekomendacja, ale kupuj X": only the clause before the contrast is the disclaimer (#95).
-_CLAUSE_SPLIT = re.compile(r"\s*;\s*|\s+[—–-]\s+|,?\s+(?:ale|jednak|natomiast|lecz)\s+", re.IGNORECASE)
+_CLAUSE_SPLIT = re.compile(r"\s*;\s*|\s+[—–-]\s+|,?\s+(?:ale|jednak|natomiast|lecz)\s+|,\s+", re.IGNORECASE)
 
 
 def strip_disclaimers(text: str) -> str:

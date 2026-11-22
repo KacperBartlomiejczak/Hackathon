@@ -210,3 +210,9 @@
 - **Zmiana:** `OllamaClient.warmup()` zwraca bool, `app.state.llm_ready` ustawiany po warmupie, `/health` ma pole `llm` (`ok` / `loading` / `error`). Pole informacyjne: `status` i kod 503 zależą jak dotąd od Ollamy i Postgresa, więc healthcheck w compose się nie zmienia. Pytest 439 passed.
 - **Nie zrobione:** fail-fast po nieudanym warmupie (świadomie, na CPU model może się ładować dłużej niż timeout).
 - **Do sprawdzenia przez człowieka:** `curl localhost:8000/health` na żywym stosie; `docs/contracts.md` nie opisuje pola `llm` (zmiana przez team/api). `ruff check` zgłasza 2 × E501 w `ai/app/preprocess/entity_match.py` (plik ai-data) — zgłosić.
+
+## 2026-11-22 — uwagi do #102: M3 przecinek
+- **Zlecono:** naprawa uwag z przeglądu (tylko ai-core/ai-data).
+- **Zmiana:** `_CLAUSE_SPLIT` w M3 dzieli też po przecinku ("Kupuj X, to nie jest rekomendacja" zachowuje poradę), test w `test_modules.py`. Pytest 441 passed.
+- **Nie zrobione (pliki ai-data, niescommitowane):** usunięcie martwego `ensure_advertiser` w `entity_match.py`, loader `ai/eval/load_gold.py`. Poza tym `docs/contracts.md` (team/api), opis PR #102, `analyze_gold.py` (Ollama na 7,75 GiB RAM daje timeouty).
+- **Do sprawdzenia przez człowieka:** dzielenie po przecinku może zostawić fragment długiego zastrzeżenia.
