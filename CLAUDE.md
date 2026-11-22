@@ -117,11 +117,13 @@ Wyjątek: drobna poprawka wskazana przez człowieka wprost (literówka, jedna li
 |---|---|---|---|
 | Kacper (lead) | `team/lead-collector` | `collector/`, `CLAUDE.md`, `.claude/`, `.githooks/`, `docs/team/` | `docs/team/1-lead-collector.md` |
 | Python #1 | `team/ai-core` | `ai/app/*.py` (bez `embeddings.py`, `eval.py`), `ai/app/modules/`, `ai/prompts/`, `ai/rules/`, `ai/config.yaml`, `ai/pyproject.toml`, `ai/Dockerfile` | `docs/team/2-ai-core.md` |
+| mnichu443 (pomocnik AI core) | `team/ai-core` (wspólny z Python #1) | jak Python #1 | `docs/team/2-ai-core.md` |
 | Osoba #3 | `team/ai-data` | `ai/app/preprocess/`, `ai/app/embeddings.py`, `ai/app/eval.py`, `ai/eval/`, `ai/seed/` | `docs/team/3-ai-data.md` |
 | Osoba #4 | `team/api` | `api/`, `docs/contracts.md`, `infra/db/` + pomoc infrze: `docker-compose.yml`, `infra/`, `README.md`, `.env.example`, `docs/` (bez `contracts.md` i `team/`) | `docs/team/4-api.md` |
 | Osoba #5 | `team/web` | `web/` | `docs/team/5-web.md` |
 | Osoba #6 | `team/infra` | `docker-compose.yml`, `infra/` (bez `infra/db/`), `README.md`, `.env.example`, `docs/` (bez `contracts.md` i `team/`), `presentation/` | `docs/team/6-infra-pitch.md` |
 
+`team/ai-core` dzielą Python #1 i mnichu443: dzielą zadania na kanale i nie edytują tych samych plików naraz. Przed pushem `git fetch origin && git merge origin/team/ai-core`. Logi AI mnichu443 idą do `docs/ai-log/ai-core-mnichu.md`.
 Zmiany pat-dem w plikach infry idą w PR z `team/api` z dopiskiem „wymaga akceptu infra”. Przed zmianą README albo compose pat-dem pisze do Osoby #6, żeby nie było konfliktów.
 Pliki wspólne w `ai/` (`ai/app/main.py`, `ai/app/models.py`, `ai/pyproject.toml`) należą do **Python #1**. Osoba #3 zgłasza mu zmiany albo dodaje je w PR-ze opisanym jako „wymaga akceptu ai-core”.
 Logi pracy z AI każdy prowadzi w swoim pliku `docs/ai-log/<branch-bez-team>.md` (np. `docs/ai-log/web.md`), żeby nie było konfliktów. Osoba #6 scala je rano do `docs/AI_PROCESS.md`.
