@@ -55,8 +55,18 @@
 - Changes: node 22.12-alpine -> 22.23.5-alpine (same Node as api and collector), nginx 1.27.5-alpine -> 1.30.7-alpine (stable branch, pinned). Scan with Trivy 0.76.2 because Docker Scout needs an account: CRITICAL/HIGH node 4/55 -> 0/10 (npm bundled deps, build stage only), nginx 3/67 -> 0/1 (libxml2 Alpine package). Results in web/SECURITY.md.
 - Human to verify: docker compose ps shows web healthy, browser console clean on the new image, someone with a Docker account repeats the scan with Docker Scout.
 
+## Optional admin token for write requests (issue #71)
+- Asked Claude to: handle the write-endpoint auth from issue #71 on the web side only. No new skill.
+- Changes: `lib/api.ts` adds `Authorization: Bearer` from optional `VITE_ADMIN_TOKEN` to PUT /settings, PATCH /findings/:id/status and POST /sources/:id/run (`writeInit`); `lib/apiError.ts` maps 401/403 to a Polish "Brak uprawnień do zapisu" message; limits documented in `web/SECURITY.md` (token is public in the bundle).
+- Human to verify: with no token nothing changes; once team/api enforces `ADMIN_TOKEN` and team/infra passes `VITE_ADMIN_TOKEN` as a build arg, saving a threshold works and a wrong token shows the toast.
+
 ## libxml2 upgrade in the nginx runtime image (Issue #44), done from team/api
 - Asked Claude to: check open web issues and fix them (pat-dem, full access, rules from docs/team/5-web.md). Skill: dependency-guard (images).
 - Changes: `RUN apk upgrade --no-cache libxml2` in the runtime stage of web/Dockerfile (2.13.9-r2 -> 2.13.9-r3, CVE-2026-86144); result in web/SECURITY.md. Trivy 0.76.2 on the final image: CRITICAL 0, HIGH 0. `/`, `/findings`, `/calibration` return 200.
 - Not done: #51 (remove facebook/instagram/tiktok from the source filter) waits for the lead's decision on social adapters.
 - Human to verify: docker compose ps shows web healthy, browser console clean.
+
+## Clean browser console: favicon and form field names
+- Asked Claude to: review the dashboard in the browser (mock mode) for console errors and Issues, then fix them. No new skill.
+- Changes: `web/public/favicon.svg` + `<link rel="icon">` (removes the favicon.ico 404); `name` attribute on all filter inputs/selects, `ModuleSelect` and `StatusSelect` (removes the "form field has neither id nor name" Issue).
+- Human checked: console on the findings list in Chrome with DevTools. Still to check by hand: Trendy, Kalibracja, Źródła, finding details, loading/empty states, projector view.
