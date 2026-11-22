@@ -52,3 +52,5 @@ Pozostałe podatności w nowych obrazach:
 Zmiana: node `22.12-alpine` → `22.23.5-alpine` (ta sama wersja Node co `api` i `collector`), nginx `1.27.5-alpine` → `1.30.7-alpine` (gałąź stable). Tagi przypięte, bez `latest`.
 
 Sprawdzono po zmianie: `docker compose ps web` pokazuje `healthy`, `nginx -v` zwraca 1.30.7, a `/`, `/findings`, `/trends`, `/calibration` i `/sources` zwracają 200 z aplikacją (routing SPA po odświeżeniu działa).
+
+Token administratora (`VITE_ADMIN_TOKEN`) jest wbudowywany w bundle w czasie budowania obrazu (`ARG VITE_ADMIN_TOKEN`), więc jest publiczny dla każdego, kto otworzy dashboard; to świadoma decyzja dla demo on-premise.

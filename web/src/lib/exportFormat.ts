@@ -17,11 +17,14 @@ const CSV_HEADERS = [
   "Cytaty",
 ];
 
+// A plain social handle such as "@jacek" is not a formula (no parentheses or operators).
+const PLAIN_HANDLE = /^@[\w.]+$/;
+
 function csvField(value: string | number | null | undefined): string {
   let text = value === null || value === undefined ? "" : String(value);
   if (typeof value === "number") text = text.replace(".", ",");
   // Neutralise spreadsheet formula injection: text scraped from third-party pages.
-  else if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  else if (/^[=+\-@\t\r]/.test(text) && !PLAIN_HANDLE.test(text)) text = `'${text}`;
   if (/[";\r\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
   return text;
 }
