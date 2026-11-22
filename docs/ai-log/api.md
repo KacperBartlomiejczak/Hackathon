@@ -175,3 +175,9 @@
 - The first edits were made before the plan was approved (against CLAUDE.md); the human then approved the plan.
 - Left for others: web needs no change beyond refetching the list; alerts already sent keep the threshold from analysis time.
 - Verified on a scratch pgvector Postgres with the real routes: thresholds 0.6 → 0.4 → 0.9 change the list, `?risk=`, `/findings/:id`, `/documents` and `/stats/summary`. This caught a bug typecheck missed: in a single-table SELECT drizzle renders columns unqualified, so the correlated `findings.module` bound to the subquery's own column and `/stats/summary` returned 500. The SQL now writes `"findings"."score"`/`"module"` explicitly. `npm test` 56/56, typecheck, lint clean. Scratch container removed.
+
+## 2026-11-22: `total` and `missingFindings` in GET /eval
+- Asked Claude to: document the two extra fields ai returns from `GET /eval` (requested by ai-data). Documentation only, no api code change (the proxy passes the body through).
+- Claude compared `ai/app/models.py` (`EvalResult`) and `ai/app/eval.py` with the contract, then added both fields to the example and a short description in `docs/contracts.md` (skill `data-contract`, by hand). The example numbers were chosen so that `total = tp+fp+fn+tn`.
+- Verified: only `docs/contracts.md` and this log changed; field names match the `ai` model.
+- Left for ai-core: the `TODO(contracts)` comment in `ai/app/models.py` can be removed.
