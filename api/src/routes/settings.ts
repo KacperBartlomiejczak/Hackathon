@@ -46,17 +46,19 @@ export const settingsRoutes: FastifyPluginAsync<Deps> = async (app, { db, aiUrl,
     url.searchParams.set("threshold", String(query.threshold));
 
     let res: Response;
+    let text: string;
     try {
       // ai checks X-Internal-Token once AI_REQUIRE_TOKEN is on (issue #70).
       res = await fetch(url, {
         headers: { "X-Internal-Token": internalToken },
         signal: AbortSignal.timeout(evalTimeoutMs),
       });
+      // Inside the try: a dropped connection or the timeout can also hit while the body streams.
+      text = await res.text();
     } catch (err) {
       request.log.error({ err, module: query.module, ms: Date.now() - started }, "ai eval unreachable");
       return reply.code(502).send({ error: "ai_unavailable", message: "AI service unreachable" });
     }
-    const text = await res.text();
     request.log.info(
       { module: query.module, threshold: query.threshold, aiStatus: res.status, ms: Date.now() - started },
       "eval proxied",
