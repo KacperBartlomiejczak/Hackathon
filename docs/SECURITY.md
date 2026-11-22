@@ -65,5 +65,8 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.
 
 ## 4. Znane ograniczenia (środowisko demo)
 
-- `postgres`, `valkey`, `seaweedfs` i `ollama` są wystawione na porty hosta dla wygody demo i debugowania. Na produkcji należy wystawiać wyłącznie `web` i `api`.
-- `seaweedfs` działa w trybie demo `-s3` bez pliku `-s3.config` (bez wymuszania podpisów S3 na porcie `8333`) — w produkcji należy włączyć konfigurację kluczy S3.
+- `postgres` (5432), `valkey` (6379), `seaweedfs` (8333), `ollama` (11434) i `ai` (8000) są mapowane wyłącznie na `127.0.0.1` hosta (Issue #72, #70), więc nie są widoczne z sieci Wi-Fi. Z zewnątrz dostępne są tylko `web` (5173) i `api` (3000). Port `8333` zostaje na localhost, bo przeglądarka pobiera screenshoty z presigned URL (`S3_PUBLIC_ENDPOINT`).
+- `web` (nginx) nie dostaje `env_file`: zmienne potrzebne przy budowie (`VITE_API_URL`, `VITE_ADMIN_TOKEN`) idą przez `build.args`, a w kontenerze nie ma żadnych sekretów z `.env`.
+- `seaweedfs` działa z `-s3.config` (`infra/seaweedfs/entrypoint.sh` generuje tożsamość z `S3_ACCESS_KEY` / `S3_SECRET_KEY`): żądania bez podpisu SigV4 dostają 403. Healthcheck używa `/healthz`, a `s3-init` podpisuje wywołania (`curl --aws-sigv4`). Domyślne klucze z `.env.example` są kluczami dev/demo i przed wdrożeniem trzeba je zmienić.
+- `ADMIN_TOKEN` (zapisy REST w `api`) jest opcjonalny: pusty oznacza zapis bez tokenu. Token wbudowany w bundle dashboardu (`VITE_ADMIN_TOKEN`) jest publiczny z definicji, więc chroni przed przypadkowymi zapisami, a nie przed użytkownikiem dashboardu.
+- `AI_REQUIRE_TOKEN` w serwisie `ai` zostaje domyślnie wyłączony do czasu, aż `collector` i `api` zaczną wysyłać `X-Internal-Token` (Issue #70).
