@@ -146,7 +146,7 @@ erDiagram
 ## Moduł 1/3: `collector` i `api` — zbieranie danych i agregacja wyników
 
 - **`collector` (Node 22 + Playwright + BullMQ):**
-  - **Zakres źródeł (MVP):** aktywne adaptery `sample` (dane offline + syntetyki gold set), `web` (Chromium, discovery z głębokości 1, rotacja 23 User-Agentów i `PROXY_LIST`, limit 2/host, jitter), `youtube` (publiczny RSS kanałów) oraz `tiktok` (pojedyncze filmy przez oEmbed + fallback JSON, #51) + harmonogram `sources.cron`. Adaptery FB/IG pozostają poza obecnym MVP (gotowy interfejs adaptera; filtr w UI dynamicznie ukrywa nieaktywne typy z `GET /sources`).
+  - **Zakres źródeł (MVP):** aktywne adaptery `sample` (dane offline + syntetyki gold set + `suspicious-demo.jsonl`), `web` (Chromium, discovery z głębokości 1, rotacja 23 User-Agentów i `PROXY_LIST`, limit 2/host, jitter), `youtube` (publiczny RSS kanałów), `tiktok` (pojedyncze filmy przez oEmbed + fallback JSON, #51) oraz `facebook` (publiczne strony i posty bez logowania przez `og:title`/`og:description` i widoczny tekst z obsługą ściany logowania) + harmonogram `sources.cron`. Adapter Instagram pozostaje poza obecnym MVP (filtr w UI dynamicznie ukrywa nieaktywne typy z `GET /sources`).
   - **Ochrona przed SSRF (`collector/src/adapters/ssrf.ts`, #74):** `isBlockedUrl` (DNS + `net.BlockList`) i `context.route('**/*')` blokują żądania i przekierowania na loopback, sieci prywatne, link-local i usługi Compose.
   - **Odporność i zapis dowodów:** HTML + screenshot PNG w SeaweedFS S3, `upsert` po `url_hash`, triggery `first_seen_at` / `last_seen_at`, status `partial` przy błędzie analizy oraz jednorazowy retry po HTTP 502 (`AI_RETRY_DELAY_MS`, #90).
 - **`api` (Fastify + Drizzle + Socket.io):**
@@ -236,6 +236,6 @@ erDiagram
 ## Dalszy rozwój i skalowanie
 
 - **Analiza 5 reguł układu graficznego M2 (reguły UKNF 4, 5, 7, 8, 13):** weryfikacja rozmiaru czcionki, kontrastu, dostępu jednym kliknięciem, responsywności oraz dominacji wyników historycznych na wyrenderowanym DOM i screenshotach S3 (VLM / Playwright CSS metrics).
-- **Pełne adaptery Facebook / Instagram i rozbudowa rejestru KNF (`entities.csv`):** wdrożenie kolektorów FB/IG oraz listingu profili TikTok (interfejs `Adapter` gotowy w `collector/`) oraz uzupełnienie `official_domains` i `social_handles` dla wszystkich podmiotów KNF.
+- **Adapter Instagram i rozbudowa rejestru KNF (`entities.csv`):** wdrożenie kolektora Instagram oraz głębszego listingu profili Facebook/TikTok (interfejs `Adapter` gotowy w `collector/`) oraz uzupełnienie `official_domains` i `social_handles` dla wszystkich podmiotów KNF.
 - **Analiza wideo (OCR / ASR) i pełny hardening HTTP/TLS:** lokalna transkrypcja rolek (YouTube Shorts, TikTok, Reels), odczyt drobnego druku z kreacji oraz wystawienie wyłącznie portów `web` i `api` za reverse proxy z TLS (`AI_REQUIRE_TOKEN=true` działa już domyślnie w `.env.example`, #70/#105).
 - **Ciągłe strojenie jakości i skalowanie GPU:** rozbudowa zbioru `gold.csv` wg `ai/eval/rubric.md`, okresowa re-ewaluacja przez `POST /reanalyze` oraz skalowanie `OLLAMA_NUM_PARALLEL > 1` na wielu GPU.
