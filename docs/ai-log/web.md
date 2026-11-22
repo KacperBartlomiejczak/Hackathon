@@ -95,3 +95,8 @@
 - Asked Claude to: fix the verdict wording from the review hand-off (M1/M3 `fail` means "detected", not "not met"). No new skill, no new dependencies.
 - Changes: `verdictLabel(verdict, module?)` in `web/src/lib/utils.ts` uses "wykryto" / "nie wykryto" for M1 and M3, M2 keeps the checklist wording; `ReasonsCard` passes `finding.module`; test added. 100 tests and `tsc` pass.
 - Human verified #88 on real data: findings 24-27 (21.11 23:xx UTC) show for from=to=22.11 and not for 21.11; list and trend agree (21.11 = 23, 22.11 = 16). Issue closed. A stale browser cache showed UTC counts until a hard refresh.
+
+## Correction to the PR #96 note
+- PR #96 changed only `web/` (verdict wording), so it does not change `/eval` results and no `/reanalyze` is needed because of it. The "re-run `/reanalyze?module=1`" line in its description was wrong.
+- If `/reanalyze` is needed after M1 logic changes, it belongs to ai-core (endpoint) and ai-data (gold set, `/eval`), not web.
+- Process fix: every PR gets `Closes #...` or an issue created first.
