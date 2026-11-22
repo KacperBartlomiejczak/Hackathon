@@ -90,3 +90,8 @@
 
 ## Fixes for the 4 bugs found by the edge-case tests
 - Asked Claude to: fix them. Changes in `web/src/lib`: label and error-message lookups use `Object.hasOwn` (no more `constructor` resolving to a function); mock `fetchFindings` returns an empty page for page < 1; CSV formula guard skips plain `@handle` values (`@SUM(A1)` is still neutralised). `it.fails` markers removed; 99 tests pass.
+
+## Verdict labels per module and manual check of #88
+- Asked Claude to: fix the verdict wording from the review hand-off (M1/M3 `fail` means "detected", not "not met"). No new skill, no new dependencies.
+- Changes: `verdictLabel(verdict, module?)` in `web/src/lib/utils.ts` uses "wykryto" / "nie wykryto" for M1 and M3, M2 keeps the checklist wording; `ReasonsCard` passes `finding.module`; test added. 100 tests and `tsc` pass.
+- Human verified #88 on real data: findings 24-27 (21.11 23:xx UTC) show for from=to=22.11 and not for 21.11; list and trend agree (21.11 = 23, 22.11 = 16). Issue closed. A stale browser cache showed UTC counts until a hard refresh.
