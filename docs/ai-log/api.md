@@ -180,3 +180,8 @@
 - Claude compared `ai/app/models.py` (`EvalResult`) and `ai/app/eval.py` with the contract, then added both fields to the example and a short description in `docs/contracts.md` (skill `data-contract`, by hand). The example numbers were chosen so that `total = tp+fp+fn+tn`.
 - Verified: only `docs/contracts.md` and this log changed; field names match the `ai` model.
 - Left for ai-core: the `TODO(contracts)` comment in `ai/app/models.py` can be removed.
+
+## 2026-11-22: Configurable host ports for ollama and ai (Issue #44, helping infra)
+- Asked Claude to: stop `docker compose up` failing with `address already in use` when a native Ollama (11434) or a local `uvicorn` (8000) runs on the host. Found by kazaccy's clean start on a 16 GB laptop.
+- Claude changed host ports in `docker-compose.yml` to `${OLLAMA_HOST_PORT:-11434}` and `${AI_HOST_PORT:-8000}`, added both to `.env.example`, and added a short troubleshooting note to the README Quick Start. Container-internal ports and the `ai` healthcheck are unchanged.
+- Verified: `docker compose config -q` passes; rendered config shows 11434/8000 by default and 21434/18000 with overrides. Not run against a real occupied port. The change needs infra approval (PR marked "wymaga akceptu infra").
