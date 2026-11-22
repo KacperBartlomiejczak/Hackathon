@@ -18,7 +18,7 @@ Ostatnia aktualizacja: 2026-11-22
 | `ai/` | `uvx pip-audit==2.10.1` na `uv.lock` (`ai/SECURITY.md`) + OSV (55 paczek wg Issue #44) | **0 znanych podatności** (`No known vulnerabilities found`) | `exclude-newer = "2026-11-07T00:00:00Z"` |
 | `web/` | `npm audit --audit-level=high` oraz `npm audit` (`web/SECURITY.md`) | **0 podatności** (`found 0 vulnerabilities`) | brak sekretów w kodzie i `web/Dockerfile` |
 | `api/` | `npm audit --audit-level=high` (`api/SECURITY.md`, 129 prod + 122 dev) | **0 podatności** (`found 0 vulnerabilities`) | dodatkowo `npm audit --omit=dev` = 0 |
-| `collector/` | `npm audit --audit-level=high` (Issue #44, `docs/ai-log/lead-collector.md`) | **0 podatności** | do dodania plik `collector/SECURITY.md` od właściciela |
+| `collector/` | `npm audit --audit-level=high` (Issue #44, `docs/ai-log/lead-collector.md`) | **0 podatności** | powtórzone 2026-11-22: `found 0 vulnerabilities`; plik `collector/SECURITY.md` do dodania przez właściciela |
 
 ### Komendy do powtórzenia audytu paczek
 
