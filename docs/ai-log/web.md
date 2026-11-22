@@ -74,9 +74,11 @@
 ## Docker build arg for admin token, vitest smoke tests (issues #71, #75)
 - Asked Claude to: pass `VITE_ADMIN_TOKEN` into the web Docker build and add `npm test` to web. Skill: dependency-guard (vitest).
 - Changes: `ARG`/`ENV VITE_ADMIN_TOKEN` (no default) in `web/Dockerfile`; threshold save error now uses `apiErrorMessage` (401 hint); `vitest@5.1.0` (MIT, accepts vite 8; 5.1.1 skipped, only 4 days old) with 8 tests for `exportFormat` and `apiError`; `web/SECURITY.md` and `web/DEPENDENCIES.md` updated. `npm run build`, `npm test` (8/8) and `npm audit` (0) pass.
-- Human to verify (needs Docker, not done on the machine used here):
-  1. `docker build --build-arg VITE_ADMIN_TOKEN=<test-token> -t iw-web-check ./web`, then `docker run --rm iw-web-check sh -c "grep -rl <test-token> /usr/share/nginx/html/assets"` finds a .js file.
-  2. `docker build -t iw-web-check-empty ./web`, same grep finds nothing. Then `docker image rm iw-web-check iw-web-check-empty`.
-  3. `docker compose up -d --build` (never `down -v`), then /calibration for M1, M2, M3: sliders change precision/recall/FP/FN, not all zeros. If zeros: `curl "http://localhost:3000/eval?module=1&threshold=0.5"`; zeros from api/ai are an ai-data issue.
-  4. Console 0 errors/warnings on Findingi, finding details, Trendy, Kalibracja, Źródła, loading and empty states, at 1280 px.
-  5. Screenshots (1920x1080 or 1280x720) of those screens, saved outside the repo, for person #6.
+- Human checked (Docker, 2026-11-22): image built with `--build-arg VITE_ADMIN_TOKEN=<test-token>` contains the token in `/usr/share/nginx/html/assets/api-*.js`, image built without the arg does not. Stack up, all services healthy. Calibration: UI values match `/eval`; M1 changes with the slider, M2/M3 barely (api reports `missingFindings` 36-38 of 40 gold docs, so only 2-4 have findings: ai-data). Console 0 warnings on Findingi, details (with screenshot from S3, no 403), Trendy, Kalibracja, Źródła, empty list state; only errors seen were 500s from `/findings` before applying `infra/db/004_seen_tracking.sql` to the old local DB volume (existing volumes do not re-run init scripts).
+- Still to check: loading state and 1280 px on a projector; calibration screenshot for the pitch should use a low M1 threshold (default 0.6 shows zeros).
+
+## Unit tests with edge cases for web/src/lib
+- Asked Claude to: add tests including edge cases. No new skill, no new dependencies (existing vitest).
+- Changes: `utils.test.ts`, `api.test.ts` (mock mode, real mode with stubbed `fetch`, admin token, export, trend gap filling), extended `apiError.test.ts` and `exportFormat.test.ts`. 94 tests; `npm test` and `npm run build` pass.
+- Found 4 real bugs, kept as `it.fails` with `KNOWN BUG` comments (remove the marker when fixing): negative page returns items from the end; plain-object lookups resolve `constructor` (labels, `apiErrorMessage`); CSV formula guard prefixes legitimate `@handle` advertiser names with `'`.
+- Human to decide: fix the 4 bugs (small changes in `web/src/lib`).
