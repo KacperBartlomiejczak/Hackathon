@@ -29,6 +29,7 @@ On start the collector upserts `sources.yaml` into the `sources` table, register
 | `sample` | Offline fixtures from `fixtures/sample/` (demo, no network). |
 | `web` | Playwright: start page plus up to 20 same-host links matching finance keywords. Screenshot and HTML to S3. |
 | `youtube` | Public channel RSS (last 15 videos: title, description). No API key. |
+| `facebook` | Public pages without login: page = `og:title` + `og:description`, posts only when a permalink is visible. Pages behind the login wall end as an error in `crawl_runs`. |
 | `tiktok` | Single public videos via oEmbed. Profile listing is empty for headless browsers, so profiles are not crawled. |
 
 Fields: `name`, `start_url`, `enabled`, `cron` (5-field, Europe/Warsaw; `null` = manual only), `module_hint`.

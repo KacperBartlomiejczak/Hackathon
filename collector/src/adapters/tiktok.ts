@@ -66,7 +66,7 @@ export function videoHtml(caption: string, handle: string | null): string {
   return `<!doctype html><html lang="pl"><head><meta charset="utf-8"><title>${escapeHtml(caption)}</title></head><body><article>\n<p>Autor: @${escapeHtml(handle ?? '')}</p>\n<p>${escapeHtml(caption).replace(/\n/g, '<br>')}</p>\n</article></body></html>`;
 }
 
-async function withPage<T>(ctx: CrawlContext, url: string, read: (page: Page) => Promise<T>): Promise<T> {
+export async function withPage<T>(ctx: CrawlContext, url: string, read: (page: Page) => Promise<T>): Promise<T> {
   const proxy = ctx.nextProxy();
   const browser = await getBrowser();
   const context = await browser.newContext({
