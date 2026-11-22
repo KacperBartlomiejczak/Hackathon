@@ -237,3 +237,19 @@
 - Zmiany: `llm.timeout_s` 240, `analysis.budget_s` 540 (< 600 s collectora), `num_predict` 512; jedna powtórka po timeoucie; kolejka priorytetowa (`/analyze` przed batchem `/reanalyze`, contextvar `background_priority`); bramka LLM `analysis.llm_gate` (M1/M3 0.3, M2 wyłączona); `/health` sprawdza `/api/ps` i dogrzewa model, gdy Ollama go wyrzuciła.
 - Poprawka człowieka/Opus do planu: bramka 0.3 dla M2 odcinała 12/15 pozytywów gold (M2 wykrywa BRAK informacji o ryzyku, frazy tego nie widzą), więc M2 bez bramki.
 - Testy: pytest 461 passed / 8 skipped / 1 xfailed, ruff czysty. Na żywo niesprawdzone: logi `llm skipped gate` dla M1/M3 na gold secie, czasy na moduł, backlog `/reanalyze` batchami (gold → demo → reszta).
+
+## 2026-11-22 — calibration status (#89 / #120 / #42): demo on M1 only
+- Asked: make the threshold slider change FP/FN for every module. Result: only M1 reacts; M2 and M3 are not calibrated.
+- Cause: the LLM is down. `ai` uses the remote Ollama `192.168.1.88:11434`, which returns 500 on `/api/chat` (`/health` shows `llm: error`). M2 also hit `llm_invalid` (truncated JSON, document 319). Gold URLs are loaded (108 of 115 in `documents`; 7 still missing, #117), but only 54 of 190 documents have findings, so `/eval` counts most gold documents as score 0.
+- `/eval` at 22.11 (40 gold per module):
+
+| Module | Threshold | TP | FP | FN | TN | Gold without finding |
+|---|---|---|---|---|---|---|
+| M1 | 0.4 | 7 | 1 | 13 | 19 | 14 |
+| M1 | 0.8 | 4 | 0 | 16 | 20 | 14 |
+| M2 | 0.3-0.6 | 2 | 0 | 15 | 23 | 35 |
+| M2 | 0.7-0.9 | 1 | 0 | 16 | 23 | 35 |
+| M3 | 0.3-0.9 | 0 | 0 | 25 | 15 | 31 |
+
+- Decision (human): the demo shows M1 only. M2 and M3 numbers are not meaningful until the LLM runs and the gold documents are analyzed.
+- Not done: live checks after #102 (`/findings/65`, document 99), `weights` tuning in `ai/config.yaml`, `calibration_table.md` (write to `/app/eval` is denied in the container). #42 stays open.
