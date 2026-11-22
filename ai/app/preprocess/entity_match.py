@@ -76,9 +76,10 @@ async def load_entities(conn: asyncpg.Connection) -> list[Entity]:
 
 
 async def ensure_advertiser(conn: asyncpg.Connection, advertiser: str, is_social: bool) -> int:
-    """Entity id of the third-party publisher (host or handle); created as type 'advertiser' on first sight."""
+    """Entity id of the third-party publisher (host or handle); created as 'advertiser' on first sight."""
     row = await conn.fetchrow(
-        "SELECT id FROM entities WHERE type = 'advertiser' AND $1 = ANY(official_domains || social_handles) LIMIT 1",
+        "SELECT id FROM entities WHERE type = 'advertiser' "
+        "AND $1 = ANY(official_domains || social_handles) LIMIT 1",
         advertiser,
     )
     if row:
