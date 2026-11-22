@@ -78,6 +78,8 @@ docker compose up --build -d
 docker compose -f docker-compose.yml -f infra/docker-compose.gpu.yml up --build -d
 ```
 
+   Błąd `address already in use` na porcie 11434 lub 8000 oznacza, że na hoście działa natywna Ollama albo lokalny serwer `ai`. Zamknij go (Ollama: menu aplikacji → Quit lub `brew services stop ollama`) albo ustaw w `.env` inny `OLLAMA_HOST_PORT` / `AI_HOST_PORT` i uruchom stos ponownie. Skrypty z hosta (`ai/scripts/demo_check.py`, `ai/eval/analyze_gold.py`) domyślnie wołają `localhost:8000`, więc po zmianie `AI_HOST_PORT` podaj im adres jawnie.
+
 3. Sprawdź postęp i status kontenerów (dashboard dostępny pod `http://localhost:5173`):
 
 ```bash
