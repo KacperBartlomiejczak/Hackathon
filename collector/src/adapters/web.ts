@@ -19,7 +19,7 @@ const DISCOVERY_TIMEOUT_MS = 15_000;
 
 let browserPromise: Promise<Browser> | null = null;
 
-async function getBrowser(): Promise<Browser> {
+export async function getBrowser(): Promise<Browser> {
   if (browserPromise) {
     const existing = await browserPromise.catch(() => null);
     if (existing?.isConnected()) return existing;
