@@ -44,28 +44,61 @@ class M3Output(BaseModel):
 
 
 @lru_cache(maxsize=1)
-def _load_rules() -> tuple[str, list[tuple[str, float, re.Pattern[str]]]]:
+def _load_rules() -> tuple[str, list[tuple[str, float, re.Pattern[str], bool]]]:
     data = yaml.safe_load((RULES_DIR / "m3.yaml").read_text(encoding="utf-8"))
-    rules = [(r["id"], float(r["weight"]), re.compile(r["pattern"], re.IGNORECASE)) for r in data["rules"]]
+    rules = [(r["id"], float(r["weight"]), re.compile(r["pattern"], re.IGNORECASE),
+              bool(r.get("skip_disclaimer", False))) for r in data["rules"]]
     return data["version"], rules
 
 
+@lru_cache(maxsize=1)
+def _disclaimer_rx() -> re.Pattern[str]:
+    data = yaml.safe_load((RULES_DIR / "m3.yaml").read_text(encoding="utf-8"))
+    return re.compile("|".join(f"(?:{p})" for p in data["disclaimer_patterns"]), re.IGNORECASE)
+
+
+def is_disclaimer(sentence: str) -> bool:
+    """Legal disclaimer ("nie jest rekomendacją inwestycyjną"): never evidence of advisory."""
+    return _disclaimer_rx().search(sentence) is not None
+
+
+def _sentence(text: str, start: int, end: int) -> str:
+    a = max(text.rfind(c, 0, start) for c in ".!?\n") + 1
+    ends = [i for c in ".!?\n" if (i := text.find(c, end)) != -1]
+    b = min(ends) + 1 if ends else len(text)
+    return text[a:b].strip()[:SNIPPET_MAX] or text[start:end]
+
+
 def rules_hits(text: str) -> tuple[float, list[Reason]]:
-    """(rules score 0..1, one reason per matched rule with the matching sentence as the quote)."""
+    """(rules score 0..1, one reason per matched rule with the matching sentence as the quote).
+
+    Rules flagged `skip_disclaimer` ignore matches inside disclaimer sentences (#95).
+    """
     _, rules = _load_rules()
     total = 0.0
     reasons: list[Reason] = []
-    for rule_id, weight, rx in rules:
-        m = rx.search(text)
-        if m is None:
-            continue
-        total += weight
-        a = max(text.rfind(c, 0, m.start()) for c in ".!?\n") + 1
-        ends = [i for c in ".!?\n" if (i := text.find(c, m.end())) != -1]
-        b = min(ends) + 1 if ends else len(text)
-        quote = text[a:b].strip()[:SNIPPET_MAX] or m.group()
-        reasons.append(Reason(criterion=f"rule:{rule_id}", verdict="fail", quote=quote, weight=weight))
+    for rule_id, weight, rx, skip_disclaimer in rules:
+        for m in rx.finditer(text):
+            quote = _sentence(text, m.start(), m.end())
+            if skip_disclaimer and is_disclaimer(quote):
+                continue
+            total += weight
+            reasons.append(Reason(criterion=f"rule:{rule_id}", verdict="fail", quote=quote, weight=weight))
+            break
     return min(1.0, total), reasons
+
+
+def drop_disclaimer_reasons(reasons: list[Reason]) -> list[Reason]:
+    """Drop reasons quoting a disclaimer, unless the quote also carries a genuine advisory signal."""
+    _, rules = _load_rules()
+    genuine = [rx for _, _, rx, skip in rules if not skip]
+    kept: list[Reason] = []
+    for r in reasons:
+        if is_disclaimer(r.quote) and not any(rx.search(r.quote) for rx in genuine):
+            logger.info("dropped reason criterion=%s: quote is a disclaimer", r.criterion)
+            continue
+        kept.append(r)
+    return kept
 
 
 async def run_m3(
@@ -79,7 +112,8 @@ async def run_m3(
     out = await llm.generate(prompt.text, text[:MAX_DOC_CHARS], M3Output)
     ms["llm"] = int((time.monotonic() - t) * 1000)
 
-    reasons = validate_reasons(llm_reasons(out.criteria, CRITERION_WEIGHTS) + rule_reasons, text)
+    reasons = drop_disclaimer_reasons(
+        validate_reasons(llm_reasons(out.criteria, CRITERION_WEIGHTS) + rule_reasons, text))
     run = ModuleRun(module=3, finding=None, rules=rules, threshold=threshold, weights=weights, ms=ms)
     if not reasons:
         return run

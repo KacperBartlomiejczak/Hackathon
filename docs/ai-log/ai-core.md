@@ -180,3 +180,10 @@
 - **Wynik (żywy Bielik):** bossa-ranking 0.593 → 0.707 (llm 0.475 → 0.665); neutralny news 0.16 bez flagi; inwestuj-z-marta 0.83. pytest 122 passed.
 - **Do sprawdzenia przez człowieka:** brak finding-ów M1 dla gold w bazie (9/40 dokumentów, bez findingów) — pełny `/eval?module=1` po `/reanalyze` na zmienionych wagach.
 - **Poza zakresem:** „Reklamujący” puste, bo host/handle publikującego nie jest wierszem `entities` (api/web nie robią fallbacku na `authorHandle`); semantyka verdict w UI (patrz raport).
+
+## 2026-11-22 — issue #95: M3 cytuje zastrzeżenie „nie jest rekomendacją” jako dowód doradztwa
+- **Przyczyna:** reguła `advisory_offer` (`rekomendacj\w+ inwestycyjn\w+`) pasowała do zdania „Nie jest rekomendacją inwestycyjną…”, a prompt kazał dla `pass` cytować fragment „pokazujący brak problemu”, więc LLM cytował ten sam disclaimer przy trzech kryteriach.
+- **Zmiana:** `rules/m3.yaml` v4 (`skip_disclaimer` dla `advisory_offer`, lista `disclaimer_patterns`), `m3.py` (`is_disclaimer`, `drop_disclaimer_reasons` odrzuca powody z cytatem-zastrzeżeniem, chyba że cytat ma też prawdziwy sygnał doradztwa), prompt `m3-v4` (zakaz cytowania disclaimerów).
+- **Testy:** zastrzeżenie nie daje reguły ani powodu; prawdziwa oferta obok zastrzeżenia nadal daje flagę; dokument tylko z zastrzeżeniem nie tworzy findingu. pytest 129 passed.
+- **Żywy Bielik (`/analyze-text`, tekst z zastrzeżeniem jak w dok. 99):** brak findingu, brak cytatu-zastrzeżenia.
+- **Do sprawdzenia przez człowieka:** `/reanalyze?module=3&document_id=99`, potem `/findings/65` w UI; przeliczyć kalibrację M3 (zmienione reguły i prompt).

@@ -82,6 +82,50 @@ def test_m3_rules_quiet_text() -> None:
     assert m3.rules_hits("Dziś ładna pogoda, idziemy na spacer.")[0] == 0.0
 
 
+DISCLAIMER = ("Ta publikacja handlowa jest informacyjna i edukacyjna. Nie jest rekomendacją inwestycyjną ani "
+              "informacją rekomendującą lub sugerującą strategię inwestycyjną.")
+
+
+def test_m3_rules_ignore_disclaimer() -> None:
+    """Issue #95: 'nie jest rekomendacją inwestycyjną' must not trigger rule:advisory_offer."""
+    score, reasons = m3.rules_hits(DISCLAIMER)
+    assert score == 0.0 and reasons == []
+    assert m3.is_disclaimer("Nie udzielam porad inwestycyjnych.")
+
+
+def test_m3_rules_still_flag_real_offer_next_to_disclaimer() -> None:
+    text = DISCLAIMER + " Oferujemy indywidualne rekomendacje inwestycyjne dla klientów premium."
+    _, reasons = m3.rules_hits(text)
+    assert [r.criterion for r in reasons] == ["rule:advisory_offer"]
+    assert "Oferujemy indywidualne rekomendacje" in reasons[0].quote
+    # a disclaimer with a genuine signal in the same sentence keeps the signal rule
+    _, reasons = m3.rules_hits("To nie jest rekomendacja, ale kupuj akcje ABC, cena docelowa 50 zł.")
+    assert "rule:direct_recommendation" in {r.criterion for r in reasons}
+
+
+def test_m3_drop_disclaimer_reasons() -> None:
+    reasons = [
+        Reason(criterion="individual_recommendations", verdict="pass", quote=DISCLAIMER, weight=0.4),
+        Reason(criterion="portfolio_management", verdict="fail",
+               quote="Zarządzam Twoim portfelem.", weight=0.35),
+        Reason(criterion="paid_advisory_offer", verdict="fail",
+               quote="Nie jest to porada, ale płatna grupa premium z sygnałami.", weight=0.25),
+    ]
+    kept = [r.criterion for r in m3.drop_disclaimer_reasons(reasons)]
+    assert kept == ["portfolio_management", "paid_advisory_offer"]
+
+
+@pytest.mark.asyncio
+async def test_m3_disclaimer_only_document_gets_no_finding() -> None:
+    out = m3.M3Output(criteria=[
+        m3.CriterionResult(criterion=c, verdict="pass", quote=DISCLAIMER, confidence=0.9)  # type: ignore[arg-type]
+        for c in ("individual_recommendations", "portfolio_management", "paid_advisory_offer")
+    ])
+    run = await m3.run_m3(FakeLLM(out), CONFIG, DISCLAIMER, [0.1], 99, 0.6,  # type: ignore[arg-type]
+                          {"llm": 0.6, "rules": 0.25, "emb": 0.15})
+    assert run.finding is None
+
+
 @pytest.mark.asyncio
 async def test_m1_scam_is_high_and_quotes_are_real() -> None:
     cands = [c for c in __import__("app.preprocess.entity_match", fromlist=["x"]).match_entities(
@@ -180,7 +224,7 @@ async def test_m3_shadow_advisory() -> None:
     run = await m3.run_m3(FakeLLM(out), CONFIG, ADVICE, [0.1], 1, 0.6,  # type: ignore[arg-type]
                           {"llm": 0.6, "rules": 0.25, "emb": 0.15})
     assert run.finding is not None and run.finding.module == 3 and run.finding.label == "shadow_advisory"
-    assert run.finding.prompt_version.startswith("m3-v3")
+    assert run.finding.prompt_version.startswith("m3-v4")
     assert run.score >= 0.6
 
 
