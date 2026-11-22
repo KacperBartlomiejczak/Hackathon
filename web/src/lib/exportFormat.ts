@@ -47,7 +47,7 @@ export function findingsToCsv(findings: Finding[]): string {
       .map(csvField)
       .join(";"),
   );
-  return `﻿${[CSV_HEADERS.map(csvField).join(";"), ...rows].join("\r\n")}\r\n`;
+  return `\uFEFF${[CSV_HEADERS.map(csvField).join(";"), ...rows].join("\r\n")}\r\n`;
 }
 
 export function findingsToJson(findings: Finding[]): string {
