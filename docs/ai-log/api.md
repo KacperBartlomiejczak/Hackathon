@@ -168,3 +168,10 @@
 - Asked Claude to: put the README API section prepared in Issue #81 into `README.md` (after "Serwisy i porty"). README belongs to team/infra; the lead allowed team/api to help with infra files in `CLAUDE.md` (2ee7f4c), so the change goes in a PR marked "wymaga akceptu infra".
 - Claude pasted the text unchanged and checked every listed route against `api/src` (all 15 exist, including `/export`). The `ADMIN_TOKEN` sentence stays, because `.env.example` now has `ADMIN_TOKEN`.
 - Verified: only `README.md` and this log changed; no code or DB change.
+
+## 2026-11-22: Threshold change recomputes flags (Issue #84)
+- Asked Claude to: make "Zapisz próg" visibly change the flags in the findings list. `/reanalyze` re-runs the LLM per document and re-sends alerts, so api derives the level instead.
+- Claude added `api/src/db/risk.ts` (SQL: score >= 0.8 high, >= module threshold medium, else low) and used it in `/findings`, `/findings/:id`, `/documents`, `/export`, `/stats/summary` and the `?risk=` filter. `docs/contracts.md` describes it (skill `data-contract`, by hand; no DB change).
+- The first edits were made before the plan was approved (against CLAUDE.md); the human then approved the plan.
+- Left for others: web needs no change beyond refetching the list; alerts already sent keep the threshold from analysis time.
+- Verified on a scratch pgvector Postgres with the real routes: thresholds 0.6 → 0.4 → 0.9 change the list, `?risk=`, `/findings/:id`, `/documents` and `/stats/summary`. This caught a bug typecheck missed: in a single-table SELECT drizzle renders columns unqualified, so the correlated `findings.module` bound to the subquery's own column and `/stats/summary` returned 500. The SQL now writes `"findings"."score"`/`"module"` explicitly. `npm test` 56/56, typecheck, lint clean. Scratch container removed.
