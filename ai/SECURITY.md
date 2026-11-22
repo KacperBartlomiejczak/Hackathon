@@ -26,7 +26,7 @@ uvx pip-audit==2.10.1 -r req-all.txt --disable-pip --no-deps          # → No k
 
 - Wersje są przypięte `==` w `pyproject.toml`; `exclude-newer = 2026-11-07` blokuje świeże, niezweryfikowane wydania (ochrona łańcucha dostaw).
 - Licencje: brak GPL/AGPL w ścieżce użycia. Jedyny wpis wielolicencyjny (`tld`, tranzytywny z `courlan`/`trafilatura`: MPL-1.1 OR GPL-2.0 OR LGPL-2.1+) używamy na warunkach MPL-1.1; szczegóły w `ai/DEPENDENCIES.md`.
-- `pip-audit` obejmuje tylko pakiety Pythona. Obrazy bazowe (`python:3.12.12-slim-bookworm`, `uv 0.9.15`) i wagi modeli Ollama nie są skanowane — przypięte tagi, licencje w `ai/DEPENDENCIES.md`.
+- `pip-audit` obejmuje tylko pakiety Pythona. Obraz bazowy jest skanowany osobno (sekcja „Skan obrazu” niżej); wagi modeli Ollama nie są skanowane — przypięte tagi, licencje w `ai/DEPENDENCIES.md`.
 
 ### Zabezpieczenia zaimplementowane w `ai/`
 | Zagrożenie | Mechanizm | Gdzie |
@@ -39,3 +39,15 @@ uvx pip-audit==2.10.1 -r req-all.txt --disable-pip --no-deps          # → No k
 | Wyciek sekretów / konsoli | Sekrety tylko z env (`.env`, w repo `.env.example`); logger `logging`, ruff z regułą `T20` zakazującą `print`. | `pyproject.toml` |
 
 Pozostałe znane luki (M2 bez cytatu LLM → brak flagi; M1/M3 przy „złamanym” LLM tylko na regułach) opisane w sekcji o prompt injection powyżej.
+
+## 2026-11-21 — skan obrazu bazowego (issue #73)
+Narzędzie: Trivy (`aquasec/trivy`, `--scanners vuln --severity CRITICAL,HIGH`), obrazy z lokalnego demona Dockera.
+
+| Obraz | Critical | High | Uwagi |
+|---|---|---|---|
+| `python:3.12.12-slim-bookworm` (poprzedni pin) | 9 | 133 | |
+| `python:3.12.16-slim-bookworm` | 2 | 99 | brak poprawek upstream (libsqlite3 CVE-2025-7458 „affected”, zlib CVE-2023-45853 „will_not_fix”) |
+| `python:3.12.16-slim-trixie` (**obecny pin w `ai/Dockerfile`**) | **0** | 51 | wszystkie bez dostępnej poprawki w Debianie |
+| `ai` zbudowany z `3.12.16-slim-trixie` | **0** | 51 | `--ignore-unfixed` → 0 |
+
+Decyzja: bookworm → trixie. Test po zmianie: import `app.main`, `asyncpg`, `trafilatura`, `rapidfuzz`, `numpy` w obrazie OK; proces działa jako `uid=10001 (app)`; `pytest` 117 passed. Pozostałe 51 High to pakiety systemowe Debiana bez wydanej poprawki; port 8000 obsługuje wyłącznie FastAPI (nie używamy `libsqlite3` ani narzędzi systemowych z poziomu żądań), a dostęp do endpointów jest chroniony `X-Internal-Token` (patrz wyżej). Ryzyko zaakceptowane do czasu wydania poprawek przez Debiana.

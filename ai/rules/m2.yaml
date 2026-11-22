@@ -1,9 +1,12 @@
 # M2 checklist and phrase heuristics (advertising by a registered firm itself).
-# Source: MiFID II art. 44 + Delegated Reg. (EU) 2017/565 (fair, clear, not misleading; balanced benefits/risks;
-# past performance; leverage/CFD warnings) and KNF/ESMA communications. TODO(hack): reconcile ids and wording
-# with the official UKNF annex once the team delivers it (docs/team/6-infra-pitch.md).
-# criteria.weight = share in the llm part of the score; weights sum to 1. Ids must match prompts/m2-risk-info/system.md.
-version: m2-rules-v2
+# Source: UKNF annex "kryteria oceny informacji o ryzyku" = Delegated Reg. (EU) 2017/565 art. 44 + MiFID II art. 24
+# (18 rules; mapping and legal basis in ai/eval/rubric.md). Only the text-checkable rules are covered here;
+# layout rules (font size, contrast, one-click access, responsiveness, dominance of historical results) need
+# rendered HTML or a screenshot and are out of scope.
+# criteria.weight = weight of a failed criterion in the llm part of the score: llm = min(1, sum(weight * confidence)).
+# The first 8 criteria sum to 1 (tuned before the annex arrived, kept as is); the UKNF-specific ones add on top.
+# Ids must match prompts/m2-risk-info/system.md.
+version: m2-rules-v3
 criteria:
   - {id: risk_warning_present, weight: 0.20, description: "Materiał zawiera ostrzeżenie o ryzyku (możliwość utraty kapitału)."}
   - {id: risk_prominence, weight: 0.12, description: "Ostrzeżenie o ryzyku jest widoczne i czytelne, nie ukryte ani zagłuszone."}
@@ -13,6 +16,15 @@ criteria:
   - {id: leverage_loss_warning, weight: 0.10, description: "Dźwignia/CFD: ostrzeżenie o szybkiej utracie środków (także więcej niż wpłacony kapitał)."}
   - {id: fair_clear_not_misleading, weight: 0.10, description: "Przekaz jest rzetelny, jasny i niewprowadzający w błąd; oznaczony jako reklama."}
   - {id: no_trivialization, weight: 0.10, description: "Inwestowanie nie jest przedstawiane jako proste, bezwysiłkowe i dostępne dla każdego."}
+  # UKNF annex rules (number = rule in ai/eval/rubric.md)
+  - {id: firm_identification, weight: 0.03, description: "Reguła 1: materiał zawiera oficjalną nazwę firmy inwestycyjnej."}
+  - {id: advertising_label, weight: 0.03, description: "Reguła 2: materiał promocyjny jest wyraźnie oznaczony jako reklama."}
+  - {id: historical_results_conditions, weight: 0.04, description: "Reguły 12a/12b: wyniki historyczne mają okres, źródło oraz informację o opłatach i kursach walut."}
+  - {id: comparison_basis, weight: 0.04, description: "Reguła 11: porównania produktów wskazują źródło i założenia."}
+  - {id: forecast_warning, weight: 0.05, description: "Reguła 15: prognozy mają ostrzeżenie, że nie są wiarygodnym wskaźnikiem przyszłych wyników."}
+  - {id: tax_disclosure, weight: 0.03, description: "Reguła 16: wzmianka o podatkach z uwagą, że zależą od sytuacji klienta i mogą się zmienić."}
+  - {id: supervisor_approval, weight: 0.06, description: "Reguły 17/18: materiał nie sugeruje zatwierdzenia przez KNF ani nie używa nadzoru jako argumentu bezpieczeństwa."}
+  - {id: risk_warning_language, weight: 0.03, description: "Reguły 9/10: ostrzeżenie o ryzyku jest zrozumiałe i w tym samym języku co przekaz."}
 # Phrase heuristics: regex (case-insensitive) -> weight. rules score = min(1, sum of distinct hits).
 rules:
   - {id: guaranteed, weight: 0.35, pattern: 'gwarantowan\w+|gwarantuj\w+ (?:zysk|zarob|dochód|doch)\w*|pewn\w+ (?:zysk|zarob)\w*'}
@@ -20,4 +32,6 @@ rules:
   - {id: fixed_return, weight: 0.3, pattern: '\d+(?:[.,]\d+)?\s?% (?:miesięcznie|tygodniowo|dziennie|rocznie|w skali roku|w (?:ostatnim|zeszłym|ubiegłym) roku)'}
   - {id: get_rich, weight: 0.25, pattern: 'zarabiaj\w*|szybk\w+ zysk\w*|pasywn\w+ doch\w+|finansow\w+ wolnoś\w+'}
   - {id: trivialization, weight: 0.25, pattern: 'każdy (?:może|zarobi)|bez (?:wiedzy|doświadczenia)|w kilka minut|proste jak|łatwy zarobek|łatwe pieniądze|bez (?:żadnego )?wysiłku'}
+  - {id: supervisor_claim, weight: 0.2, pattern: '(?:zatwierdzon|autoryzowan|certyfikowan|polecan)\w+ przez (?:KNF|UKNF|Komisj\w+ Nadzoru)|KNF (?:gwarantuje|zatwierdził\w*|poleca)|bezpieczn\w+ (?:dzięki|bo|ponieważ) (?:nadzor\w+ )?KNF'}
+  - {id: forecast, weight: 0.1, pattern: 'prognoz\w+|spodziewan\w+ (?:zysk|wzrost|stop\w+ zwrotu)\w*'}
   - {id: leverage_offer, weight: 0.15, pattern: 'dźwigni\w+\s*(?:do\s*)?(?:1\s*:\s*)?\d+|handluj\w* z dźwigni\w+|\bCFD\b'}

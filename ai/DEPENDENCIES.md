@@ -42,7 +42,7 @@ Transitive notes: certifi is MPL-2.0 (allowed, file-level copyleft, unmodified).
 
 | Image | Tag | License |
 |---|---|---|
-| python | 3.12.12-slim-bookworm | PSF |
+| python | 3.12.16-slim-trixie | PSF |
 | ghcr.io/astral-sh/uv | 0.9.15 | MIT/Apache-2.0 |
 
 ## Models (Ollama; names only in .env: OLLAMA_LLM_MODEL, OLLAMA_EMBED_MODEL)

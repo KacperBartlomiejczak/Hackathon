@@ -28,12 +28,12 @@ def _load() -> tuple[str, dict[str, float], list[tuple[str, float, re.Pattern[st
     data = yaml.safe_load((RULES_DIR / "m2.yaml").read_text(encoding="utf-8"))
     weights = {c["id"]: float(c["weight"]) for c in data["criteria"]}
     rules = [(r["id"], float(r["weight"]), re.compile(r["pattern"], re.IGNORECASE)) for r in data["rules"]]
-    if abs(sum(weights.values()) - 1.0) > 1e-6:
-        raise ValueError("rules/m2.yaml: criteria weights must sum to 1")
+    if sum(weights.values()) < 1.0 - 1e-6 or any(not 0 < w <= 1 for w in weights.values()):
+        raise ValueError("rules/m2.yaml: criteria weights must be in (0, 1] and sum to at least 1")
     return data["version"], weights, rules
 
 
-# CRITERION_WEIGHTS: criterion id -> share of the llm score (sums to 1)
+# CRITERION_WEIGHTS: criterion id -> weight of a failed criterion in the llm score (llm = min(1, sum))
 RULES_VERSION, CRITERION_WEIGHTS, _RULE_PATTERNS = _load()
 CriterionId = Literal[tuple(CRITERION_WEIGHTS)]  # type: ignore[valid-type]  # enum in the LLM JSON schema
 

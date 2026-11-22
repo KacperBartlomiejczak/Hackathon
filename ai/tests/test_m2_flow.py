@@ -28,7 +28,7 @@ CONFIG = {
 
 def test_prompt_version() -> None:
     prompt = load_prompt("m2-risk-info/system.md")
-    assert prompt.version == "m2-v3"
+    assert prompt.version == "m2-v4"
     assert all(cid in prompt.text for cid in m2.CRITERION_WEIGHTS)  # prompt checklist matches rules/m2.yaml
 
 
@@ -56,11 +56,22 @@ def test_routing() -> None:
 
 
 def test_criteria_from_yaml() -> None:
-    assert len(m2.CRITERION_WEIGHTS) == 8
-    assert sum(m2.CRITERION_WEIGHTS.values()) == pytest.approx(1.0)
-    assert {"past_performance_disclaimer", "leverage_loss_warning"} <= set(m2.CRITERION_WEIGHTS)
+    assert len(m2.CRITERION_WEIGHTS) == 16
+    assert sum(m2.CRITERION_WEIGHTS.values()) >= 1.0
+    assert {"past_performance_disclaimer", "leverage_loss_warning", "supervisor_approval",
+            "forecast_warning", "firm_identification"} <= set(m2.CRITERION_WEIGHTS)
     with pytest.raises(ValueError):  # unknown criterion id is rejected by the LLM output schema
         m2.CriterionResult(criterion="made_up", verdict="fail", quote="x", confidence=0.5)
+
+
+def test_prompt_lists_every_criterion() -> None:
+    text = load_prompt(m2.PROMPT_PATH).text
+    assert all(f"{i}. {cid} —" in text for i, cid in enumerate(m2.CRITERION_WEIGHTS, 1))
+
+
+def test_supervisor_and_forecast_rules() -> None:
+    assert m2.rules_score("Oferta zatwierdzona przez KNF, w pełni bezpieczna.") == pytest.approx(0.2)
+    assert m2.rules_score("Prognozujemy wzrost o 40%.") == pytest.approx(0.1)
 
 
 def test_rules_score() -> None:
@@ -194,7 +205,7 @@ async def test_m2_finding_with_valid_quote(patched: FakePool) -> None:
     res = await pipeline.analyze_document(patched, FakeLLM(_output("Gwarantowany zysk.")), CONFIG, 7)  # type: ignore[arg-type]
     assert res.status == "processed" and patched.status == "processed"
     (f,) = res.findings
-    assert f.module == 2 and f.prompt_version == "m2-v3+m2-rules-v2" and f.firm_entity_id == 4
+    assert f.module == 2 and f.prompt_version == "m2-v4+m2-rules-v3" and f.firm_entity_id == 4
     assert {r.criterion for r in f.reasons} == {"no_guaranteed_returns", "risk_warning_present"}
     assert f.score > 0.3
 

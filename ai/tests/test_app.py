@@ -75,6 +75,32 @@ def test_unconfigured_and_stubs() -> None:
         assert client.get("/eval?module=9&threshold=0.6").status_code == 422
 
 
+def test_eval_error_does_not_leak_exception_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Conn:
+        async def __aenter__(self) -> "_Conn":
+            return self
+
+        async def __aexit__(self, *exc: object) -> None:
+            return None
+
+    class _Pool:
+        def acquire(self) -> _Conn:
+            return _Conn()
+
+        async def close(self) -> None:
+            return None
+
+    async def boom(*_: object) -> None:
+        raise ValueError("secret-internal-detail postgres://user:pw@db/x")
+
+    monkeypatch.setattr(main, "run_eval", boom)
+    with TestClient(main.app) as client:
+        main.app.state.pool = _Pool()
+        r = client.get("/eval?module=2&threshold=0.6")
+    assert r.status_code == 500
+    assert r.json() == {"detail": "eval failed"}
+
+
 @pytest.fixture
 def token_auth(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AI_REQUIRE_TOKEN", "true")
