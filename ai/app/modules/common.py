@@ -96,6 +96,11 @@ async def warm_anchors() -> None:
         await _anchors(module)
 
 
+def llm_gate(config: dict[str, Any], module: int) -> float:
+    """Minimum rules score for a candidate to be sent to the LLM (0.0 = gate disabled)."""
+    return float(config.get("analysis", {}).get("llm_gate", {}).get(f"m{module}", 0.0))
+
+
 def rescale(cosine: float, floor: float, ceil: float) -> float:
     """Map raw bge-m3 cosine into 0..1: <= floor -> 0, >= ceil -> 1."""
     return max(0.0, min(1.0, (cosine - floor) / (ceil - floor)))
