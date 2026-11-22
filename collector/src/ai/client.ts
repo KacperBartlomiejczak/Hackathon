@@ -48,6 +48,7 @@ async function analyze(documentId: number, baseUrl: string, backoffMs: number, t
     try {
       const res = await fetch(`${baseUrl}/analyze/${documentId}`, {
         method: 'POST',
+        headers: { 'X-Internal-Token': config.INTERNAL_TOKEN },
         signal: AbortSignal.timeout(timeoutMs),
       });
       status = res.status;
