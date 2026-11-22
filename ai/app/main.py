@@ -33,10 +33,13 @@ from app.models import (
     HealthStatus,
     ModuleRunOut,
     ReanalyzeResult,
+    RecomputeRiskResponse,
+    high_threshold,
 )
 from app.modules.common import warm_anchors
 from app.preprocess.clean import normalize
 from app.preprocess.entity_match import Entity, load_entities
+from app.scoring import weights_from_config
 from seed.seed_entities import load_rows, seed_entities
 
 
@@ -279,6 +282,30 @@ async def reanalyze(
         )
     logger.info("reanalyze module=%s queued=%d", module, len(found))
     return ReanalyzeResult(module=module, queued=len(found))  # type: ignore[arg-type]
+
+
+@app.post(
+    "/recompute-risk",
+    response_model=RecomputeRiskResponse,
+    dependencies=[Depends(require_internal_token)],
+)
+async def recompute_risk(module: Annotated[int, Query(ge=1, le=3)]) -> RecomputeRiskResponse:
+    """Re-derive risk_level of stored findings from the current module threshold. No LLM, no alerts."""
+    if app.state.pool is None:
+        raise HTTPException(status_code=503, detail="database not configured")
+    config = app.state.config
+    started = time.monotonic()
+    try:
+        threshold, _ = await db.load_module_settings(
+            app.state.pool, module, float(config["thresholds"][f"m{module}"]), weights_from_config(config)
+        )
+        updated = await db.recompute_risk_levels(app.state.pool, module, threshold, high_threshold(config))
+    except db.DatabaseError as exc:
+        logger.error("recompute-risk module=%s result=failed error=%s", module, exc)
+        raise HTTPException(status_code=500, detail="database error") from exc
+    logger.info("recompute-risk module=%s threshold=%s updated=%d duration_ms=%d",
+                module, threshold, updated, int((time.monotonic() - started) * 1000))
+    return RecomputeRiskResponse(module=module, threshold=threshold, updated=updated)  # type: ignore[arg-type]
 
 
 # contracts.md specifies GET /eval (the request asked for POST; contract wins).

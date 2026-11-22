@@ -184,3 +184,10 @@
 - **Odstępstwo od skilla:** timeout Ollamy bez retry (na CPU retry tylko podwaja obciążenie); inne błędy transportu nadal z 1 retry.
 - **Do sprawdzenia przez człowieka:** `/reanalyze?module=1` na gold secie przed/po na żywym Bieliku (brak Ollamy na tej maszynie). PR #93 (ai-data) dodaje `ensure_advertiser()`, który dubluje `resolve_advertiser()` — do uzgodnienia z ai-data.
 - **Poprawki po review (Haiku, świeża sesja):** `/analyze-text` zwraca w 502 tylko kategorię błędu; backoff między retry poza slotem Ollamy; lookup domeny reklamującego normalizuje schemat i ścieżkę jak `entity_match._norm_domain` (bez duplikatów encji); komentarz `budget_s` w `config.yaml` (collector 600 s). pytest 131 passed. Odrzucone uwagi review: „Ollama liczy dalej po anulowaniu” (Ollama przerywa przy rozłączeniu klienta), „embed omija semafor” (inny model, nie blokuje slotu LLM). Skill `risk-classifier` (retry przy timeout) do aktualizacji przez leada.
+
+## 2026-11-22 — #84 próg w kalibracji nie przelicza flag
+- **Zlecono:** naprawić niespójność progu z listą findingów. Orchestrator (Opus): Haiku (high) czyta issue i kod, Sonnet (medium) implementuje, drugi Sonnet (medium) robi review. Skill: `risk-classifier`.
+- **Zmiany:** `POST /recompute-risk?module=1..3` przelicza `findings.risk_level` z zapisanego `score` i progu z `module_settings` jednym UPDATE (`db.RISK_CASE_SQL`), bez LLM i bez alertów. `risk_level()`: `high` tylko gdy `score >= max(risk.high, próg)`, bo wcześniej przy progu > 0.8 leciał alert dla findingu, którego `/eval` nie flagował. Test spójności `test_risk_consistency.py` (risk_level ⇔ `/eval` ⇔ SQL na siatce granic, alerty). pytest 432 passed, ruff czysty na zmienionych plikach.
+- **Człowiek zdecydował:** endpoint w ai zamiast UPDATE w api (reguła w jednym miejscu), alerty bez wycofywania. Wymagania dla api (#4) i web (#5) wklejone ręcznie w #84.
+- **Review:** brak blokerów. Notatka: score i próg są `real` (float4), więc finding leżący dokładnie na granicy może zmienić pasmo po przeliczeniu. Wynik zgodny z `/eval`.
+- **Do sprawdzenia przez człowieka:** UPDATE na prawdziwym Postgresie w compose (SQL testowany w SQLite).

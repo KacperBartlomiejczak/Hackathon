@@ -183,6 +183,12 @@ class ReanalyzeResult(CamelModel):
     queued: int = 0
 
 
+class RecomputeRiskResponse(CamelModel):
+    module: Module
+    threshold: float
+    updated: int
+
+
 class HealthStatus(CamelModel):
     status: Literal["ok", "degraded"]
     ollama: Literal["ok", "error"]
@@ -190,8 +196,14 @@ class HealthStatus(CamelModel):
 
 
 def risk_level(score: float, threshold: float, high: float = HIGH_RISK_SCORE) -> RiskLevel:
-    """high >= `high` (0.8, config risk.high), medium >= module threshold, otherwise low (contracts.md)."""
-    if score >= high:
+    """Risk band of a score for a module.
+
+    high   = score >= max(high, threshold)  (a threshold above `high` raises the bar for alerts too)
+    medium = score >= threshold             (flagged, same rule as /eval)
+    low    = otherwise
+    Keep in sync with db.RISK_CASE_SQL.
+    """
+    if score >= max(high, threshold):
         return "high"
     if score >= threshold:
         return "medium"

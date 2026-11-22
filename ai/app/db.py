@@ -111,6 +111,27 @@ async def load_module_settings(
     return float(row["threshold"]), {k: float(weights[k]) for k in ("llm", "rules", "emb")}
 
 
+# Same rule as models.risk_level(); $1 = threshold, $2 = high. Keep both in sync.
+RISK_CASE_SQL = (
+    "CASE WHEN score >= GREATEST($2::float8, $1::float8) THEN 'high' "
+    "WHEN score >= $1::float8 THEN 'medium' ELSE 'low' END"
+)
+
+_RECOMPUTE_RISK = f"""
+UPDATE findings SET risk_level = {RISK_CASE_SQL}
+WHERE module = $3 AND risk_level IS DISTINCT FROM {RISK_CASE_SQL}
+"""
+
+
+async def recompute_risk_levels(pool: asyncpg.Pool, module: int, threshold: float, high: float) -> int:
+    """Re-derive findings.risk_level for one module from stored scores. Returns the number of rows changed."""
+    try:
+        status = await pool.execute(_RECOMPUTE_RISK, threshold, high, module)
+    except (OSError, asyncpg.PostgresError) as exc:
+        raise DatabaseError(f"recompute_risk_levels({module}) failed: {exc}") from exc
+    return int(status.rsplit(" ", 1)[-1])  # asyncpg returns "UPDATE <n>"
+
+
 _UPSERT_FINDING = """
 INSERT INTO findings (document_id, module, score, risk_level, label, reasons,
                       firm_entity_id, advertiser_entity_id, model, prompt_version)
