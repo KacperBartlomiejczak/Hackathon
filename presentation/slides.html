@@ -937,7 +937,7 @@
             <li><strong>Aktywne adaptery (MVP):</strong>
               <code>sample</code> (dane offline + syntetyki gold set), <code>web</code> (Chromium, discovery z głębokości 1, rotacja <strong>23 User-Agentów</strong> i <code>PROXY_LIST</code>, limit 2/host, jitter), <code>youtube</code> (publiczny RSS kanałów) oraz <code>tiktok</code> (pojedyncze filmy przez oEmbed + fallback JSON, #51).</li>
             <li><strong>Zakres social i ochrona SSRF (#74):</strong> adaptery FB/IG pozostają poza obecnym MVP (gotowy interfejs <code>Adapter</code>; filtr UI ukrywa nieaktywne typy z <code>GET /sources</code>). W <code>ssrf.ts</code> (<code>isBlockedUrl</code> + <code>context.route</code>) blokowane są żądania na loopback, sieci prywatne, link-local i usługi Compose.</li>
-            <li><strong>Harmonogram i odporność:</strong> <code>upsertJobScheduler</code> wg <code>sources.cron</code> (<code>Europe/Warsaw</code>), semafor <code>ANALYZE_CONCURRENCY=1</code>, timeout <code>600 s</code>, deduplikacja w locie i zapis błędów do <code>crawl_runs.error</code>.</li>
+            <li><strong>Harmonogram i odporność:</strong> <code>upsertJobScheduler</code> wg <code>sources.cron</code> (<code>Europe/Warsaw</code>), semafor <code>ANALYZE_CONCURRENCY=1</code>, timeout <code>600 s</code>, deduplikacja w locie i status <code>partial</code> przy błędzie analizy (#90).</li>
             <li><strong>Zabezpieczenie dowodów:</strong> HTML + screenshot PNG w SeaweedFS S3, <code>upsert</code> w <code>documents</code> po <code>url_hash</code>, triggery <code>first_seen_at</code> / <code>last_seen_at</code>.</li>
           </ul>
         </div>
@@ -947,7 +947,7 @@
           <ul class="clean">
             <li><strong>Agregator M1/M2/M3 (<code>GET /documents</code>, <code>GET /documents/:id</code>):</strong> składa osobne rekordy z <code>findings</code> w jeden ujednolicony obiekt dokumentu (<code>modules: {"1","2","3"}</code> + podsumowanie <code>overall</code>: <code>maxScore</code>, <code>riskLevel</code>, <code>flaggedModules</code>).</li>
             <li><strong>Śledzenie widoczności reklam M1 (<code>004_seen_tracking.sql</code>):</strong> triggery bazy utrzymują <code>first_seen_at</code> i <code>last_seen_at</code>, a API wylicza <code>isActive</code> (flaga <code>false</code> po późniejszym pełnym przebiegu <code>ok</code> z karencją 1 h, który nie znalazł URL-a).</li>
-            <li><strong>Wyszukiwanie, audyt i ochrona zapisów:</strong> filtry z indeksami GIN <code>pg_trgm</code>, <code>PATCH /findings/:id/status</code> z <code>SELECT ... FOR UPDATE</code> i historią, presigned URL (15 min) oraz opcjonalny <code>ADMIN_TOKEN</code> (#71).</li>
+            <li><strong>Wyszukiwanie, audyt, kalibracja i zapisy:</strong> filtry z <code>pg_trgm</code>, dynamiczne przeliczanie poziomu ryzyka wg progu (#84, <code>risk.ts</code>), <code>PATCH /findings/:id/status</code> z <code>SELECT ... FOR UPDATE</code>, presigned URL (15 min) i opcjonalny <code>ADMIN_TOKEN</code> (#71).</li>
             <li><strong>Real-time &amp; eksport:</strong> Socket.io (<code>alert:new</code>, <code>finding:updated</code>, <code>crawl:status</code>) oraz eksport CSV/JSON dla polskiego Excela (<code>;</code>, przecinek dziesiętny, BOM UTF-8, limit 10 000 wierszy).</li>
           </ul>
         </div>
@@ -1019,7 +1019,7 @@
         <div class="slide-kicker">Moduł 3/3 · Panel analityka UKNF</div>
         <h2 class="slide-title"><code>web</code> — dashboard operacyjny w stylu instytucjonalnym</h2>
       </div>
-      <div class="slide-meta">React 19 · Vite · Tailwind · Recharts · <code>vitest: 99</code></div>
+      <div class="slide-meta">React 19 · Vite · Tailwind · Recharts · <code>vitest: 100</code></div>
     </div>
 
     <div class="slide-body">
@@ -1028,7 +1028,7 @@
           <div class="card-title"><span>Widoki i przepływ pracy analityka</span><span class="pill pill-blue">UI po polsku</span></div>
           <ul class="clean">
             <li><strong>Findingi:</strong> tabela incydentów z filtrami (moduł, ryzyko, status, dynamiczne źródło z <code>GET /sources</code>, zakres dat w czasie lokalnym <code>Europe/Warsaw</code> #88, wyszukiwarka pełnotekstowa <code>q</code> z debounce 300 ms) i paginacją.</li>
-            <li><strong>Szczegóły findingu:</strong> pełny tekst po czyszczeniu, lista kryteriów z polskimi etykietami (<code>utils.ts</code>), <strong>dosłownym cytatem</strong> i werdyktem, podgląd screenshota PNG z S3 oraz zmiana statusu z historią audytu.</li>
+            <li><strong>Szczegóły findingu:</strong> pełny tekst po czyszczeniu, lista kryteriów z etykietami per moduł (M1/M3: „wykryto”/„nie wykryto”; M2: checklista), <strong>dosłownym cytatem</strong>, podglądem PNG z S3 i historią statusów.</li>
             <li><strong>Trendy i raportowanie:</strong> kafelki podsumowania (<code>/stats/summary</code>), wykres incydentów grupowany po dniu lokalnym (<code>bucket=hour</code>) i eksport CSV/JSON pod polski Excel (<code>;</code>, przecinek dziesiętny, BOM UTF-8, neutralizacja <code>= + - @</code>).</li>
             <li><strong>Kalibracja, alerty i źródła:</strong> toasty <code>alert:new</code> przez Socket.io, suwak progu z licznikiem <strong>„Oznaczone flagą”</strong> (<code>tp + fp</code>), zapis progu i wag (opcjonalny <code>VITE_ADMIN_TOKEN</code>, #71) oraz przycisk <strong>„Uruchom crawl”</strong>.</li>
           </ul>
@@ -1038,7 +1038,7 @@
           <div class="card-title"><span>Jakość techniczna i bezpieczeństwo frontendu</span><span class="pill pill-green">0 CRITICAL / 0 HIGH</span></div>
           <ul class="clean">
             <li><strong>Czytelność instytucjonalna:</strong> paleta wzorowana na <code>knf.gov.pl</code> (granatowy nagłówek, wysoki kontrast, liczby tabelaryczne, czerwień zarezerwowana wyłącznie dla alertów wysokiego ryzyka).</li>
-            <li><strong>Wydajność bundla i testy:</strong> code-splitting stron przez <code>React.lazy</code> (główny chunk zmniejszony z <code>850 kB</code> do <code>346 kB</code>; Recharts ładowany wyłącznie w Trendach) oraz <strong>99 testów w <code>vitest</code></strong>.</li>
+            <li><strong>Wydajność bundla i testy:</strong> code-splitting stron przez <code>React.lazy</code> (główny chunk zmniejszony z <code>850 kB</code> do <code>346 kB</code>; Recharts ładowany wyłącznie w Trendach) oraz <strong>100 testów w <code>vitest</code></strong>.</li>
             <li><strong>Czystość konsoli:</strong> zero <code>console.log</code>, szybki <code>QueryState</code> z retry po awarii API, zerowe błędy i warningi w DevTools przeglądarki.</li>
             <li><strong>Utwardzony obraz produkcyjny:</strong> stage runtime na <code>nginx:1.30.7-alpine</code> z łatką <code>apk upgrade --no-cache libxml2</code> (Trivy 0.76.2: <strong>0 CRITICAL, 0 HIGH</strong>), kontener bez <code>env_file</code>.</li>
           </ul>
@@ -1293,7 +1293,7 @@
         <div class="card">
           <div class="card-title"><span>Hardening produkcyjny i skalowanie GPU</span><span class="pill pill-green">Skalowanie</span></div>
           <ul class="clean">
-            <li><strong>Pełne uwierzytelnienie AI:</strong> włączenie <code>AI_REQUIRE_TOKEN=true</code> po dopięciu nagłówka <code>X-Internal-Token</code> w <code>collector/src/ai/client.ts</code> oraz wystawienie wyłącznie portów <code>web</code> i <code>api</code> za reverse proxy z TLS.</li>
+            <li><strong>Pełne uwierzytelnienie AI:</strong> włączenie <code>AI_REQUIRE_TOKEN=true</code> po zmergowaniu nagłówka <code>X-Internal-Token</code> w <code>collector/src/ai/client.ts</code> (#70, PR #105) oraz wystawienie wyłącznie portów <code>web</code> i <code>api</code> za reverse proxy z TLS.</li>
             <li><strong>Ciągłe strojenie jakości:</strong> rozbudowa zbioru <code>gold.csv</code> przez analityków UKNF wg <code>ai/eval/rubric.md</code> i okresowa re-ewaluacja starszych dokumentów przez <code>POST /reanalyze</code>.</li>
             <li><strong>Wydajność inferencji:</strong> skalowanie <code>OLLAMA_NUM_PARALLEL &gt; 1</code> na wielu GPU oraz rozproszona pula workerów <code>collector</code> (z przypinaniem IP w proxy przeciw DNS rebindingowi).</li>
           </ul>
