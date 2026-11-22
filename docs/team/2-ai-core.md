@@ -1,6 +1,7 @@
 # 2 · Python #1 — AI core (moduły, prompty, scoring)
 
 **Branch:** `team/ai-core` (stały, nie zmieniasz)
+**Współpracuje:** mnichu443 (ten sam branch, te same zadania; dzielicie je na kanale)
 **Odpowiadasz za:** serwis `ai/` jako całość (FastAPI `main.py`, `models.py`, `pyproject.toml`, Dockerfile), Ollama, moduły M1/M2/M3 w `ai/app/modules/`, prompty `ai/prompts/`, reguły `ai/rules/`, `scoring.py`, `config.yaml`, alerty do api.
 **Nie dotykasz:** `ai/app/preprocess/`, `embeddings.py`, `eval.py`, `ai/eval/` (osoba #3), reszta repo.
 **Dajesz innym:** `POST /analyze/{id}`, `POST /reanalyze`, `GET /health`, rekordy `findings`, `POST api/internal/alerts`.
