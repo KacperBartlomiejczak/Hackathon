@@ -148,11 +148,11 @@ erDiagram
 - **`collector` (Node 22 + Playwright + BullMQ):**
   - **Zakres źródeł (MVP):** aktywne adaptery `sample` (dane offline + syntetyki gold set), `web` (Chromium, discovery z głębokości 1, rotacja 23 User-Agentów i `PROXY_LIST`, limit 2/host, jitter), `youtube` (publiczny RSS kanałów) oraz `tiktok` (pojedyncze filmy przez oEmbed + fallback JSON, #51) + harmonogram `sources.cron`. Adaptery FB/IG pozostają poza obecnym MVP (gotowy interfejs adaptera; filtr w UI dynamicznie ukrywa nieaktywne typy z `GET /sources`).
   - **Ochrona przed SSRF (`collector/src/adapters/ssrf.ts`, #74):** `isBlockedUrl` (DNS + `net.BlockList`) i `context.route('**/*')` blokują żądania i przekierowania na loopback, sieci prywatne, link-local i usługi Compose.
-  - Zapisuje HTML i screenshot PNG do SeaweedFS S3 oraz metadane do `documents` (`upsert` po `url_hash`, triggery `first_seen_at` / `last_seen_at`).
+  - **Odporność i zapis dowodów:** HTML + screenshot PNG w SeaweedFS S3, `upsert` po `url_hash`, triggery `first_seen_at` / `last_seen_at` oraz status `partial` przy błędzie analizy (#90).
 - **`api` (Fastify + Drizzle + Socket.io):**
   - **Agregator M1/M2/M3 (`GET /documents`, `GET /documents/:id`):** składa wyniki modułów w jeden rekord dokumentu (`modules` `"1"/"2"/"3"` + podsumowanie `overall`: `maxScore`, `riskLevel`, `flaggedModules`).
   - **Śledzenie widoczności reklam M1:** `first_seen_at`, `last_seen_at` oraz wyliczane `isActive` (karencja 1 h po późniejszym pełnym przebiegu `ok`).
-  - REST API + Socket.io (`alert:new`, `finding:updated`, `crawl:status`), indeksy GIN `pg_trgm`, presigned URL (15 min), eksport CSV/JSON i opcjonalny `ADMIN_TOKEN`.
+  - REST API + Socket.io (`alert:new`, `finding:updated`, `crawl:status`), indeksy GIN `pg_trgm`, dynamiczne przeliczanie poziomu ryzyka wg progu (`risk.ts`, #84), presigned URL (15 min), eksport CSV/JSON i opcjonalny `ADMIN_TOKEN`.
 
 ---
 
@@ -175,10 +175,10 @@ erDiagram
 
 - **Widoki robocze (React 19 + Vite + Tailwind + Recharts, styl instytucjonalny `knf.gov.pl`):**
   - **Findingi:** tabela incydentów z filtrami (moduł, ryzyko, status, dynamiczne źródło z `GET /sources`, zakres dat w czasie lokalnym `Europe/Warsaw` #88, wyszukiwarka pełnotekstowa `q` z debounce 300 ms) oraz paginacją.
-  - **Szczegóły findingu:** pełna treść po czyszczeniu, lista `reasons[]` z polskimi etykietami, **dosłownym cytatem** i werdyktem, podgląd screenshota z S3, zmiana statusu z historią audytu.
+  - **Szczegóły findingu:** pełna treść po czyszczeniu, lista `reasons[]` z etykietami per moduł (M1/M3: „wykryto” / „nie wykryto”; M2: checklista), **dosłownym cytatem**, podglądem PNG z S3 i historią statusów.
   - **Trendy i raportowanie:** kafelki podsumowania (`/stats/summary`), wykres incydentów w czasie grupowany po dniu lokalnym (`bucket=hour`), eksport CSV/JSON dla polskiego Excela (`;`, przecinek dziesiętny, BOM UTF-8, neutralizacja formula injection `= + - @`).
   - **Kalibracja, alerty i źródła:** toasty `alert:new` przez Socket.io, licznik **„Oznaczone flagą”** (`tp + fp`), zapis progu i wag (opcjonalny `VITE_ADMIN_TOKEN`, #71) oraz przycisk **„Uruchom crawl”**.
-- **Lekki i bezpieczny obraz produkcyjny (`vitest`: 99 testów):** code-splitting (`React.lazy`, główny chunk 346 kB) serwowany przez **`nginx:1.30.7-alpine` + `apk upgrade libxml2`** (**Trivy: 0 CRITICAL / 0 HIGH**), bez `env_file`.
+- **Lekki i bezpieczny obraz produkcyjny (`vitest`: 100 testów):** code-splitting (`React.lazy`, główny chunk 346 kB) serwowany przez **`nginx:1.30.7-alpine` + `apk upgrade libxml2`** (**Trivy: 0 CRITICAL / 0 HIGH**), bez `env_file`.
 
 ---
 
@@ -237,5 +237,5 @@ erDiagram
 
 - **Analiza 5 reguł układu graficznego M2 (reguły UKNF 4, 5, 7, 8, 13):** weryfikacja rozmiaru czcionki, kontrastu, dostępu jednym kliknięciem, responsywności oraz dominacji wyników historycznych na wyrenderowanym DOM i screenshotach S3 (VLM / Playwright CSS metrics).
 - **Pełne adaptery Facebook / Instagram i rozbudowa rejestru KNF (`entities.csv`):** wdrożenie kolektorów FB/IG oraz listingu profili TikTok (interfejs `Adapter` gotowy w `collector/`) oraz uzupełnienie `official_domains` i `social_handles` dla wszystkich podmiotów KNF.
-- **Analiza wideo (OCR / ASR) i pełne uwierzytelnienie AI:** transkrypcja rolek (YouTube Shorts, TikTok, Reels) oraz włączenie `AI_REQUIRE_TOKEN=true` po dopięciu nagłówka `X-Internal-Token` w `collector/src/ai/client.ts`.
+- **Analiza wideo (OCR / ASR) i pełne uwierzytelnienie AI:** transkrypcja rolek (YouTube Shorts, TikTok, Reels) oraz włączenie `AI_REQUIRE_TOKEN=true` po zmergowaniu nagłówka `X-Internal-Token` w `collector/src/ai/client.ts` (#70, PR #105).
 - **Ciągłe strojenie jakości i skalowanie GPU:** rozbudowa zbioru `gold.csv` wg `ai/eval/rubric.md`, okresowa re-ewaluacja przez `POST /reanalyze` oraz skalowanie `OLLAMA_NUM_PARALLEL > 1` na wielu GPU.
