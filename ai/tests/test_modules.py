@@ -375,3 +375,21 @@ async def test_alert_failure_never_raises(monkeypatch: pytest.MonkeyPatch) -> No
     assert calls == 2  # one retry
     monkeypatch.setenv("INTERNAL_TOKEN", "")
     assert not await alerts.send_alert(_finding(), {"url": "u"}, None)
+
+
+def test_m3_contrast_clause_after_disclaimer_is_still_advice() -> None:
+    """Issue #95 follow-up: a disclaimer must not hide a contrast clause with advice ("..., ale kupuj X")."""
+    text = "To nie jest rekomendacja inwestycyjna, ale kupuj akcje ABC, cena docelowa 50 zł."
+    score, reasons = m3.rules_hits(text)
+    # the disclaimer clause itself is skipped, the contrast clause counts
+    assert [r.criterion for r in reasons] == ["rule:direct_recommendation"]
+    assert score > 0
+    assert "kupuj" in m3.strip_disclaimers(text) and "rekomendacja" not in m3.strip_disclaimers(text)
+    assert not m3.is_disclaimer_quote(text)
+
+
+def test_m3_pure_disclaimer_quote_is_dropped() -> None:
+    quote = ("Ta publikacja handlowa jest informacyjna i edukacyjna. Nie jest rekomendacją inwestycyjną ani "
+             "informacją rekomendującą lub sugerującą strategię inwestycyjną.")
+    assert m3.is_disclaimer_quote(quote)
+    assert not m3.is_disclaimer_quote("Zarządzam Twoim portfelem.")

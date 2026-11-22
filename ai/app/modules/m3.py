@@ -59,19 +59,57 @@ def _load_rules() -> tuple[str, list[tuple[str, float, re.Pattern[str]]], re.Pat
 
 
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+# "To nie jest rekomendacja, ale kupuj X": only the clause before the contrast is the disclaimer (#95).
+_CLAUSE_SPLIT = re.compile(r"\s*;\s*|\s+[—–-]\s+|,?\s+(?:ale|jednak|natomiast|lecz)\s+", re.IGNORECASE)
 
 
 def strip_disclaimers(text: str) -> str:
-    """Drop sentences that are legal 'not a recommendation' boilerplate; they say the opposite of advice."""
+    """Drop legal 'not a recommendation' boilerplate (sentence or clause); it says the opposite of advice."""
     rx = _load_rules()[2]
-    return " ".join(s for s in _SENTENCE_END.split(text) if s and not rx.search(s))
+    kept: list[str] = []
+    for sentence in _SENTENCE_END.split(text):
+        if not sentence:
+            continue
+        if not rx.search(sentence):
+            kept.append(sentence)
+            continue
+        kept.extend(c for c in _CLAUSE_SPLIT.split(sentence) if c and not rx.search(c))
+    return " ".join(kept)
+
+
+def _sentence_span(text: str, m: re.Match[str]) -> tuple[int, int]:
+    a = max(text.rfind(c, 0, m.start()) for c in ".!?\n") + 1
+    ends = [i for c in ".!?\n" if (i := text.find(c, m.end())) != -1]
+    return a, (min(ends) + 1 if ends else len(text))
 
 
 def _sentence_around(text: str, m: re.Match[str]) -> str:
-    a = max(text.rfind(c, 0, m.start()) for c in ".!?\n") + 1
-    ends = [i for c in ".!?\n" if (i := text.find(c, m.end())) != -1]
-    b = min(ends) + 1 if ends else len(text)
+    a, b = _sentence_span(text, m)
     return text[a:b].strip()
+
+
+def _in_disclaimer(text: str, m: re.Match[str], disclaimer: re.Pattern[str]) -> bool:
+    """The match sits in a disclaimer clause (the contrast clause "..., ale kupuj X" is not one)."""
+    a, b = _sentence_span(text, m)
+    sentence = text[a:b]
+    if not disclaimer.search(sentence):
+        return False
+    start = 0
+    for sep in (*_CLAUSE_SPLIT.finditer(sentence), None):
+        end = sep.start() if sep else len(sentence)
+        if start <= m.start() - a < max(end, start + 1):
+            return bool(disclaimer.search(sentence[start:end]))
+        start = sep.end() if sep else len(sentence)
+    return True
+
+
+def is_disclaimer_quote(quote: str) -> bool:
+    """A reason quote that is only a disclaimer: nothing advisory remains once the disclaimer is stripped."""
+    _, rules, disclaimer = _load_rules()
+    if not disclaimer.search(quote):
+        return False
+    rest = strip_disclaimers(quote)
+    return not any(rx.search(rest) for _, _, rx in rules)
 
 
 def rules_hits(text: str) -> tuple[float, list[Reason]]:
@@ -80,7 +118,7 @@ def rules_hits(text: str) -> tuple[float, list[Reason]]:
     total = 0.0
     reasons: list[Reason] = []
     for rule_id, weight, rx in rules:
-        m = next((m for m in rx.finditer(text) if not disclaimer.search(_sentence_around(text, m))), None)
+        m = next((m for m in rx.finditer(text) if not _in_disclaimer(text, m, disclaimer)), None)
         if m is None:
             continue
         total += weight
@@ -100,9 +138,8 @@ async def run_m3(
     out = await llm.generate(prompt.text, strip_disclaimers(text)[:MAX_DOC_CHARS], M3Output)
     ms["llm"] = int((time.monotonic() - t) * 1000)
 
-    disclaimer = _load_rules()[2]
     reasons = [r for r in validate_reasons(llm_reasons(out.criteria, CRITERION_WEIGHTS) + rule_reasons, text)
-               if not disclaimer.search(r.quote)]
+               if not is_disclaimer_quote(r.quote)]
     run = ModuleRun(module=3, finding=None, rules=rules, threshold=threshold, weights=weights, ms=ms)
     if not reasons:
         return run

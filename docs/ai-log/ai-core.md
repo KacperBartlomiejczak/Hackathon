@@ -199,3 +199,8 @@
 - **Człowiek zdecydował:** endpoint w ai zamiast UPDATE w api (reguła w jednym miejscu), alerty bez wycofywania. Wymagania dla api (#4) i web (#5) wklejone ręcznie w #84.
 - **Review:** brak blokerów. Notatka: score i próg są `real` (float4), więc finding leżący dokładnie na granicy może zmienić pasmo po przeliczeniu. Wynik zgodny z `/eval`.
 - **Do sprawdzenia przez człowieka:** UPDATE na prawdziwym Postgresie w compose (SQL testowany w SQLite).
+
+## 2026-11-22 — #95 domknięcie: zdanie „zastrzeżenie + prawdziwa rada”
+- **Luka:** „To nie jest rekomendacja, ale kupuj akcje ABC, cena docelowa 50 zł.” było w całości traktowane jak zastrzeżenie (reguły pomijały zdanie, LLM go nie widział, powód z cytatem był odrzucany), więc formułka mogła ukryć realną poradę.
+- **Zmiana (`m3.py`):** zastrzeżenie liczy się na poziomie klauzuli (podział na „ale/jednak/natomiast/lecz”, średnik, myślnik): `strip_disclaimers` usuwa tylko klauzulę z formułką, reguły pomijają dopasowania tylko w klauzuli-zastrzeżeniu, powód z cytatem jest odrzucany, gdy po usunięciu zastrzeżeń nie zostaje żaden sygnał doradztwa (`is_disclaimer_quote`). Czyste zastrzeżenie (dok. 99) działa jak wcześniej. 2 nowe testy, pytest 438 passed.
+- **Do sprawdzenia przez człowieka:** `/reanalyze?module=3&document_id=99` i `/findings/65`; wzorce „ale/jednak” tylko dla polskiego tekstu.
