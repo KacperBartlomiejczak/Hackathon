@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.llm import OllamaClient
 from app.models import Reason
-from app.modules.common import RULES_DIR, emb_score, llm_reasons
+from app.modules.common import RULES_DIR, QuoteStr, emb_score, llm_reasons
 from app.modules.common import llm_score as common_llm_score
 from app.prompts import load_prompt
 from app.scoring import combine
@@ -41,12 +41,14 @@ CriterionId = Literal[tuple(CRITERION_WEIGHTS)]  # type: ignore[valid-type]  # e
 class CriterionResult(BaseModel):
     criterion: CriterionId
     verdict: Literal["pass", "fail", "unclear"]
-    quote: str = Field(max_length=600)
+    quote: QuoteStr
     confidence: float = Field(ge=0, le=1)
 
 
 class M2Output(BaseModel):
-    criteria: list[CriterionResult]
+    # minItems/maxItems only in the JSON schema sent to Ollama: without them Bielik answers `[]` and llm = 0.
+    criteria: list[CriterionResult] = Field(json_schema_extra={
+        "minItems": len(CRITERION_WEIGHTS), "maxItems": len(CRITERION_WEIGHTS)})
 
 
 @dataclass(frozen=True)

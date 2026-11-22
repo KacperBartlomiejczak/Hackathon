@@ -172,3 +172,62 @@
 - **#70:** `/eval` nie zwraca już tekstu wyjątku w `detail` (`eval failed`, szczegóły tylko w logu), test regresji z fałszywym wyjątkiem zawierającym DSN. Testy 401/503 dla tokenu już istniały (`test_app.py`). Zostaje po stronie innych: `X-Internal-Token` w collectorze i w proxy `/eval` w api, `AI_REQUIRE_TOKEN` i `AI_CONFIG` w `.env.example` (infra).
 - **#73:** skan Trivy: `python:3.12.12-slim-bookworm` 9C/133H → `3.12.16-slim-bookworm` 2C/99H (bez poprawek upstream) → `3.12.16-slim-trixie` **0C/51H**. Dockerfile przełączony na trixie, obraz zbudowany, import zależności i `uid=10001` sprawdzone, pytest 117 passed. Wynik w `ai/SECURITY.md`.
 - **Do sprawdzenia przez człowieka:** `docker compose up --build` z nowym obrazem `ai` (nie uruchamiano pełnego stosu z Ollamą na tej maszynie).
+
+## 2026-11-22 — #95 M3: zastrzeżenie „nie jest rekomendacją” jako dowód
+- **Zlecono:** finding 65 (XTB) cytował disclaimer jako dowód doradztwa. Skill: risk-classifier. Patch przygotowany na `team/ai-data`, zastosowany tutaj.
+- **Zmiana:** `rules/m3.yaml` (wzorzec `disclaimer`, reguły v4), `modules/m3.py` (reguły pomijają zdania z zastrzeżeniem, `strip_disclaimers()` przed LLM, reasons z cytatem-zastrzeżeniem odrzucane), prompt `m3-v4`, 3 testy. Pytest 120 passed.
+- **Do sprawdzenia przez człowieka:** reanaliza dokumentu 99 na żywym stosie i `/findings/65`. Starsze findings M3 zostają na v3 do reanalizy.
+
+## 2026-11-22 — #83 (M1 reklamujący i score) i #90 (analyze failed)
+- **Zlecono:** przejrzeć otwarte PR-y (Haiku, przegląd wydajności PR #93), domknąć #83 po stronie ai-core, przejrzeć lokalne zmiany i wystawić PR. Skill: `risk-classifier`.
+- **Zmiany:** `db.resolve_advertiser()` (lookup + insert w jednej transakcji pod `pg_advisory_xact_lock`, normalizacja host/handle, encja `advertiser`/`finfluencer` z `is_authorized=false`) wołane z `pipeline` dla findingów M1; błąd bazy nie gubi findingu. Prompt `m1-v2` (jawne sygnały reklamy: link partnerski, wpis sponsorowany, #reklama), wagi M1 0.7/0.2/0.1. `OllamaClient` z semaforem `llm.max_concurrency` (= `OLLAMA_NUM_PARALLEL`), `AnalysisFailed.category` zamiast tekstu wyjątku w odpowiedzi, crash jednego modułu nie zabija pozostałych, cytaty > 600 znaków przycinane zamiast odrzucać moduł. Testy: `test_m1_advertiser.py`, `test_analysis_budget.py`; pytest 126 passed, ruff czysty.
+- **Odstępstwo od skilla:** timeout Ollamy bez retry (na CPU retry tylko podwaja obciążenie); inne błędy transportu nadal z 1 retry.
+- **Do sprawdzenia przez człowieka:** `/reanalyze?module=1` na gold secie przed/po na żywym Bieliku (brak Ollamy na tej maszynie). PR #93 (ai-data) dodaje `ensure_advertiser()`, który dubluje `resolve_advertiser()` — do uzgodnienia z ai-data.
+- **Poprawki po review (Haiku, świeża sesja):** `/analyze-text` zwraca w 502 tylko kategorię błędu; backoff między retry poza slotem Ollamy; lookup domeny reklamującego normalizuje schemat i ścieżkę jak `entity_match._norm_domain` (bez duplikatów encji); komentarz `budget_s` w `config.yaml` (collector 600 s). pytest 131 passed. Odrzucone uwagi review: „Ollama liczy dalej po anulowaniu” (Ollama przerywa przy rozłączeniu klienta), „embed omija semafor” (inny model, nie blokuje slotu LLM). Skill `risk-classifier` (retry przy timeout) do aktualizacji przez leada.
+
+## 2026-11-22 — issue #83: M1 reklama sponsorowana poniżej progu
+- **Zlecono:** ewidentna reklama finfluencera (bossa-ranking) miała score 0.31 i puste pole „Reklamujący”.
+- **Przyczyna:** `llm_score` M1 sumuje tylko kryteria z `verdict=fail` z wagami 0.5/0.3/0.2. Sama reklama (`promotes_firm`) bez obietnic zysku dawała max 0.5 w llm, więc przy rules 0.9 i emb ~0.55 wychodziło ok. 0.59 (<0.6). Sygnały matchera wchodzą do score przez `rules` (0.9), więc nie to było problemem.
+- **Zmiana:** wagi kryteriów M1 0.7/0.2/0.1 (`promotes_firm` jest rdzeniem M1), `m1-v2` (prompt: link partnerski i oznaczenie „sponsorowany” jako promowanie). Testy: reklama sponsorowana >= 0.6, neutralny news < 0.6.
+- **Wynik (żywy Bielik):** bossa-ranking 0.593 → 0.707 (llm 0.475 → 0.665); neutralny news 0.16 bez flagi; inwestuj-z-marta 0.83. pytest 122 passed.
+- **Do sprawdzenia przez człowieka:** brak finding-ów M1 dla gold w bazie (9/40 dokumentów, bez findingów) — pełny `/eval?module=1` po `/reanalyze` na zmienionych wagach.
+- **Scalone z równoległą pracą na `origin/team/ai-core`:** wagi 0.7/0.2/0.1 i `m1-v2` powstały tam równolegle; przy merge przyjęto wersję zdalną (`resolve_advertiser`, `disclaimer` w `m3.yaml`), a z tej sesji zostały tylko testy M1 (reklama sponsorowana ≥ próg, niepewna promocja i neutralna wzmianka < próg) oraz test oferty obok zastrzeżenia M3. Znane ograniczenie zdalnej wersji M3: zdanie „to nie jest rekomendacja, ale kupuj X” jest w całości traktowane jak zastrzeżenie.
+
+## 2026-11-22 — #84 próg w kalibracji nie przelicza flag
+- **Zlecono:** naprawić niespójność progu z listą findingów. Orchestrator (Opus): Haiku (high) czyta issue i kod, Sonnet (medium) implementuje, drugi Sonnet (medium) robi review. Skill: `risk-classifier`.
+- **Zmiany:** `POST /recompute-risk?module=1..3` przelicza `findings.risk_level` z zapisanego `score` i progu z `module_settings` jednym UPDATE (`db.RISK_CASE_SQL`), bez LLM i bez alertów. `risk_level()`: `high` tylko gdy `score >= max(risk.high, próg)`, bo wcześniej przy progu > 0.8 leciał alert dla findingu, którego `/eval` nie flagował. Test spójności `test_risk_consistency.py` (risk_level ⇔ `/eval` ⇔ SQL na siatce granic, alerty). pytest 432 passed, ruff czysty na zmienionych plikach.
+- **Człowiek zdecydował:** endpoint w ai zamiast UPDATE w api (reguła w jednym miejscu), alerty bez wycofywania. Wymagania dla api (#4) i web (#5) wklejone ręcznie w #84.
+- **Review:** brak blokerów. Notatka: score i próg są `real` (float4), więc finding leżący dokładnie na granicy może zmienić pasmo po przeliczeniu. Wynik zgodny z `/eval`.
+- **Do sprawdzenia przez człowieka:** UPDATE na prawdziwym Postgresie w compose (SQL testowany w SQLite).
+
+## 2026-11-22 — gold set lokalnie, LLM zwracał pustą listę kryteriów (llm = 0)
+- **Zlecono (lead):** przebudować ai z nowym `gold.csv`, dokończyć `/analyze`, porównać `/eval?module=2` przy 0.4 i 0.8. Orchestrator (Opus): Haiku (high) przeszukał repo. Skill: `risk-classifier`.
+- **Środowisko:** merge `origin/main` (fast-forward), cały stos lokalnie na Docker Desktop z `infra/docker-compose.gpu.yml` (RTX 3060). Załadowane tylko 43 dokumenty z fixtures `sample`; 77 URL-i `crawl` z `gold_urls_to_load.csv` nie ma w `sources.yaml` (pytanie do leada).
+- **Bug:** we wszystkich modułach Bielik odpowiadał `{"criteria":[]}` (8 tokenów, ~350 ms), więc składowa llm = 0 i każdy score ≤ 0.32. Progi 0.4 i 0.8 dawały identyczne `/eval` (tp=0).
+- **Zmiana:** `minItems`/`maxItems` = liczba kryteriów w schemacie JSON dla Ollamy (`json_schema_extra`, walidacja zostaje łagodna) w M1/M2/M3; `m1-v3`, `m2-v5`, `m3-v5`; test `test_llm_schema_items.py`. Koszt: ~45–50 s na dokument M2 na GPU zamiast ~0.4 s.
+- **Wynik (43 dokumenty, żywy Bielik):** M2 0.4 → TP 2, FN 15; 0.8 → TP 1, FN 16. M1 0.4 → TP 5; 0.8 → TP 2. M3 0.4 → TP 2; 0.8 → TP 0. FP = 0 wszędzie. pytest 440 passed.
+- **Do zrobienia przez innych:** ai-data — fikcyjna firma `przykladowy-broker.example` z gold setu M2 nie jest w seedzie jako podmiot z rejestru, więc 25 syntetycznych dokumentów M2 nie trafia do M2 (`route=[]`). Lead — sposób załadowania 77 URL-i `crawl`.
+
+## 2026-11-22 — #95 domknięcie: zdanie „zastrzeżenie + prawdziwa rada”
+- **Luka:** „To nie jest rekomendacja, ale kupuj akcje ABC, cena docelowa 50 zł.” było w całości traktowane jak zastrzeżenie (reguły pomijały zdanie, LLM go nie widział, powód z cytatem był odrzucany), więc formułka mogła ukryć realną poradę.
+- **Zmiana (`m3.py`):** zastrzeżenie liczy się na poziomie klauzuli (podział na „ale/jednak/natomiast/lecz”, średnik, myślnik): `strip_disclaimers` usuwa tylko klauzulę z formułką, reguły pomijają dopasowania tylko w klauzuli-zastrzeżeniu, powód z cytatem jest odrzucany, gdy po usunięciu zastrzeżeń nie zostaje żaden sygnał doradztwa (`is_disclaimer_quote`). Czyste zastrzeżenie (dok. 99) działa jak wcześniej. 2 nowe testy, pytest 438 passed.
+- **Do sprawdzenia przez człowieka:** `/reanalyze?module=3&document_id=99` i `/findings/65`; wzorce „ale/jednak” tylko dla polskiego tekstu.
+
+## 2026-11-22 — #90 /health pokazuje stan modelu LLM
+- **Zlecono:** przegląd issues ai-core, synchronizacja z origin, domknięcie niezrobionego z #90 (`/health` nie wiedział, czy Bielik się załadował). #95, #83, #70 (część ai) były już zrobione w PR #102.
+- **Zmiana:** `OllamaClient.warmup()` zwraca bool, `app.state.llm_ready` ustawiany po warmupie, `/health` ma pole `llm` (`ok` / `loading` / `error`). Pole informacyjne: `status` i kod 503 zależą jak dotąd od Ollamy i Postgresa, więc healthcheck w compose się nie zmienia. Pytest 439 passed.
+- **Nie zrobione:** fail-fast po nieudanym warmupie (świadomie, na CPU model może się ładować dłużej niż timeout).
+- **Do sprawdzenia przez człowieka:** `curl localhost:8000/health` na żywym stosie; `docs/contracts.md` nie opisuje pola `llm` (zmiana przez team/api). `ruff check` zgłasza 2 × E501 w `ai/app/preprocess/entity_match.py` (plik ai-data) — zgłosić.
+
+## 2026-11-22 — #83 merge main i test po poprawkach M1
+- **Issue #83:** M1 dawał score 0.31 dla oczywistej reklamy finfluencera, puste „Reklamujący” i mylące „niespełnione”. Poprawki są już w PR #102: wagi M1 0.7/0.2/0.1, prompt `m1-v2` (linki partnerskie i oznaczenia sponsorowane liczą się jako promocja), `db.resolve_advertiser` wypełnia `findings.advertiser_entity_id`, w web `verdictLabel` pokazuje „wykryto” dla M1/M3.
+- **Ta sesja:** merge `origin/main` bez konfliktów, ruff czysty, pytest 445 passed / 8 skipped / 1 xfailed, push do PR #102. Do zrobienia po merge: weryfikacja na żywo (przebudować ai, `/reanalyze?module=1`).
+- **Dla ai-data:** `ensure_advertiser()` w `entity_match.py` dubluje `db.resolve_advertiser` i nie jest używane przez pipeline.
+- **Proces:** plan zaakceptowany przez człowieka, issue przeczytał subagent Haiku, wykonanie przez subagenta Sonnet.
+
+## #102 — uwagi leada przed merge'em (kontrakt, advertiser, M3 przecinek)
+- Zlecono: odblokować PR #102 według review leada. Plan zaakceptowany przez człowieka; kod czytał Claude (Opus), implementacja przez subagenta Sonnet (medium).
+- M3 (#95): `_CLAUSE_SPLIT` dzieli zdanie z zastrzeżeniem także po przecinku, więc „Kupuj akcje X teraz, to nie jest rekomendacja.” daje trafienie `direct_recommendation`. Zrobione metodą test-first: 4 nowe testy, 3 padały przed poprawką (commit 06ba7f0). ruff czysto, pytest 449 passed, 8 skipped, 1 xfailed.
+- Kontrakt: `/recompute-risk` jest już opisany w PR #106 (team/api). Do #4 poszła prośba o dopisanie formatu 502 z kategorią, `/health.llm`, tokena `/analyze-text` i parametrów `/reanalyze` (skill `data-contract`: zmienia tylko właściciel).
+- Advertiser: zostaje jedna ścieżka, `db.resolve_advertiser`. ai-data usuwa nieużywany `ensure_advertiser`. Opis PR #102 przepisany (Closes #83, #84, #95; refs #90).
+- Człowiek wkleja opis PR i wiadomości (brak gh). Na żywo nadal niesprawdzone: /findings/65, dok. 99, bossa-ranking, do zrobienia po merge'u.

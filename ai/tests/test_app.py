@@ -64,7 +64,7 @@ def test_health_degraded_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
     with TestClient(main.app) as client:
         r = client.get("/health")
     assert r.status_code == 503
-    assert r.json() == {"status": "degraded", "ollama": "error", "postgres": "error"}
+    assert r.json() == {"status": "degraded", "ollama": "error", "postgres": "error", "llm": "error"}
 
 
 def test_unconfigured_and_stubs() -> None:
@@ -146,3 +146,10 @@ def test_auth_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("AI_REQUIRE_TOKEN", raising=False)
     with TestClient(main.app) as client:
         assert client.post("/reanalyze?module=2").status_code == 503
+
+
+def test_llm_state() -> None:
+    assert main._llm_state(None, None) == "error"
+    assert main._llm_state(object(), None) == "loading"
+    assert main._llm_state(object(), True) == "ok"
+    assert main._llm_state(object(), False) == "error"

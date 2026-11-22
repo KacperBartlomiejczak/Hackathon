@@ -21,3 +21,6 @@
 - M2 positives are mostly synthetic (`synthetic_m2.jsonl`), because real firm pages are almost always compliant. Some live pages geo-block or serve English text.
 - Live page content changes, so the collector's copy can differ from what was labelled.
 - Text-only M2 rules were labelled; layout rules (4, 5, 7, 8, 13) need rendered HTML or a screenshot.
+
+## Loading the gold documents
+`/eval` needs a finding for every gold document, otherwise the row counts as score 0 (`missing_findings`). After the collector has loaded the URLs from `gold_urls_to_load.csv`, run `DATABASE_URL=... INTERNAL_TOKEN=... python eval/analyze_gold.py`. It lists gold URLs missing from `documents` and queues `/reanalyze` for documents without findings.

@@ -2,7 +2,6 @@ import { and, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import type { FastifyPluginAsync } from "fastify";
 import type { Db } from "../db/client.js";
-import { effectiveRiskLevel } from "../db/risk.js";
 import { documents, findings } from "../db/schema.js";
 import { trendQuerySchema, type CountItem } from "../types/stats.js";
 
@@ -48,7 +47,7 @@ export const statsRoutes: FastifyPluginAsync<Deps> = async (app, { db }) => {
     const started = Date.now();
     const count = sql<number>`count(*)::int`;
 
-    const group = async <K extends string | number>(col: PgColumn | SQL, joinDocs = false): Promise<CountItem<K>[]> => {
+    const group = async <K extends string | number>(col: PgColumn, joinDocs = false): Promise<CountItem<K>[]> => {
       const base = db.select({ key: col, count }).from(findings);
       const q = joinDocs ? base.innerJoin(documents, eq(documents.id, findings.documentId)) : base;
       const rows = await q.groupBy(col).orderBy(desc(count), col);
@@ -57,7 +56,7 @@ export const statsRoutes: FastifyPluginAsync<Deps> = async (app, { db }) => {
 
     const [byModule, byRisk, bySourceKind, byStatus] = await Promise.all([
       group<number>(findings.module),
-      group<string>(effectiveRiskLevel),
+      group<string>(findings.riskLevel),
       group<string>(documents.sourceKind, true),
       group<string>(findings.status),
     ]);
