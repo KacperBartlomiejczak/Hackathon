@@ -8,6 +8,13 @@ describe("label helpers", () => {
     expect(verdictLabel("fail")).toBe("niespełnione");
   });
 
+  it("labels M1 and M3 verdicts as detection, M2 as a checklist", () => {
+    expect(verdictLabel("fail", 1)).toBe("wykryto");
+    expect(verdictLabel("fail", 3)).toBe("wykryto");
+    expect(verdictLabel("pass", 1)).toBe("nie wykryto");
+    expect(verdictLabel("fail", 2)).toBe("niespełnione");
+  });
+
   it("fall back to the raw code for unknown values", () => {
     expect(sourceLabel("mastodon")).toBe("mastodon");
     expect(criterionLabel("brand_new_criterion")).toBe("brand_new_criterion");

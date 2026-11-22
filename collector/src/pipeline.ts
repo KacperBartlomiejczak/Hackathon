@@ -114,7 +114,11 @@ export function createPipeline(deps: { db: Db; storage: Storage; queues: Queues 
           const msg = `analyze failed for document ${row.id}`;
           await db
             .update(crawlRuns)
-            .set({ error: sql`CASE WHEN ${crawlRuns.error} IS NULL THEN ${msg} ELSE ${crawlRuns.error} || '; ' || ${msg} END` })
+            .set({
+              // A run whose analysis failed is not a clean ok; `failed` (adapter error) stays as is.
+              status: sql`CASE WHEN ${crawlRuns.status} = 'ok' THEN 'partial' ELSE ${crawlRuns.status} END`,
+              error: sql`CASE WHEN ${crawlRuns.error} IS NULL THEN ${msg} ELSE ${crawlRuns.error} || '; ' || ${msg} END`,
+            })
             .where(eq(crawlRuns.id, crawlRunId))
             .catch((err: unknown) => logger.warn({ crawlRunId, err }, 'could not record analyze failure'));
         });

@@ -102,6 +102,15 @@ async def test_m3_disclaimer_quote_gives_no_finding() -> None:
     assert run.finding is None
 
 
+def test_m3_rules_still_flag_real_offer_next_to_disclaimer() -> None:
+    disclaimer = ("Ta publikacja handlowa jest informacyjna i edukacyjna. Nie jest rekomendacją inwestycyjną "
+                  "ani informacją rekomendującą lub sugerującą strategię inwestycyjną.")
+    offer = " Oferujemy indywidualne rekomendacje inwestycyjne dla klientów premium."
+    _, reasons = m3.rules_hits(disclaimer + offer)
+    assert [r.criterion for r in reasons] == ["rule:advisory_offer"]
+    assert "Oferujemy indywidualne rekomendacje" in reasons[0].quote
+
+
 def test_m3_rules_quiet_text() -> None:
     assert m3.rules_hits("Dziś ładna pogoda, idziemy na spacer.")[0] == 0.0
 
@@ -117,6 +126,66 @@ async def test_m1_scam_is_high_and_quotes_are_real() -> None:
     assert all(r.quote in SCAM for r in run.finding.reasons)
     got = {r.criterion for r in run.finding.reasons}
     assert got >= {"firm_mentioned", "promotes_firm", "profit_promises"}
+
+
+BOS = Entity(8, "Dom Maklerski Banku Ochrony Środowiska S.A.", ("Dom Maklerski BOŚ", "BOSSA"), True,
+             ("bossa.pl",), ())
+SPONSORED = ("Testowałem pięć platform i bez dwóch zdań polecam Dom Maklerski BOŚ (bossa). "
+             "Otwórz konto przez link partnerski poniżej, a przez pierwszy miesiąc zapłacisz zero prowizji.\n"
+             "Wpis sponsorowany.")
+NEUTRAL = ("Dom Maklerski BOŚ opublikował wyniki za trzeci kwartał. Przychody wzrosły o 8 proc., a liczba "
+           "rachunków przekroczyła 120 tysięcy.")
+W = {"llm": 0.6, "rules": 0.25, "emb": 0.15}
+
+
+def _crit(name: str, verdict: str, quote: str, conf: float) -> m1.CriterionResult:
+    return m1.CriterionResult(criterion=name, verdict=verdict, quote=quote, confidence=conf)  # type: ignore[arg-type]
+
+
+def _m1_cands(text: str, url: str, handle: str | None) -> list[Any]:
+    from app.preprocess.entity_match import match_entities
+    return match_entities(text, url, handle, [BOS], 1)
+
+
+@pytest.mark.asyncio
+async def test_m1_sponsored_ad_without_profit_promises_reaches_threshold() -> None:
+    """Issue #83: promotes_firm alone (no profit promise) must be enough to flag an evident ad."""
+    out = m1.M1Output(criteria=[
+        _crit("promotes_firm", "fail", "Wpis sponsorowany.", 0.95),
+        _crit("profit_promises", "pass", "zero prowizji", 0.7),
+        _crit("impersonation", "pass", "Wpis sponsorowany.", 0.7),
+    ])
+    cands = _m1_cands(SPONSORED, "https://kasa-na-gieldzie.example/wpis/bossa-ranking", "@kasa_na_gieldzie")
+    run = await m1.run_m1(FakeLLM(out), CONFIG, SPONSORED, [0.1], cands, 1, 0.6, W)  # type: ignore[arg-type]
+    assert run.finding is not None and run.score >= 0.6
+    assert run.finding.risk_level in ("medium", "high")
+
+
+@pytest.mark.asyncio
+async def test_m1_low_confidence_promotion_stays_below_threshold() -> None:
+    """Borderline: promotes_firm=fail with low confidence (0.4) must not be flagged by the raised weight."""
+    out = m1.M1Output(criteria=[
+        _crit("promotes_firm", "fail", "Wpis sponsorowany.", 0.4),
+        _crit("profit_promises", "pass", "zero prowizji", 0.7),
+        _crit("impersonation", "pass", "Wpis sponsorowany.", 0.7),
+    ])
+    cands = _m1_cands(SPONSORED, "https://kasa-na-gieldzie.example/wpis/bossa-ranking", "@kasa_na_gieldzie")
+    run = await m1.run_m1(FakeLLM(out), CONFIG, SPONSORED, [0.1], cands, 1, 0.6, W)  # type: ignore[arg-type]
+    assert run.finding is not None
+    assert run.llm == pytest.approx(0.7 * 0.4)
+    assert run.score < 0.6
+
+
+@pytest.mark.asyncio
+async def test_m1_neutral_mention_stays_below_threshold() -> None:
+    out = m1.M1Output(criteria=[
+        _crit("promotes_firm", "pass", "opublikował wyniki", 0.9),
+        _crit("profit_promises", "pass", "Przychody wzrosły", 0.9),
+        _crit("impersonation", "pass", "opublikował wyniki", 0.9),
+    ])
+    cands = _m1_cands(NEUTRAL, "https://news.example/artykul/bos-wyniki", None)
+    run = await m1.run_m1(FakeLLM(out), CONFIG, NEUTRAL, [0.1], cands, 1, 0.6, W)  # type: ignore[arg-type]
+    assert run.score < 0.6
 
 
 @pytest.mark.asyncio

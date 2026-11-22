@@ -1,0 +1,95 @@
+# InvestWatch CI (Issue #75). Ten plik ma trafić do .github/workflows/ci.yml.
+# Leży w infra/ci/, bo hook .githooks/pre-commit nie pozwala team/infra commitować w .github/.
+# Instalacja (lead, jednorazowo): mkdir -p .github/workflows && git mv infra/ci/ci.yml .github/workflows/ci.yml
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    name: ${{ matrix.service }} (build + test)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api, collector, web]
+    defaults:
+      run:
+        working-directory: ${{ matrix.service }}
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.5
+          cache: npm
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      # collector nie ma skryptu "test", więc uruchamiamy node:test bezpośrednio (27 testów).
+      - name: Testy
+        run: |
+          if [ "${{ matrix.service }}" = "collector" ]; then
+            node --import tsx --test "src/**/*.test.ts"
+          else
+            npm test
+          fi
+
+  ai:
+    name: ai (ruff + pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.9.15
+      - run: uv sync --frozen
+      - run: uv run ruff check
+      - run: uv run pytest
+
+  audit:
+    name: audyt zależności
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.5
+      - name: npm audit (api, collector, web)
+        run: |
+          for d in api collector web; do
+            echo "::group::npm audit $d"
+            (cd "$d" && npm audit --audit-level=high)
+            echo "::endgroup::"
+          done
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: 0.9.15
+      - name: pip-audit (ai)
+        working-directory: ai
+        run: |
+          uv export --frozen --no-dev --no-hashes > /tmp/ai-requirements.txt
+          uvx pip-audit==2.10.1 -r /tmp/ai-requirements.txt --disable-pip --no-deps
+
+  compose:
+    name: docker compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose config -q
