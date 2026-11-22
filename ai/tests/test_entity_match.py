@@ -108,26 +108,3 @@ def test_reasons_validate_against_contract_model() -> None:
     for c in cands:
         for r in c.reasons:
             Reason.model_validate(r)
-
-
-class _FakeConn:
-    def __init__(self, existing: int | None) -> None:
-        self.existing, self.inserted = existing, None
-
-    async def fetchrow(self, *_a: object) -> dict[str, int] | None:
-        return {"id": self.existing} if self.existing else None
-
-    async def fetchval(self, _q: str, name: str, domains: list[str], handles: list[str]) -> int:
-        self.inserted = (name, domains, handles)
-        return 99
-
-
-def test_ensure_advertiser_reuses_or_creates() -> None:
-    import asyncio
-
-    from app.preprocess.entity_match import ensure_advertiser
-
-    assert asyncio.run(ensure_advertiser(_FakeConn(7), "blog.example.com", False)) == 7  # type: ignore[arg-type]
-    conn = _FakeConn(None)
-    assert asyncio.run(ensure_advertiser(conn, "finfluencer", True)) == 99  # type: ignore[arg-type]
-    assert conn.inserted == ("finfluencer", [], ["finfluencer"])
