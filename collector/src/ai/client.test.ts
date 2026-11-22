@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { test } from 'node:test';
 
 process.env.DATABASE_URL = 'dummy';
+process.env.INTERNAL_TOKEN = 'tok';
 const { postAnalyze } = await import('./client.js');
 
 async function serve(codes: number[]): Promise<{ url: string; hits: () => number; close: () => void }> {
@@ -24,6 +25,19 @@ test('200 returns true', async () => {
   s.close();
 });
 
+test('sends X-Internal-Token', async () => {
+  let token: string | string[] | undefined;
+  const server = createServer((req, res) => {
+    token = req.headers['x-internal-token'];
+    res.end();
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address() as AddressInfo;
+  assert.equal(await postAnalyze(2, `http://127.0.0.1:${port}`, 5), true);
+  assert.equal(token, 'tok');
+  server.close();
+});
+
 test('501 is final, no retry', async () => {
   const s = await serve([501]);
   assert.equal(await postAnalyze(1, s.url, 5), false);
@@ -38,10 +52,17 @@ test('503 twice then 200 retries', async () => {
   s.close();
 });
 
-test('502 is final, no retry', async () => {
-  const s = await serve([502]);
-  assert.equal(await postAnalyze(1, s.url, 5), false);
-  assert.equal(s.hits(), 1);
+test('502 then 200 retries once after the delay', async () => {
+  const s = await serve([502, 200]);
+  assert.equal(await postAnalyze(1, s.url, 5, undefined, 0), true);
+  assert.equal(s.hits(), 2);
+  s.close();
+});
+
+test('502 twice gives up after one retry', async () => {
+  const s = await serve([502, 502]);
+  assert.equal(await postAnalyze(1, s.url, 5, undefined, 0), false);
+  assert.equal(s.hits(), 2);
   s.close();
 });
 
