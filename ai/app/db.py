@@ -137,3 +137,47 @@ async def upsert_finding(conn: asyncpg.Connection, f: FindingCreate) -> Finding:
     if row is None:
         raise DatabaseError("upsert_finding returned no row")
     return Finding(**f.model_dump(), id=row["id"], status=row["status"], created_at=row["created_at"])
+
+
+# --- advertiser entities (M1) ------------------------------------------------------------------
+
+_FIND_ADVERTISER = r"""
+SELECT id FROM entities
+WHERE ($1::text IS NOT NULL AND EXISTS (
+        SELECT 1 FROM unnest(social_handles) h WHERE lower(ltrim(h, '@')) = $1))
+   OR ($2::text IS NOT NULL AND EXISTS (
+        SELECT 1 FROM unnest(official_domains) d WHERE regexp_replace(lower(d), '^www\.', '') = $2))
+ORDER BY id LIMIT 1
+"""
+
+_INSERT_ADVERTISER = """
+INSERT INTO entities (name, type, is_authorized, official_domains, social_handles)
+VALUES ($1, $2, false, $3::text[], $4::text[]) RETURNING id
+"""
+
+
+async def resolve_advertiser(conn: asyncpg.Connection, host: str | None, handle: str | None) -> int | None:
+    """Id of the entity publishing a third-party promotion; creates an unauthorized one when unknown.
+
+    Idempotent: lookup + insert run in one transaction under an advisory lock keyed by the identity.
+    """
+    h = handle.strip().lstrip("@").lower() if handle else None
+    d = host.strip().lower().removeprefix("www.") if host else None
+    h, d = h or None, d or None
+    if h is None and d is None:
+        return None
+    key = f"advertiser:{h or ''}:{d or ''}"
+    try:
+        async with conn.transaction():
+            await conn.execute("SELECT pg_advisory_xact_lock(hashtext($1))", key)
+            found = await conn.fetchval(_FIND_ADVERTISER, h, d)
+            if found is not None:
+                return int(found)
+            if h is not None:
+                row_id = await conn.fetchval(_INSERT_ADVERTISER, f"@{h}", "finfluencer", [], [f"@{h}"])
+            else:
+                row_id = await conn.fetchval(_INSERT_ADVERTISER, d, "advertiser", [d], [])
+            logger.info("advertiser entity created id=%s key=%s", row_id, key)
+            return int(row_id)
+    except (OSError, asyncpg.PostgresError) as exc:
+        raise DatabaseError(f"resolve_advertiser({key}) failed: {exc}") from exc

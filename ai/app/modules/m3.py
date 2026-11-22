@@ -16,7 +16,15 @@ from pydantic import BaseModel, Field
 
 from app.llm import OllamaClient
 from app.models import FindingCreate, Reason, high_threshold, risk_level
-from app.modules.common import MAX_DOC_CHARS, RULES_DIR, ModuleRun, emb_score, llm_reasons, llm_score
+from app.modules.common import (
+    MAX_DOC_CHARS,
+    RULES_DIR,
+    ModuleRun,
+    QuoteStr,
+    emb_score,
+    llm_reasons,
+    llm_score,
+)
 from app.modules.quotes import validate_reasons
 from app.prompts import load_prompt
 from app.scoring import combine
@@ -35,7 +43,7 @@ CRITERION_WEIGHTS: dict[str, float] = {
 class CriterionResult(BaseModel):
     criterion: Literal["individual_recommendations", "portfolio_management", "paid_advisory_offer"]
     verdict: Literal["pass", "fail", "unclear"]
-    quote: str = Field(max_length=600)
+    quote: QuoteStr
     confidence: float = Field(ge=0, le=1)
 
 
