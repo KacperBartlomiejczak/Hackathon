@@ -204,3 +204,9 @@
 - **Luka:** „To nie jest rekomendacja, ale kupuj akcje ABC, cena docelowa 50 zł.” było w całości traktowane jak zastrzeżenie (reguły pomijały zdanie, LLM go nie widział, powód z cytatem był odrzucany), więc formułka mogła ukryć realną poradę.
 - **Zmiana (`m3.py`):** zastrzeżenie liczy się na poziomie klauzuli (podział na „ale/jednak/natomiast/lecz”, średnik, myślnik): `strip_disclaimers` usuwa tylko klauzulę z formułką, reguły pomijają dopasowania tylko w klauzuli-zastrzeżeniu, powód z cytatem jest odrzucany, gdy po usunięciu zastrzeżeń nie zostaje żaden sygnał doradztwa (`is_disclaimer_quote`). Czyste zastrzeżenie (dok. 99) działa jak wcześniej. 2 nowe testy, pytest 438 passed.
 - **Do sprawdzenia przez człowieka:** `/reanalyze?module=3&document_id=99` i `/findings/65`; wzorce „ale/jednak” tylko dla polskiego tekstu.
+
+## 2026-11-22 — #90 /health pokazuje stan modelu LLM
+- **Zlecono:** przegląd issues ai-core, synchronizacja z origin, domknięcie niezrobionego z #90 (`/health` nie wiedział, czy Bielik się załadował). #95, #83, #70 (część ai) były już zrobione w PR #102.
+- **Zmiana:** `OllamaClient.warmup()` zwraca bool, `app.state.llm_ready` ustawiany po warmupie, `/health` ma pole `llm` (`ok` / `loading` / `error`). Pole informacyjne: `status` i kod 503 zależą jak dotąd od Ollamy i Postgresa, więc healthcheck w compose się nie zmienia. Pytest 439 passed.
+- **Nie zrobione:** fail-fast po nieudanym warmupie (świadomie, na CPU model może się ładować dłużej niż timeout).
+- **Do sprawdzenia przez człowieka:** `curl localhost:8000/health` na żywym stosie; `docs/contracts.md` nie opisuje pola `llm` (zmiana przez team/api). `ruff check` zgłasza 2 × E501 w `ai/app/preprocess/entity_match.py` (plik ai-data) — zgłosić.

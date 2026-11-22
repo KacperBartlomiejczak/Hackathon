@@ -72,8 +72,10 @@ class OllamaClient:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    async def warmup(self) -> None:
+    async def warmup(self) -> bool:
         """Load the model into memory (best effort, long timeout). Failure is logged, never raised.
+
+        Returns whether the model answered.
 
         Bypasses the semaphore on purpose: it runs once at startup, before any document arrives.
         """
@@ -90,8 +92,9 @@ class OllamaClient:
             resp.raise_for_status()
         except httpx.HTTPError as exc:
             logger.warning("llm warmup failed model=%s: %r", self.model, exc)
-            return
+            return False
         logger.info("llm warmup ok model=%s ms=%d", self.model, (time.monotonic() - started) * 1000)
+        return True
 
     async def generate(self, system: str, document: str, schema: type[T]) -> T:
         """Run the model; `system` is the instruction, `document` is untrusted data."""

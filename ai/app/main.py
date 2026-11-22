@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import asyncpg
 import httpx
@@ -95,6 +95,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.warning("DATABASE_URL not set")
     app.state.llm = None
+    app.state.llm_ready = None  # None = warmup pending, True/False = model answered or not
     app.state.reanalyze_task = None
     try:
         llm_cfg = app.state.config.get("llm", {})
@@ -121,9 +122,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 async def _warmup(app: FastAPI) -> None:
     """Load Bielik and the embedding anchors in the background so the first document is not cold."""
     try:
-        await app.state.llm.warmup()
+        app.state.llm_ready = await app.state.llm.warmup()
         await warm_anchors()
     except (httpx.HTTPError, ValueError, OSError) as exc:
+        app.state.llm_ready = False
         logger.warning("warmup failed: %r", exc)
 
 
@@ -156,6 +158,12 @@ async def _check_postgres(pool: asyncpg.Pool | None) -> bool:
     return True
 
 
+def _llm_state(llm: object | None, ready: bool | None) -> Literal["ok", "loading", "error"]:
+    if llm is None or ready is False:
+        return "error"
+    return "ok" if ready else "loading"
+
+
 @app.get("/health", response_model=HealthStatus)
 async def health(response: Response) -> HealthStatus:
     started = time.perf_counter()
@@ -169,6 +177,7 @@ async def health(response: Response) -> HealthStatus:
         status="ok" if ok else "degraded",
         ollama="ok" if ollama_ok else "error",
         postgres="ok" if pg_ok else "error",
+        llm=_llm_state(app.state.llm, app.state.llm_ready),
     )
 
 
