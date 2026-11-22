@@ -1,15 +1,11 @@
 # M3 phrase rules: regex (case-insensitive, Polish inflection tolerant) -> weight. rules score = min(1, sum of distinct hits).
-# skip_disclaimer: true -> a match inside a disclaimer sentence ("nie jest rekomendacją inwestycyjną") does not count.
-# disclaimer_patterns: sentences matching any of them are disclaimers, never evidence of advisory (issue #95).
 version: m3-rules-v4
+# Sentences matching `disclaimer` (legal "not a recommendation" boilerplate) are never evidence: rules skip them, the LLM never sees them.
+disclaimer: 'nie (?:jest|stanowi|są|należy traktować)\b[^.!?\n]{0,80}(?:rekomendacj|porad|doradztw|ofert|zachęt)|informacyjn\w+ i edukacyjn\w+|nie (?:udzielamy|udzielam|świadczymy|świadczę) (?:porad|doradztw)'
 rules:
-  - {id: advisory_offer, weight: 0.35, skip_disclaimer: true, pattern: 'doradz\w+ inwestycyjn\w+|doradc\w+ inwestycyjn\w+|indywidualn\w+ doradztw\w+|rekomendacj\w+ inwestycyjn\w+|indywidualn\w+ rekomendacj\w+'}
+  - {id: advisory_offer, weight: 0.35, pattern: 'doradz\w+ inwestycyjn\w+|doradc\w+ inwestycyjn\w+|indywidualn\w+ doradztw\w+|rekomendacj\w+ inwestycyjn\w+|indywidualn\w+ rekomendacj\w+'}
   - {id: portfolio_management, weight: 0.4, pattern: 'zarządza\w* (?:tw\w+ )?(?:portfel\w*|kapitał\w*|aktyw\w*|pieniędz\w*)|prowadzę (?:tw\w+ )?portfel\w*'}
   - {id: signals, weight: 0.3, pattern: 'sygnał\w* (?:inwestycyjn|handlow|kupna|sprzedaży)\w*'}
   - {id: direct_recommendation, weight: 0.3, pattern: '(?<!\w)kupuj\b|(?<!\w)sprzedaj\b|cen\w+ docelow\w+|trzymaj (?:akcj|pozycj|obligacj)\w+|stop ?loss|take ?profit'}
   - {id: paid_service, weight: 0.2, pattern: 'płatn\w+ (?:grup\w+|subskrypcj\w+|sygnał\w+|doradztw\w+)|abonament|mentoring inwestycyjn\w+'}
   - {id: private_channel, weight: 0.1, pattern: 'wiadomoś\w+ prywatn\w+|napisz (?:do (?:mnie|nas) )?(?:na )?(?:privie|priv|dm|whatsapp|telegram)|grup\w+ (?:vip|premium|prywatn\w+)'}
-disclaimer_patterns:
-  - 'nie (?:jest|są|stanowi\w*)\b[^.!?\n]{0,80}(?:rekomendacj|doradztw|porad|ofert)\w*'
-  - 'nie (?:udzielam|udzielamy|świadczę|świadczymy)\b[^.!?\n]{0,60}(?:porad|doradztw|rekomendacj)\w*'
-  - 'informacyjn\w+ i edukacyjn\w+|edukacyjn\w+ i informacyjn\w+|wyłącznie (?:w celach )?(?:informacyjn|edukacyjn)\w*'

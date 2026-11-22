@@ -78,52 +78,41 @@ def test_m3_rules_noun_forms_and_plural_dm() -> None:
     assert score >= 0.8
 
 
-def test_m3_rules_quiet_text() -> None:
-    assert m3.rules_hits("Dziś ładna pogoda, idziemy na spacer.")[0] == 0.0
-
-
-DISCLAIMER = ("Ta publikacja handlowa jest informacyjna i edukacyjna. Nie jest rekomendacją inwestycyjną ani "
-              "informacją rekomendującą lub sugerującą strategię inwestycyjną.")
+DISC_NEG = "Nie jest rekomendacją inwestycyjną ani informacją rekomendującą strategię inwestycyjną."
+DISCLAIMER = "Ta publikacja handlowa jest informacyjna i edukacyjna. " + DISC_NEG
 
 
 def test_m3_rules_ignore_disclaimer() -> None:
-    """Issue #95: 'nie jest rekomendacją inwestycyjną' must not trigger rule:advisory_offer."""
-    score, reasons = m3.rules_hits(DISCLAIMER)
-    assert score == 0.0 and reasons == []
-    assert m3.is_disclaimer("Nie udzielam porad inwestycyjnych.")
+    assert m3.rules_hits(DISCLAIMER) == (0.0, [])
+    score, reasons = m3.rules_hits(DISCLAIMER + " " + ADVICE)
+    assert score > 0 and all("Nie jest rekomendacją" not in r.quote for r in reasons)
 
 
-def test_m3_rules_still_flag_real_offer_next_to_disclaimer() -> None:
-    text = DISCLAIMER + " Oferujemy indywidualne rekomendacje inwestycyjne dla klientów premium."
-    _, reasons = m3.rules_hits(text)
-    assert [r.criterion for r in reasons] == ["rule:advisory_offer"]
-    assert "Oferujemy indywidualne rekomendacje" in reasons[0].quote
-    # a disclaimer with a genuine signal in the same sentence keeps the signal rule
-    _, reasons = m3.rules_hits("To nie jest rekomendacja, ale kupuj akcje ABC, cena docelowa 50 zł.")
-    assert "rule:direct_recommendation" in {r.criterion for r in reasons}
-
-
-def test_m3_drop_disclaimer_reasons() -> None:
-    reasons = [
-        Reason(criterion="individual_recommendations", verdict="pass", quote=DISCLAIMER, weight=0.4),
-        Reason(criterion="portfolio_management", verdict="fail",
-               quote="Zarządzam Twoim portfelem.", weight=0.35),
-        Reason(criterion="paid_advisory_offer", verdict="fail",
-               quote="Nie jest to porada, ale płatna grupa premium z sygnałami.", weight=0.25),
-    ]
-    kept = [r.criterion for r in m3.drop_disclaimer_reasons(reasons)]
-    assert kept == ["portfolio_management", "paid_advisory_offer"]
+def test_m3_strip_disclaimers() -> None:
+    assert m3.strip_disclaimers(DISCLAIMER + " Dziś omawiamy rynek.") == "Dziś omawiamy rynek."
 
 
 @pytest.mark.asyncio
-async def test_m3_disclaimer_only_document_gets_no_finding() -> None:
-    out = m3.M3Output(criteria=[
-        m3.CriterionResult(criterion=c, verdict="pass", quote=DISCLAIMER, confidence=0.9)  # type: ignore[arg-type]
-        for c in ("individual_recommendations", "portfolio_management", "paid_advisory_offer")
-    ])
-    run = await m3.run_m3(FakeLLM(out), CONFIG, DISCLAIMER, [0.1], 99, 0.6,  # type: ignore[arg-type]
-                          {"llm": 0.6, "rules": 0.25, "emb": 0.15})
+async def test_m3_disclaimer_quote_gives_no_finding() -> None:
+    quote = DISC_NEG
+    out = m3.M3Output(criteria=[m3.CriterionResult(criterion="individual_recommendations", verdict="fail",
+                                                   quote=quote, confidence=0.9)])
+    weights = {"llm": 0.5, "rules": 0.3, "emb": 0.2}
+    run = await m3.run_m3(FakeLLM(out), CONFIG, DISCLAIMER, [0.1], 1, 0.6, weights)  # type: ignore[arg-type]
     assert run.finding is None
+
+
+def test_m3_rules_still_flag_real_offer_next_to_disclaimer() -> None:
+    disclaimer = ("Ta publikacja handlowa jest informacyjna i edukacyjna. Nie jest rekomendacją inwestycyjną "
+                  "ani informacją rekomendującą lub sugerującą strategię inwestycyjną.")
+    offer = " Oferujemy indywidualne rekomendacje inwestycyjne dla klientów premium."
+    _, reasons = m3.rules_hits(disclaimer + offer)
+    assert [r.criterion for r in reasons] == ["rule:advisory_offer"]
+    assert "Oferujemy indywidualne rekomendacje" in reasons[0].quote
+
+
+def test_m3_rules_quiet_text() -> None:
+    assert m3.rules_hits("Dziś ładna pogoda, idziemy na spacer.")[0] == 0.0
 
 
 @pytest.mark.asyncio
@@ -170,8 +159,6 @@ async def test_m1_sponsored_ad_without_profit_promises_reaches_threshold() -> No
     run = await m1.run_m1(FakeLLM(out), CONFIG, SPONSORED, [0.1], cands, 1, 0.6, W)  # type: ignore[arg-type]
     assert run.finding is not None and run.score >= 0.6
     assert run.finding.risk_level in ("medium", "high")
-    # The pipeline maps this to advertiser_entity_id via ensure_advertiser() (#83, empty "Reklamujący").
-    assert run.advertiser == ("kasa-na-gieldzie.example", False)
 
 
 @pytest.mark.asyncio

@@ -173,17 +173,22 @@
 - **#73:** skan Trivy: `python:3.12.12-slim-bookworm` 9C/133H → `3.12.16-slim-bookworm` 2C/99H (bez poprawek upstream) → `3.12.16-slim-trixie` **0C/51H**. Dockerfile przełączony na trixie, obraz zbudowany, import zależności i `uid=10001` sprawdzone, pytest 117 passed. Wynik w `ai/SECURITY.md`.
 - **Do sprawdzenia przez człowieka:** `docker compose up --build` z nowym obrazem `ai` (nie uruchamiano pełnego stosu z Ollamą na tej maszynie).
 
+## 2026-11-22 — #95 M3: zastrzeżenie „nie jest rekomendacją” jako dowód
+- **Zlecono:** finding 65 (XTB) cytował disclaimer jako dowód doradztwa. Skill: risk-classifier. Patch przygotowany na `team/ai-data`, zastosowany tutaj.
+- **Zmiana:** `rules/m3.yaml` (wzorzec `disclaimer`, reguły v4), `modules/m3.py` (reguły pomijają zdania z zastrzeżeniem, `strip_disclaimers()` przed LLM, reasons z cytatem-zastrzeżeniem odrzucane), prompt `m3-v4`, 3 testy. Pytest 120 passed.
+- **Do sprawdzenia przez człowieka:** reanaliza dokumentu 99 na żywym stosie i `/findings/65`. Starsze findings M3 zostają na v3 do reanalizy.
+
+## 2026-11-22 — #83 (M1 reklamujący i score) i #90 (analyze failed)
+- **Zlecono:** przejrzeć otwarte PR-y (Haiku, przegląd wydajności PR #93), domknąć #83 po stronie ai-core, przejrzeć lokalne zmiany i wystawić PR. Skill: `risk-classifier`.
+- **Zmiany:** `db.resolve_advertiser()` (lookup + insert w jednej transakcji pod `pg_advisory_xact_lock`, normalizacja host/handle, encja `advertiser`/`finfluencer` z `is_authorized=false`) wołane z `pipeline` dla findingów M1; błąd bazy nie gubi findingu. Prompt `m1-v2` (jawne sygnały reklamy: link partnerski, wpis sponsorowany, #reklama), wagi M1 0.7/0.2/0.1. `OllamaClient` z semaforem `llm.max_concurrency` (= `OLLAMA_NUM_PARALLEL`), `AnalysisFailed.category` zamiast tekstu wyjątku w odpowiedzi, crash jednego modułu nie zabija pozostałych, cytaty > 600 znaków przycinane zamiast odrzucać moduł. Testy: `test_m1_advertiser.py`, `test_analysis_budget.py`; pytest 126 passed, ruff czysty.
+- **Odstępstwo od skilla:** timeout Ollamy bez retry (na CPU retry tylko podwaja obciążenie); inne błędy transportu nadal z 1 retry.
+- **Do sprawdzenia przez człowieka:** `/reanalyze?module=1` na gold secie przed/po na żywym Bieliku (brak Ollamy na tej maszynie). PR #93 (ai-data) dodaje `ensure_advertiser()`, który dubluje `resolve_advertiser()` — do uzgodnienia z ai-data.
+- **Poprawki po review (Haiku, świeża sesja):** `/analyze-text` zwraca w 502 tylko kategorię błędu; backoff między retry poza slotem Ollamy; lookup domeny reklamującego normalizuje schemat i ścieżkę jak `entity_match._norm_domain` (bez duplikatów encji); komentarz `budget_s` w `config.yaml` (collector 600 s). pytest 131 passed. Odrzucone uwagi review: „Ollama liczy dalej po anulowaniu” (Ollama przerywa przy rozłączeniu klienta), „embed omija semafor” (inny model, nie blokuje slotu LLM). Skill `risk-classifier` (retry przy timeout) do aktualizacji przez leada.
+
 ## 2026-11-22 — issue #83: M1 reklama sponsorowana poniżej progu
 - **Zlecono:** ewidentna reklama finfluencera (bossa-ranking) miała score 0.31 i puste pole „Reklamujący”.
 - **Przyczyna:** `llm_score` M1 sumuje tylko kryteria z `verdict=fail` z wagami 0.5/0.3/0.2. Sama reklama (`promotes_firm`) bez obietnic zysku dawała max 0.5 w llm, więc przy rules 0.9 i emb ~0.55 wychodziło ok. 0.59 (<0.6). Sygnały matchera wchodzą do score przez `rules` (0.9), więc nie to było problemem.
 - **Zmiana:** wagi kryteriów M1 0.7/0.2/0.1 (`promotes_firm` jest rdzeniem M1), `m1-v2` (prompt: link partnerski i oznaczenie „sponsorowany” jako promowanie). Testy: reklama sponsorowana >= 0.6, neutralny news < 0.6.
 - **Wynik (żywy Bielik):** bossa-ranking 0.593 → 0.707 (llm 0.475 → 0.665); neutralny news 0.16 bez flagi; inwestuj-z-marta 0.83. pytest 122 passed.
 - **Do sprawdzenia przez człowieka:** brak finding-ów M1 dla gold w bazie (9/40 dokumentów, bez findingów) — pełny `/eval?module=1` po `/reanalyze` na zmienionych wagach.
-- **Poza zakresem:** „Reklamujący” puste, bo host/handle publikującego nie jest wierszem `entities` (api/web nie robią fallbacku na `authorHandle`); semantyka verdict w UI (patrz raport).
-
-## 2026-11-22 — issue #95: M3 cytuje zastrzeżenie „nie jest rekomendacją” jako dowód doradztwa
-- **Przyczyna:** reguła `advisory_offer` (`rekomendacj\w+ inwestycyjn\w+`) pasowała do zdania „Nie jest rekomendacją inwestycyjną…”, a prompt kazał dla `pass` cytować fragment „pokazujący brak problemu”, więc LLM cytował ten sam disclaimer przy trzech kryteriach.
-- **Zmiana:** `rules/m3.yaml` v4 (`skip_disclaimer` dla `advisory_offer`, lista `disclaimer_patterns`), `m3.py` (`is_disclaimer`, `drop_disclaimer_reasons` odrzuca powody z cytatem-zastrzeżeniem, chyba że cytat ma też prawdziwy sygnał doradztwa), prompt `m3-v4` (zakaz cytowania disclaimerów).
-- **Testy:** zastrzeżenie nie daje reguły ani powodu; prawdziwa oferta obok zastrzeżenia nadal daje flagę; dokument tylko z zastrzeżeniem nie tworzy findingu. pytest 129 passed.
-- **Żywy Bielik (`/analyze-text`, tekst z zastrzeżeniem jak w dok. 99):** brak findingu, brak cytatu-zastrzeżenia.
-- **Do sprawdzenia przez człowieka:** `/reanalyze?module=3&document_id=99`, potem `/findings/65` w UI; przeliczyć kalibrację M3 (zmienione reguły i prompt).
+- **Scalone z równoległą pracą na `origin/team/ai-core`:** wagi 0.7/0.2/0.1 i `m1-v2` powstały tam równolegle; przy merge przyjęto wersję zdalną (`resolve_advertiser`, `disclaimer` w `m3.yaml`), a z tej sesji zostały tylko testy M1 (reklama sponsorowana ≥ próg, niepewna promocja i neutralna wzmianka < próg) oraz test oferty obok zastrzeżenia M3. Znane ograniczenie zdalnej wersji M3: zdanie „to nie jest rekomendacja, ale kupuj X” jest w całości traktowane jak zastrzeżenie.
