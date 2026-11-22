@@ -610,7 +610,7 @@
           <rect x="962" y="42" width="200" height="82" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
           <text x="1062" y="72" text-anchor="middle" font-size="16" font-weight="800" fill="#0F2942">collector</text>
           <text x="1062" y="94" text-anchor="middle" font-size="12.5" fill="#334155">Node 22 + Playwright</text>
-          <text x="1062" y="112" text-anchor="middle" font-size="11" fill="#1D4ED8" font-weight="700">sample · web · yt · tiktok · SSRF</text>
+          <text x="1062" y="112" text-anchor="middle" font-size="10.8" fill="#1D4ED8" font-weight="700">sample · web · yt · tiktok · fb · SSRF</text>
 
           <!-- POSTGRES -->
           <rect x="18" y="268" width="245" height="92" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
@@ -935,8 +935,8 @@
           <div class="card-title"><span><code>collector</code></span><span class="pill pill-blue">Playwright + BullMQ</span></div>
           <ul class="clean">
             <li><strong>Aktywne adaptery (MVP):</strong>
-              <code>sample</code> (dane offline + syntetyki gold set), <code>web</code> (Chromium, discovery z głębokości 1, rotacja <strong>23 User-Agentów</strong> i <code>PROXY_LIST</code>, limit 2/host, jitter), <code>youtube</code> (publiczny RSS kanałów) oraz <code>tiktok</code> (pojedyncze filmy przez oEmbed + fallback JSON, #51).</li>
-            <li><strong>Zakres social i ochrona SSRF (#74):</strong> adaptery FB/IG pozostają poza obecnym MVP (gotowy interfejs <code>Adapter</code>; filtr UI ukrywa nieaktywne typy z <code>GET /sources</code>). W <code>ssrf.ts</code> (<code>isBlockedUrl</code> + <code>context.route</code>) blokowane są żądania na loopback, sieci prywatne, link-local i usługi Compose.</li>
+              <code>sample</code> (dane offline + syntetyki gold set + <code>suspicious-demo.jsonl</code>), <code>web</code> (Chromium, discovery z głębokości 1, rotacja <strong>23 User-Agentów</strong> i <code>PROXY_LIST</code>, limit 2/host, jitter), <code>youtube</code> (publiczny RSS kanałów), <code>tiktok</code> (oEmbed + fallback JSON, #51) oraz <code>facebook</code> (publiczne strony i posty bez logowania, <code>og:meta</code>).</li>
+            <li><strong>Zakres social i ochrona SSRF (#74):</strong> adapter Instagram pozostaje poza obecnym MVP (gotowy interfejs <code>Adapter</code>; filtr UI ukrywa nieaktywne typy z <code>GET /sources</code>). W <code>ssrf.ts</code> (<code>isBlockedUrl</code> + <code>context.route</code>) blokowane są żądania na loopback, sieci prywatne, link-local i usługi Compose.</li>
             <li><strong>Harmonogram i odporność:</strong> <code>upsertJobScheduler</code> wg <code>sources.cron</code> (<code>Europe/Warsaw</code>), semafor <code>ANALYZE_CONCURRENCY=1</code>, timeout <code>600 s</code>, deduplikacja w locie, status <code>partial</code> przy błędzie analizy oraz jednorazowy retry po HTTP 502 (<code>AI_RETRY_DELAY_MS</code>, #90).</li>
             <li><strong>Zabezpieczenie dowodów:</strong> HTML + screenshot PNG w SeaweedFS S3, <code>upsert</code> w <code>documents</code> po <code>url_hash</code>, triggery <code>first_seen_at</code> / <code>last_seen_at</code>.</li>
           </ul>
@@ -1285,7 +1285,7 @@
           <div class="card-title"><span>Rozwój analityki i źródeł danych</span><span class="pill pill-blue">M1 / M2 / M3</span></div>
           <ul class="clean">
             <li><strong>5 reguł układu graficznego M2 (reguły UKNF 4, 5, 7, 8, 13):</strong> automatyczny pomiar wielkości czcionki ostrzeżenia, kontrastu, dostępu jednym kliknięciem, responsywności oraz dominacji wyników historycznych na wyrenderowanym DOM / screenshotach S3 (metryki Playwright + VLM).</li>
-            <li><strong>Pełne adaptery Facebook / Instagram i rejestr KNF:</strong> wdrożenie kolektorów FB/IG oraz listingu profili TikTok (interfejs <code>Adapter</code> gotowy w <code>collector/</code>) oraz uzupełnienie <code>official_domains</code> i <code>social_handles</code> w <code>entities.csv</code>.</li>
+            <li><strong>Adapter Instagram i rejestr KNF:</strong> wdrożenie kolektora IG oraz głębszego listingu profili Facebook/TikTok (interfejs <code>Adapter</code> gotowy w <code>collector/</code>) oraz uzupełnienie <code>official_domains</code> i <code>social_handles</code> w <code>entities.csv</code>.</li>
             <li><strong>Analiza wideo (OCR / ASR):</strong> lokalna transkrypcja rolek (YouTube Shorts, TikTok, Reels) oraz odczyt drobnego druku z kreacji graficznych.</li>
           </ul>
         </div>
