@@ -224,3 +224,10 @@
 - **Ta sesja:** merge `origin/main` bez konfliktów, ruff czysty, pytest 445 passed / 8 skipped / 1 xfailed, push do PR #102. Do zrobienia po merge: weryfikacja na żywo (przebudować ai, `/reanalyze?module=1`).
 - **Dla ai-data:** `ensure_advertiser()` w `entity_match.py` dubluje `db.resolve_advertiser` i nie jest używane przez pipeline.
 - **Proces:** plan zaakceptowany przez człowieka, issue przeczytał subagent Haiku, wykonanie przez subagenta Sonnet.
+
+## #102 — uwagi leada przed merge'em (kontrakt, advertiser, M3 przecinek)
+- Zlecono: odblokować PR #102 według review leada. Plan zaakceptowany przez człowieka; kod czytał Claude (Opus), implementacja przez subagenta Sonnet (medium).
+- M3 (#95): `_CLAUSE_SPLIT` dzieli zdanie z zastrzeżeniem także po przecinku, więc „Kupuj akcje X teraz, to nie jest rekomendacja.” daje trafienie `direct_recommendation`. Zrobione metodą test-first: 4 nowe testy, 3 padały przed poprawką (commit 06ba7f0). ruff czysto, pytest 449 passed, 8 skipped, 1 xfailed.
+- Kontrakt: `/recompute-risk` jest już opisany w PR #106 (team/api). Do #4 poszła prośba o dopisanie formatu 502 z kategorią, `/health.llm`, tokena `/analyze-text` i parametrów `/reanalyze` (skill `data-contract`: zmienia tylko właściciel).
+- Advertiser: zostaje jedna ścieżka, `db.resolve_advertiser`. ai-data usuwa nieużywany `ensure_advertiser`. Opis PR #102 przepisany (Closes #83, #84, #95; refs #90).
+- Człowiek wkleja opis PR i wiadomości (brak gh). Na żywo nadal niesprawdzone: /findings/65, dok. 99, bossa-ranking, do zrobienia po merge'u.
