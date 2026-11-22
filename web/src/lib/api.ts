@@ -1,5 +1,6 @@
 import { defaultExportFilename, findingsToCsv, findingsToJson, type ExportFormat } from "@/lib/exportFormat";
 import { toApiError } from "@/lib/apiError";
+import { filterQueryValue, toLocalDay } from "@/lib/dates";
 import { mockFindingDetails, mockFindings, mockHistory } from "@/mocks";
 import { mockEval, mockModuleSettings } from "@/mocks/calibration";
 import { mockSources } from "@/mocks/sources";
@@ -86,8 +87,8 @@ function matches(f: Finding, filters: FindingsFilters): boolean {
   if (filters.risk && f.riskLevel !== filters.risk) return false;
   if (filters.status && f.status !== filters.status) return false;
   if (filters.source && f.document.sourceKind !== filters.source) return false;
-  if (filters.from && f.createdAt.slice(0, 10) < filters.from) return false;
-  if (filters.to && f.createdAt.slice(0, 10) > filters.to) return false;
+  if (filters.from && toLocalDay(f.createdAt) < filters.from) return false;
+  if (filters.to && toLocalDay(f.createdAt) > filters.to) return false;
   if (filters.q) {
     const q = filters.q.toLowerCase();
     const haystack = [f.document.textClean, f.document.url, f.firm?.name, f.advertiser?.name, f.label]
@@ -114,7 +115,7 @@ export async function exportFindings(
   const params = new URLSearchParams({ format });
   for (const [key, value] of Object.entries(filters)) {
     if (key === "page") continue;
-    if (value !== undefined && value !== "") params.set(key, String(value));
+    if (value !== undefined && value !== "") params.set(key, filterQueryValue(key, value));
   }
   const res = await fetch(`${API_URL}/export?${params.toString()}`);
   if (!res.ok) throw await toApiError(res);
@@ -133,7 +134,7 @@ export async function fetchFindings(filters: FindingsFilters): Promise<Page<Find
   }
   const params = new URLSearchParams({ pageSize: String(PAGE_SIZE) });
   for (const [key, value] of Object.entries(filters)) {
-    if (value !== undefined && value !== "") params.set(key, String(value));
+    if (value !== undefined && value !== "") params.set(key, filterQueryValue(key, value));
   }
   return request<Page<FindingListItem>>(`/findings?${params.toString()}`);
 }
@@ -153,19 +154,19 @@ export async function fetchTrend(module?: ModuleId): Promise<TrendPoint[]> {
     const counts = new Map<string, number>();
     for (const f of mockFindings) {
       if (module && f.module !== module) continue;
-      const day = f.createdAt.slice(0, 10);
+      const day = toLocalDay(f.createdAt);
       counts.set(day, (counts.get(day) ?? 0) + 1);
     }
     return fillMissingDays(counts);
   }
-  const params = new URLSearchParams({ bucket: "day" });
+  const params = new URLSearchParams({ bucket: "hour" });
   if (module) params.set("module", String(module));
   const res = await request<{ points: { bucket: string; module: number; count: number }[] }>(
     `/stats/trend?${params.toString()}`,
   );
   const perDay = new Map<string, number>();
   for (const p of res.points) {
-    const day = p.bucket.slice(0, 10);
+    const day = toLocalDay(p.bucket);
     perDay.set(day, (perDay.get(day) ?? 0) + p.count);
   }
   return fillMissingDays(perDay);
