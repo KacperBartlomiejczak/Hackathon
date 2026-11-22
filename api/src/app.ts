@@ -2,9 +2,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { ZodError } from "zod";
+import { adminAuthHook } from "./auth.js";
 import type { Config } from "./config.js";
 import { createDb } from "./db/client.js";
 import { buildLoggerOptions } from "./logger.js";
+import { documentsRoutes } from "./routes/documents.js";
 import { exportRoutes } from "./routes/export.js";
 import { findingsRoutes } from "./routes/findings.js";
 import { internalRoutes } from "./routes/internal.js";
@@ -75,16 +77,23 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
     exposedHeaders: ["Content-Disposition", "X-Export-Truncated"],
   });
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  // preHandler, not onRequest: rate-limit hooks are route-level onRequest hooks and run after
+  // instance-level onRequest hooks. As preHandler the auth check runs after the rate limit, so
+  // guessing the admin token is rate limited too.
+  app.addHook("preHandler", adminAuthHook(config.ADMIN_TOKEN));
+  if (!config.ADMIN_TOKEN) app.log.warn("ADMIN_TOKEN not set: write endpoints accept requests without a token");
 
   app.get("/health", { config: { rateLimit: false } }, async () => ({ status: "ok" }));
   const io = createSocketServer(app, config);
   await app.register(findingsRoutes, { db, storage, io });
+  await app.register(documentsRoutes, { db, storage });
   await app.register(exportRoutes, { db });
   await app.register(statsRoutes, { db });
   await app.register(internalRoutes, { io, internalToken: config.INTERNAL_TOKEN });
   await app.register(settingsRoutes, {
     db,
     aiUrl: config.AI_URL,
+    internalToken: config.INTERNAL_TOKEN,
     evalTimeoutMs: config.EVAL_TIMEOUT_MS,
   });
   await app.register(sourcesRoutes, { db, crawlQueue });

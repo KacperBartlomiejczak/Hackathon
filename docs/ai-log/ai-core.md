@@ -106,3 +106,69 @@
 - **Baseline (obecne ustawienia):** M1/M2/M3 — brak danych (gold set pusty).
 - **Do zrobienia po dostarczeniu gold setu (ai-data):** (1) wypełnić `ai/eval/gold.csv` dla dokumentów istniejących w bazie; (2) `POST /reanalyze` dla M1–M3, żeby powstały `findings`; (3) `GET /eval` na progach 0.3–0.9 (krok 0.05) → baseline; (4) FP/FN → wagi w `config.yaml` + `UPDATE module_settings`; (5) ponowny `/eval` i tabela „przed vs po” tutaj. Cel: recall ≥ 0.9 dla `risk=high`, precision ≥ 0.8.
 - **Human to verify:** czy ai-data faktycznie wypchnął `gold.csv` (może leży lokalnie, niezcommitowany); gold set musi odnosić się do `document_id` z bazy.
+
+## 2026-11-21 — dokumentacja końcowa i smoke test (ai-core)
+- **Zlecono:** pełny `pip-audit` → `ai/SECURITY.md`; dokładne tagi i licencje modeli oraz bibliotek → `ai/DEPENDENCIES.md`; treść slajdu „Jak działa AI”; smoke test stosu compose.
+- **Skille:** `dependency-guard` (audyt, licencje), `sca-audit` (pip-audit). Licencje modeli sprawdzone `ollama show --license` + karty HF (Bielik v2.3/v3.0 = Apache-2.0, gemma4 = Apache-2.0, bge-m3 = MIT); manifest Ollamy dla Bielika nie ma warstwy licencji, więc źródłem są karty HF.
+- **Wynik audytu:** 47 pakietów runtime (50 z dev), 0 znanych podatności. `tld` (tranzytywny) ma trójlicencję MPL/GPL/LGPL — używamy jako MPL-1.1.
+- **Smoke test (lokalny compose, działał od ~40 min):** wszystkie serwisy `healthy` poza `web` (nie nasz zakres); `ai:/health` → `ollama ok, postgres ok`; `/eval` odpowiada (puste, bo gold set pusty); `uv run pytest` 111 passed / 8 skipped / 1 xfailed; `ruff` czysty. W bazie 6 dokumentów `processed`, 9 `failed`: Ollama w Dockerze na Macu działa na CPU, Bielik 11B przekracza budżet 240 s / timeouty (`ai.analysis ... over budget`). To ograniczenie sprzętu, nie kodu — na demo Ollama z GPU (lub natywna Ollama na hoście, `OLLAMA_URL=http://host.docker.internal:11434`). **0 findings w bazie** — przed demo trzeba puścić `POST /reanalyze` na maszynie z GPU.
+- **`.env.example`:** brakuje tylko opcjonalnych `AI_REQUIRE_TOKEN` (domyślnie wyłączone) i `AI_CONFIG` (domyślna ścieżka `config.yaml`) — plik należy do `team/infra`, nie zmieniam. Reszta zmiennych używanych przez `ai/` (`DATABASE_URL`, `OLLAMA_*`, `S3_*`, `API_URL`, `INTERNAL_TOKEN`, `LOG_LEVEL`) jest.
+- **Do weryfikacji przez człowieka:** czy włączamy `AI_REQUIRE_TOKEN=1` na demo (collector musi wtedy wysyłać `X-Internal-Token`); czy przełączamy domyślny model na Bielik v3.0 (nieprzetestowany na gold secie).
+
+### Slajd: „Jak działa AI”
+**Trzy moduły, jeden pipeline** — dokument z collectora → czyszczenie (trafilatura) → deduplikacja (hash + simhash) → embedding **bge-m3** → routing → moduły → zapis `findings` → alert Socket.io dla wysokiego ryzyka.
+
+| Moduł | Pytanie | Sygnał |
+|---|---|---|
+| **M1 Finfluencerzy** | Czy ktoś spoza firmy reklamuje jej produkt? | wzmianka o podmiocie z rejestru + domena/handle ≠ `official_domains` |
+| **M2 Informacja o ryzyku** | Czy materiał firmy spełnia 8 wymogów informacji o ryzyku? | checklista spełniony/niespełniony + cytat, proporcja „zysk vs ryzyko” |
+| **M3 Shadow advisory** | Czy podmiot spoza rejestru KNF doradza lub zarządza portfelem? | słownik fraz + podobieństwo do fraz wzorcowych + ocena LLM |
+
+**Hybrydowy scoring:** `score = 0,6·LLM + 0,25·reguły + 0,15·embeddingi`
+- **LLM:** Bielik 11B (Ollama, on-premise, `temperature 0`, odpowiedź wymuszona schematem JSON).
+- **Reguły:** słowniki i wzorce w YAML, zawsze z cytatem.
+- **Embeddingi bge-m3:** cosine do fraz wzorcowych (anchors), skala 0,45 → 0 … 0,75 → 1.
+- **Walidacja cytatów (rapidfuzz):** cytat musi występować w tekście (`partial_ratio ≥ 90`), inaczej odpada. Bez cytatu nie ma flagi — zero halucynowanych dowodów.
+- **Progi i wagi** zmieniane na żywo w panelu kalibracji; `/eval` zwraca precision/recall/FP/FN.
+
+**Współbieżność:** moduły dla dokumentu działają równolegle (`asyncio`), wspólny budżet 240 s; moduł, który zawiedzie lub przekroczy budżet, jest pomijany i logowany — nigdy nie wstawiamy zmyślonego wyniku. `/reanalyze` przelicza partię w tle po zmianie progów.
+
+**Zabezpieczenia:** treść strony to dane, nie instrukcje (`<document>` + neutralizacja domknięcia znacznika, testy prompt injection PL/EN); token `X-Internal-Token` na endpointach wewnętrznych; `asyncpg` zamiast LGPL `psycopg`; wersje przypięte, `pip-audit`: 0 podatności; tylko modele open source (Apache-2.0 / MIT), nic nie wychodzi poza infrastrukturę.
+
+## 2026-11-21 ~20:30 — przegląd PR-ów i issues powiązanych z AI
+- **Zlecono:** przeanalizować wszystkie PR-y i issues, wskazać te z AI, naprawić i zamknąć, co się da.
+- **Wynik:** jedyny otwarty PR to #59 (docs, czysty, czeka na merge leada). Issues #42 (pusty gold set), #53 (brak załącznika UKNF) i #56 mają komentarze ze stanem. Nie da się ich zamknąć bez człowieka: etykiety i załącznik trzeba dostarczyć ręcznie.
+- **Dodano:** `ai/scripts/score_fixtures.py`, pomoc przy etykietowaniu gold setu. Wysyła fixtures do `/analyze-text` i zapisuje CSV ze score M1/M2/M3 oraz pustą kolumną `label`. Etykiet nie zgaduje.
+- **Do weryfikacji przez człowieka:** skrypt sprawdzony tylko na atrapie serwera, bo Ollamy nie ma na tym komputerze. Trzeba uruchomić go na maszynie z Ollamą: `python ai/scripts/score_fixtures.py --out scores.csv`.
+
+## 2026-11-21 ~21:30 — #62: pierwszy test na żywym Bieliku + poprawka reguł M3
+- **Zlecono:** uruchomić `score_fixtures`, `demo_check` i `live_check` na maszynie z Ollamą (#62), potem poprawić reguły M3.
+- **Wynik:** serwis lokalnie przez `uv`, bez Postgresa. 14/14 fixtures OK, demo 5/5 OK, JSON z M2 poprawny. RTX 3060 12 GB: ~5 s na dokument dla M1/M3, ~10 s dla M2. Wyniki są w komentarzu do #62.
+- **Poprawka:** `ai/rules/m3.yaml` → `m3-rules-v2`: rzeczownik „zarządzanie portfelem”, „rekomendacje inwestycyjne”, „napisz do nas na priv”. Dodano test regresji. `@family_office_alfa`: rules 0.00 → 0.85, score 0.284 → 0.496. Dalej poniżej progu 0.6 przez LLM 0.33. Pozostałe score bez zmian.
+- **Do weryfikacji przez człowieka:** czy niski llm M3 dla tego tekstu poprawić promptem, czy zostawić jako przypadek graniczny do gold setu.
+
+## 2026-11-21 ~22:00 — #62 cd.: prompt M3 v2, reguły M2 v2, cytaty sklejone przez LLM
+- **Zlecono:** naprawić anomalie z #62 według uznania ai-core.
+- **Diagnoza (surowe odpowiedzi Bielika):**
+  - family_office: kryterium 1 w prompcie M3 wymagało konkretnego instrumentu, więc oferta „dobierzemy akcje do profilu” dostawała `pass`;
+  - sygnaly-vip: Bielik skleja dwa niesąsiadujące zdania w jeden cytat i walidacja go odrzucała. Instrukcja w prompcie tego nie zmieniła, więc ją cofnięto;
+  - Noble: reguły M2 nie łapały „35% w ostatnim roku” i „bez wysiłku”.
+- **Zmiany:**
+  - `m3-v2`: kryterium 1 obejmuje ofertę spersonalizowanych rekomendacji;
+  - `m2-rules-v2`;
+  - `quotes.py`: cytat z kilku zdań jest przyjmowany tylko wtedy, gdy każde zdanie występuje dosłownie (rapidfuzz ≥ 90);
+  - testy regresji dla wszystkich trzech zmian.
+- **Wynik:** family_office 0.496 → 0.724, Noble 0.498 → 0.635, zloty-portfel 0.619 → 0.862 (high), sygnaly-vip 0.617 bez zmian, XTB-ok 0.052, demo 5/5, pytest 114 passed.
+- **Świadomie bez zmian:** M1 0.55–0.59 tuż pod progiem (przypadki graniczne do suwaka); `kasa_z_marta` (fikcyjny broker, brak w `entities.csv`; zakres ai-data/lead).
+
+## 2026-11-21 — M2 v4 i M3 v3 według załącznika UKNF (#53)
+- **Zlecono:** zmapować 18 reguł z załącznika UKNF (znalezionych przez ai-data, `ai/eval/rubric.md` na `team/ai-data`) na kryteria M2 i dodać definicję art. 76 do M3.
+- **Zmiany:** `m2-v4` + `m2-rules-v3`: 16 kryteriów zamiast 8. Dotychczasowe 8 zachowało id i wagi (nie ruszamy strojenia z #62). Nowe: `firm_identification` (reguła 1), `advertising_label` (2), `historical_results_conditions` (12a/b), `comparison_basis` (11), `forecast_warning` (15), `tax_disclosure` (16), `supervisor_approval` (17/18), `risk_warning_language` (9/10). Reguły 3, 6/7, 14 mapują się na istniejące kryteria. Wagi llm: `min(1, Σ w·conf)`, suma wag ≥ 1 (nie dokładnie 1). Reguły układu (4, 5, 7 w części graficznej, 8, 13) wymagają HTML/screenshotu i są poza zakresem. Do `m2.yaml` dodane frazy `supervisor_claim`, `forecast`, do anchorów M2 dwie frazy. `m3-v3`: definicja art. 76 i lista instrumentów w prompcie, fraza „trzymaj akcje” w `m3.yaml`.
+- **Do sprawdzenia przez człowieka:** wynik na żywym Bieliku (nie uruchamiano — brak Ollamy na tej maszynie): czas M2 (więcej pól w JSON) oraz czy `firm_identification` / `advertising_label` nie dają fałszywych `fail` na fixtures.
+- **Poza naszym zakresem:** `web/src/lib/utils.ts` nie ma etykiet dla 8 nowych id (UI pokaże surowy kod); `presentation/*` i `docs/contracts.md` wspominają 4 kryteria M2.
+
+## 2026-11-21 — issues #70 (część ai) i #73 (część ai)
+- **Zlecono:** przejrzeć otwarte issues dla ai-core i domknąć to, co leży w `ai/`.
+- **#70:** `/eval` nie zwraca już tekstu wyjątku w `detail` (`eval failed`, szczegóły tylko w logu), test regresji z fałszywym wyjątkiem zawierającym DSN. Testy 401/503 dla tokenu już istniały (`test_app.py`). Zostaje po stronie innych: `X-Internal-Token` w collectorze i w proxy `/eval` w api, `AI_REQUIRE_TOKEN` i `AI_CONFIG` w `.env.example` (infra).
+- **#73:** skan Trivy: `python:3.12.12-slim-bookworm` 9C/133H → `3.12.16-slim-bookworm` 2C/99H (bez poprawek upstream) → `3.12.16-slim-trixie` **0C/51H**. Dockerfile przełączony na trixie, obraz zbudowany, import zależności i `uid=10001` sprawdzone, pytest 117 passed. Wynik w `ai/SECURITY.md`.
+- **Do sprawdzenia przez człowieka:** `docker compose up --build` z nowym obrazem `ai` (nie uruchamiano pełnego stosu z Ollamą na tej maszynie).

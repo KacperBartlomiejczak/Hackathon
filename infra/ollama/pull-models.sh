@@ -22,14 +22,34 @@ pull_model() {
     return 0
   fi
   echo "Pulling Ollama model '${model}'..."
-  # Ollama may report failures as {"error": ...} with HTTP 200, so check the body.
-  out=$(curl -sf -X POST "${OLLAMA_URL}/api/pull" \
+  # Ollama may report failures as {"error": ...} with HTTP 200, so check the body and final status.
+  tmp_log="$(mktemp)"
+  trap 'rm -f "${tmp_log}"' EXIT INT TERM
+  if ! curl -sfN -X POST "${OLLAMA_URL}/api/pull" \
     -H "Content-Type: application/json" \
-    -d "{\"name\":\"${model}\",\"stream\":false}") || { echo "Pull request for '${model}' failed." >&2; exit 1; }
-  if printf '%s' "$out" | grep -q '"error"'; then
-    echo "Pulling '${model}' failed: ${out}" >&2
-    exit 1
+    -d "{\"name\":\"${model}\"}" >"${tmp_log}"; then
+    cat "${tmp_log}" >&2 || true
+    rm -f "${tmp_log}"
+    trap - EXIT INT TERM
+    echo "Failed to pull model '${model}' (HTTP/network error)." >&2
+    return 1
   fi
+  tail -n 5 "${tmp_log}"
+  if grep -Eq '"error"[[:space:]]*:' "${tmp_log}"; then
+    grep -E '"error"[[:space:]]*:' "${tmp_log}" >&2 || true
+    rm -f "${tmp_log}"
+    trap - EXIT INT TERM
+    echo "Ollama reported an error pulling '${model}'." >&2
+    return 1
+  fi
+  if ! grep -Eq '"status"[[:space:]]*:[[:space:]]*"success"' "${tmp_log}"; then
+    rm -f "${tmp_log}"
+    trap - EXIT INT TERM
+    echo "Ollama pull for '${model}' did not finish with status=success." >&2
+    return 1
+  fi
+  rm -f "${tmp_log}"
+  trap - EXIT INT TERM
   echo "Model '${model}' pulled."
 }
 

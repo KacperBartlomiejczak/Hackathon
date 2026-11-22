@@ -64,3 +64,35 @@
 ## 2026-11-21 — issue #26: M1 verdicts match `Verdict`
 - `entity_match.py` reasons now use `fail` (signal found: firm mentioned, promo anchor, publisher not official) and `unclear` (firm's official channels unknown) instead of `detected`/`unverified`, so `Reason` / `FindingCreate` (`Verdict = pass|fail|unclear`) accept them. No contract change.
 - Added `test_reasons_validate_against_contract_model` (validates every M1 reason with `app.models.Reason`). 33 tests pass, 5 integration skipped (no containers); ruff clean.
+
+## 2026-11-21 — UKNF attachments (topics 1-3, risk criteria)
+- Reviewed the 4 UKNF docx files. Attachments 1 and 2 (register definitions and 4 KNF register URLs) are already covered by `ai/seed/raw/knf_*.json` and `entities.csv`.
+- Added `ai/eval/rubric.md`: 18 risk-information rules (art. 44 of Reg. 2017/565) for M2 and the art. 76/2/3 advisory definition for M3, as labelling rules for `gold.csv`. Labels stay human-made.
+- Needs ai-core (outside this branch's scope): `ai/prompts/m2-risk-info/system.md` has 4 criteria vs. 18 in the UKNF resource; M3 prompt/rules should use the art. 76 definition. Suggested start: text-only rules 1, 2, 3, 6, 9, 10, 14, 15, 17, 18.
+
+## 2026-11-21 — issue #56 (ai-data part)
+- Added `ai/app/preprocess/README.md`: tokenization (dedup word tokens, simhash 3-grams, bge-m3 subword tokenizer) and embeddings as a preprocessing step. Facts checked against clean.py, dedup.py, embeddings.py. Infra can link it from the architecture description.
+
+## 2026-11-22 — gold set tooling
+- Added `ai/eval/build_gold.py` (+ `ai/tests/test_build_gold.py`): maps labelled sheet rows (0/1, POMIN skipped) to `document_id` by URL using a `documents` export, writes `ai/eval/gold.csv`. Labels were set by the human (obvious cases pre-labelled by the agent at the human's request, then reviewed). Synthetic M2 fixtures are in `ai/eval/synthetic_m2.jsonl`.
+
+## 2026-11-22 — issues #42 / #63: gold set keyed by url
+- `gold.csv` is now `url,module,label`. `evaluate()` joins gold URLs to `documents.url_hash = sha256(url)` (same key the collector upserts on), so labels survive `down -v` and a different seed order. `build_gold.py` no longer needs a `documents` export; it maps the labelled sheet straight to `gold.csv`. `EvalResult` and the `/eval` contract are unchanged.
+- Generated `gold.csv` from `ai/eval/label_sheet.csv` (human labels): M1 30, M2 19, M3 35 rows. Below the 40 per module target; M2 synthetic fixtures (`synthetic_m2.jsonl`) still have no labels. Added tests: url-key loading, `url_hash` join in DB test, committed gold has both classes and a threshold moves FP/FN. 60 passed, 5 skipped (no containers; the DB join test is among them, not run here); ruff clean.
+- #63 is a closed duplicate of #42. #42 stays open until: (human) labels reach 40 per module, (collector) fixtures contain every URL from the sheet and the synthetic file, (ai-core) findings exist for those documents, otherwise `/eval` counts them as score 0. Optional (api): document the `gold.csv` format in `docs/contracts.md`.
+
+## 2026-11-22 — gold labels for the 11 demo fixtures
+- At the human's explicit request the agent proposed labels for the 11 `collector/fixtures/sample/demo.jsonl` documents (M1 9 rows, M2 3, M3 4) using `ai/eval/rubric.md`, appended to `label_sheet.csv` (notes say "zaproponowana przez agenta"), rebuilt `gold.csv`: M1 39, M2 22, M3 39 rows. Human must review these 16 rows before relying on the metrics.
+- Added `ai/eval/gold_urls_to_load.csv` (url, module, source) for collector: URLs gold rows need in `documents`.
+
+- M2 row 27 (`tms.pl`, was POMIN) labelled 0 by the agent at the human's request after reading the live page; borderline (risk warning only in footer, rule 6). Review it. gold.csv: M1 39, M2 23, M3 39.
+
+## 2026-11-22 — M2 gold up to 40
+- At the human's request the agent added 17 M2 rows (labels proposed by the agent, to be reviewed): 4 official Polish landing pages checked live on 22.11 (xtb.com/pl, cmcmarkets.com/pl-pl, tickmill.com/pl, ig.com/pl; all with a CFD risk warning, label 0) and 13 new synthetic documents `m2-s13..s25` in `synthetic_m2.jsonl` (7 violations covering rules 1, 2, 10, 12b, 3/6/7, 15, 17; 6 compliant incl. forecast with warning, tax note, comparison with source).
+- Limits: real firm pages are almost always compliant and some geo-block or serve English text, so positives are synthetic. Live page content changes; the collector's copy may differ from what was labelled. `gold_urls_to_load.csv` regenerated.
+
+## 2026-11-22 — M1 and M3 gold to 40
+- At the human's request the agent added one synthetic document per module in `ai/eval/synthetic_m1_m3.jsonl` (M1 positive: third party promoting Trading 212 with a referral code; M3 negative: educational text without a recommendation). Labels agent-proposed, to be reviewed. gold.csv: 40/40/40. Collector must load this file too (listed in `gold_urls_to_load.csv`).
+
+## 2026-11-22 — label review
+- The human reviewed and approved all agent-proposed labels (16 demo fixtures, tms.pl, 17 M2, 2 M1/M3); notes in `label_sheet.csv` now say "zatwierdzona przez czlowieka 22.11". gold.csv unchanged (120 rows, 40 per module).

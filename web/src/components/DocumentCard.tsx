@@ -1,4 +1,4 @@
-import { formatDate } from "@/lib/utils";
+import { formatDate, sourceLabel } from "@/lib/utils";
 import type { DocumentInfo } from "@/types";
 
 function Highlighted({ text, quotes }: { text: string; quotes: string[] }) {
@@ -36,7 +36,7 @@ export function DocumentCard({ document, quotes }: DocumentCardProps) {
         </a>
       </p>
       <p className="mt-1 text-slate-500">
-        {document.sourceKind} · pobrano {formatDate(document.fetchedAt)}
+        {sourceLabel(document.sourceKind)} · pobrano {formatDate(document.fetchedAt)}
       </p>
       {document.textClean && (
         <p className="mt-3 whitespace-pre-wrap leading-relaxed">

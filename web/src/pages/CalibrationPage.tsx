@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EvalMetrics } from "@/components/EvalMetrics";
 import { ModuleTabs } from "@/components/ModuleTabs";
@@ -6,9 +6,7 @@ import { ThresholdControl } from "@/components/ThresholdControl";
 import { DemoBadge } from "@/components/DemoBadge";
 import { QueryState } from "@/components/QueryState";
 import { apiErrorMessage } from "@/lib/apiError";
-import { isMocked, fetchEval, fetchModuleSettings, saveModuleSettings } from "@/lib/api";
-import { MODULE_LABEL } from "@/lib/utils";
-import { mockFindings } from "@/mocks";
+import { fetchEval, fetchModuleSettings, saveModuleSettings } from "@/lib/api";
 import type { ModuleId } from "@/types";
 
 export default function CalibrationPage() {
@@ -34,13 +32,8 @@ export default function CalibrationPage() {
     placeholderData: keepPreviousData,
   });
 
-  const resultsCount = useMemo(() => {
-    if (!isMocked("eval") || threshold === null) return 0;
-    return mockFindings.filter((f) => f.module === module && f.score >= threshold).length;
-  }, [module, threshold]);
-
   const save = useMutation({
-    mutationFn: (value: number) => saveModuleSettings(module, { threshold: value }),
+    mutationFn: (value: number) => saveModuleSettings(module, { threshold: value, weights: settings.data?.weights }),
     onSuccess: (data) => {
       queryClient.setQueryData(["module-settings", module], data);
       setOverride(null);
@@ -91,15 +84,6 @@ export default function CalibrationPage() {
       <section className="space-y-3">
         <QueryState isLoading={evalQuery.isLoading} isError={evalQuery.isError} errorMessage={apiErrorMessage(evalQuery.error, "Nie udało się pobrać wyników ewaluacji.")} loadingMessage="Ładowanie wyników ewaluacji…" onRetry={() => void evalQuery.refetch()} />
         {data && <EvalMetrics data={data} />}
-        {isMocked("eval") && threshold !== null && (
-          <div className="rounded-lg border border-line bg-card p-4">
-            <p className="text-xs uppercase text-slate-500">Wyników na liście przy tym progu</p>
-            <p className="mt-1 text-3xl font-semibold tabular-nums">{resultsCount}</p>
-            <p className="mt-1 text-xs text-slate-500">
-              {MODULE_LABEL[module]}, score ≥ {threshold.toFixed(2)}
-            </p>
-          </div>
-        )}
       </section>
     </div>
   );

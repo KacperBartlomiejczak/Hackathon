@@ -291,6 +291,6 @@ async def evaluate(
             res = await run_eval(conn, module, threshold)
     except (ValueError, OSError, asyncpg.PostgresError) as exc:
         logger.error("eval module=%s threshold=%s failed: %s", module, threshold, exc)
-        raise HTTPException(status_code=500, detail=f"eval failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail="eval failed") from exc
     logger.info("eval module=%s threshold=%s tp=%d fp=%d fn=%d", module, threshold, res.tp, res.fp, res.fn)
     return EvalResult(**asdict(res))

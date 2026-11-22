@@ -31,12 +31,15 @@ export type ExportKey =
   | "url"
   | "sourceKind"
   | "createdAt"
+  | "lastSeenAt"
+  | "active"
   | "score"
   | "riskLevel"
   | "status"
   | "label";
 
-export type ExportValue = string | number | string[] | null;
+/** boolean: CSV writes "tak"/"nie", JSON keeps true/false. */
+export type ExportValue = string | number | boolean | string[] | null;
 export type ExportRow = Partial<Record<ExportKey, ExportValue>>;
 
 /**
@@ -81,6 +84,9 @@ export const MODULE_COLUMNS: Record<1 | 2 | 3, readonly ExportColumn[]> = {
     { key: "createdAt", label: "Data" },
     { key: "score", label: "Score", decimals: 2 },
     { key: "status", label: "Status" },
+    // Periodic update (issue #55): re-crawl refreshes lastSeenAt, `active` = still found.
+    { key: "lastSeenAt", label: "Ostatnio widziana" },
+    { key: "active", label: "Aktywna" },
   ],
   2: [
     { key: "firm", label: "Firma" },

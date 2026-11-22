@@ -110,3 +110,45 @@
 - Found on the way: a Windows clone made before `.gitattributes` (PR #40) keeps CRLF in `infra/seaweedfs/init-bucket.sh` after `git merge origin/main`, because merge does not rewrite unchanged files. `s3-init` exits 2 and api never starts. Fresh clones are fine (blob is LF). One-time fix: `sed -i 's/\r$//' infra/seaweedfs/init-bucket.sh`.
 - #42 (api part, answer only): `documents.url_hash` = `sha256(url)` without normalisation, `UNIQUE`, and the collector upserts on it, so the URL is a stable key across re-seeds and `documents.id` is not. Suggested for ai-data: `gold.csv` keyed by `url`, `eval.py` joins on `url_hash`. No schema change needed.
 - Human correction: Claude ran `gh pr checkout 40` to read PR #40, which detached HEAD. HEAD was pointed back to `team/api` and, after the human's OK, the working tree was restored with `git restore --source=HEAD --staged --worktree -- :/`. PRs are now read via `git fetch origin pull/N/head`.
+
+## Issues #55 (M1 periodic update) and #54 (M1/M2/M3 aggregator)
+- Asked Claude to: check which open issues concern api and fix them. Claude found #55 and #54 (both `team:api`, shared with other teams), wrote a plan per CLAUDE.md, and the human accepted it ("Akceptuję plan, działaj"). The human confirmed the DB trigger and computing `isActive` against `ok` runs, and asked to keep `004_seen_tracking.sql` next to `003_trgm.sql` so docker runs it on its own.
+- Skill used: `data-contract` (followed by hand). The migration stays in `infra/db/`, not `infra/db/migrations/` as the skill says, because `docker-entrypoint-initdb.d` does not read subfolders.
+- #55: `infra/db/004_seen_tracking.sql` adds `documents.first_seen_at` / `last_seen_at`, filled by trigger `documents_track_seen`. The collector already upserts on `url_hash` and overwrites `fetched_at` on every re-crawl, so `collector/` needs no change. api computes `isActive` and returns it in `/findings`, `/findings/:id` and `/documents*`. The M1 export gets two columns: „Ostatnio widziana” and „Aktywna” (`tak`/`nie`).
+  - Change found while coding (same rule, same files): the collector marks a run `ok` right after queueing its items, before they are fetched. So `isActive` ignores runs that finished less than 1 h ago; without that, every ad of a source would look inactive for a few minutes after each crawl.
+- #54: `api/src/routes/documents.ts` = the named result aggregator. `GET /documents` (same filters as `/findings`, one object per document) and `GET /documents/:id` (with `reasons`). Each object has `document`, `modules {"1","2","3"}` and `overall` (maxScore, riskLevel, flaggedModules, findingsCount, lastFindingAt). The aggregation is the pure function `aggregateModules`.
+- Bug caught in verification: `/documents/3`, whose source had never been crawled, returned `isActive: false`. In a single-table select drizzle renders columns without the table name, so the subquery compared `crawl_runs.source_id` with itself. Fixed by writing the table names out in `api/src/db/seen.ts`, plus a regression test on the generated SQL.
+- Verified:
+  - typecheck, lint, `grep console.` empty, `npm test` 22/22 (new: 4 for `aggregateModules`, 1 for the SQL, 2 for the export).
+  - Scratch `pgvector/pgvector:0.8.7-pg16` with `infra/db` mounted as initdb: 001-004 ran on their own. Trigger checked:
+    - insert: first = last = fetched;
+    - re-crawl upsert: first unchanged, last moves forward;
+    - older retry: last does not move back;
+    - direct write to `first_seen_at`: ignored.
+  - Re-running 004 is a no-op. On a 001-003 database that already has rows, 004 backfills both columns from `fetched_at`.
+  - api run locally against that database. curl results for `/documents`, `?module=2`, `/documents/:id` (with and without findings), 404/400, `/findings`, `/findings/1` and the M1 CSV/JSON exports all match the contract. `isActive`: seen again → true, missed by a later `ok` run → false, source never crawled → true. Container removed afterwards.
+- Not done (other teams' parts of these issues): web view of `/documents` (#5), aggregator description in `docs/` and on the slide (#6). Detecting a content change under the same URL needs a content hash in the collector (lead).
+
+## 2026-11-21: web/Dockerfile libxml2 (Issue #44, web part)
+- Asked: check open web issues and fix them. Left for web: one HIGH CVE (`libxml2 2.13.9-r2`) in the `nginx:1.30.7-alpine` runtime image (#44); #51 (drop social sources from the filter) waits for the lead's decision.
+- Out of my scope (`web/` is team/web). The human chose to commit it on team/api, but `.githooks/pre-commit` blocked the commit (web/ files on team/api) and `--no-verify` is denied, so it was first posted as a patch in #44. Later the user got full access to all team dirs and a local hook copy (`core.hooksPath=.git/hooks-local`) allows it, so it was committed on team/api; details in `docs/ai-log/web.md`.
+- Change (patch): `RUN apk upgrade --no-cache libxml2` in the runtime stage of `web/Dockerfile`, result noted in `web/SECURITY.md`.
+- Verified: `docker build` of `web/` OK, `libxml2-2.13.9-r3` in the image, Trivy 0.76.2 CRITICAL/HIGH = 0, `/`, `/findings`, `/calibration` return 200.
+
+## 2026-11-21: web issues #51 (web part) and #44 (docs), with full access
+- Asked: fix the web issues myself. Rules applied: `docs/team/5-web.md` for `web/`, `docs/team/6-infra-pitch.md` for `docs/`, `README.md`, `.env.example`. Plan accepted without the clean-start check.
+- #51: the „Źródło” filter lists only kinds that have a source in `GET /sources` (plus the kind already in the URL); if `/sources` fails it shows every kind. Social kinds stay in the types, so a future TikTok/Instagram adapter appears in the filter by itself. The adapter decision stays with the lead.
+- #44: `docs/DEPENDENCIES.md` and `docs/SECURITY.md` show the new web images and Trivy results; `OLLAMA_NUM_PARALLEL=1` in `.env.example` with a README note (2 = M1 and M3 in parallel, more RAM/VRAM; not tested, so default stays 1).
+- Verified: web Docker build (tsc + vite) OK; scratch Postgres with sources web/youtube/sample + local api: filter shows exactly those 3, `?source=tiktok` keeps tiktok selected, api down → full list. Browser console clean while the api was up. Scratch containers removed.
+- Not done: clean start from zero (skipped by the human), GitHub Actions (`.github/` is outside the team/api hook).
+
+## 2026-11-22: Issues #71 (write auth) and #70 (api part: token for /eval)
+- Asked Claude to: check the open api issues and handle them. It found #71 and #70 (both `team:api`), wrote a plan per CLAUDE.md, and the human accepted it ("ok — zatwierdzam plan").
+- Skill used: `data-contract` (followed by hand): `docs/contracts.md` describes `ADMIN_TOKEN` and the `X-Internal-Token` header api sends to ai. No DB change.
+- #71: `api/src/auth.ts` adds a `preHandler` hook. With `ADMIN_TOKEN` set (min. 16 chars), every method other than GET/HEAD/OPTIONS needs `Authorization: Bearer <token>`, otherwise `401 {error:"unauthorized"}`. `/internal/*` is skipped (it has X-Internal-Token) and unknown routes keep their 404. The hook runs after the rate limit. Empty or unset token = writes stay open as before, and api logs a warning at start. web already sends `VITE_ADMIN_TOKEN` (271bf89).
+- #70: the `GET /eval` proxy sends `X-Internal-Token`, so ai can turn on `AI_REQUIRE_TOKEN`.
+- Verified:
+  - typecheck, lint, `grep console.` empty, `npm test` 43/43 (new `test/auth.test.ts`: 401 without a token, with a wrong token and with another scheme for each write route; correct token passes; GET, `/internal/*` and 404 untouched; token off = open; config rejects a short token; `/eval` forwards the header to a stub ai).
+  - Local api on a scratch `pgvector/pgvector:0.8.7-pg16` with `infra/db` and a stub ai: PUT/PATCH/POST without a token → 401; PUT with the token → 200 and saved; GET without a token → 200; CORS preflight allows `authorization`; `/eval` → stub accepted the token (200); the token value does not appear in the log. Scratch container and processes removed.
+- PR review (2026-11-22, CVE and performance pass before merge): the hook was first registered as `onRequest`, but @fastify/rate-limit 11 adds route-level `onRequest` hooks, which Fastify runs after instance-level ones, so wrong tokens got 401 forever and never 429 (checked with `inject`: 6 bad PUTs at `max: 3` → all 401). Moved to `preHandler` and added a test (3 wrong tokens → 401, then 429). `npm audit`: 0 vulnerabilities, no dependency changes; the added per-request cost is one SHA-256 on writes only.
+- Left for others: infra puts `ADMIN_TOKEN=` / `VITE_ADMIN_TOKEN=` (same value) and `AI_REQUIRE_TOKEN=true` in `.env.example` and README; lead adds `X-Internal-Token` in `collector/src/ai/client.ts`. `AI_REQUIRE_TOKEN` can go on only after that.
