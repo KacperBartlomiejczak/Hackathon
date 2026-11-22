@@ -78,6 +78,30 @@ def test_m3_rules_noun_forms_and_plural_dm() -> None:
     assert score >= 0.8
 
 
+DISC_NEG = "Nie jest rekomendacją inwestycyjną ani informacją rekomendującą strategię inwestycyjną."
+DISCLAIMER = "Ta publikacja handlowa jest informacyjna i edukacyjna. " + DISC_NEG
+
+
+def test_m3_rules_ignore_disclaimer() -> None:
+    assert m3.rules_hits(DISCLAIMER) == (0.0, [])
+    score, reasons = m3.rules_hits(DISCLAIMER + " " + ADVICE)
+    assert score > 0 and all("Nie jest rekomendacją" not in r.quote for r in reasons)
+
+
+def test_m3_strip_disclaimers() -> None:
+    assert m3.strip_disclaimers(DISCLAIMER + " Dziś omawiamy rynek.") == "Dziś omawiamy rynek."
+
+
+@pytest.mark.asyncio
+async def test_m3_disclaimer_quote_gives_no_finding() -> None:
+    quote = DISC_NEG
+    out = m3.M3Output(criteria=[m3.CriterionResult(criterion="individual_recommendations", verdict="fail",
+                                                   quote=quote, confidence=0.9)])
+    weights = {"llm": 0.5, "rules": 0.3, "emb": 0.2}
+    run = await m3.run_m3(FakeLLM(out), CONFIG, DISCLAIMER, [0.1], 1, 0.6, weights)  # type: ignore[arg-type]
+    assert run.finding is None
+
+
 def test_m3_rules_quiet_text() -> None:
     assert m3.rules_hits("Dziś ładna pogoda, idziemy na spacer.")[0] == 0.0
 
@@ -118,7 +142,7 @@ async def test_m3_shadow_advisory() -> None:
     run = await m3.run_m3(FakeLLM(out), CONFIG, ADVICE, [0.1], 1, 0.6,  # type: ignore[arg-type]
                           {"llm": 0.6, "rules": 0.25, "emb": 0.15})
     assert run.finding is not None and run.finding.module == 3 and run.finding.label == "shadow_advisory"
-    assert run.finding.prompt_version.startswith("m3-v3")
+    assert run.finding.prompt_version.startswith("m3-v4")
     assert run.score >= 0.6
 
 

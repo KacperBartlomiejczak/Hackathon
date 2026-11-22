@@ -172,3 +172,8 @@
 - **#70:** `/eval` nie zwraca już tekstu wyjątku w `detail` (`eval failed`, szczegóły tylko w logu), test regresji z fałszywym wyjątkiem zawierającym DSN. Testy 401/503 dla tokenu już istniały (`test_app.py`). Zostaje po stronie innych: `X-Internal-Token` w collectorze i w proxy `/eval` w api, `AI_REQUIRE_TOKEN` i `AI_CONFIG` w `.env.example` (infra).
 - **#73:** skan Trivy: `python:3.12.12-slim-bookworm` 9C/133H → `3.12.16-slim-bookworm` 2C/99H (bez poprawek upstream) → `3.12.16-slim-trixie` **0C/51H**. Dockerfile przełączony na trixie, obraz zbudowany, import zależności i `uid=10001` sprawdzone, pytest 117 passed. Wynik w `ai/SECURITY.md`.
 - **Do sprawdzenia przez człowieka:** `docker compose up --build` z nowym obrazem `ai` (nie uruchamiano pełnego stosu z Ollamą na tej maszynie).
+
+## 2026-11-22 — #95 M3: zastrzeżenie „nie jest rekomendacją” jako dowód
+- **Zlecono:** finding 65 (XTB) cytował disclaimer jako dowód doradztwa. Skill: risk-classifier. Patch przygotowany na `team/ai-data`, zastosowany tutaj.
+- **Zmiana:** `rules/m3.yaml` (wzorzec `disclaimer`, reguły v4), `modules/m3.py` (reguły pomijają zdania z zastrzeżeniem, `strip_disclaimers()` przed LLM, reasons z cytatem-zastrzeżeniem odrzucane), prompt `m3-v4`, 3 testy. Pytest 120 passed.
+- **Do sprawdzenia przez człowieka:** reanaliza dokumentu 99 na żywym stosie i `/findings/65`. Starsze findings M3 zostają na v3 do reanalizy.
